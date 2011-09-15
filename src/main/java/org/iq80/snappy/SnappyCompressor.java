@@ -290,7 +290,7 @@ public final class SnappyCompressor
             //     if not, allowFastPath = false.
             //   - The output will always have 32 spare bytes (see
             //     MaxCompressedLength).
-            if (SnappyInternalUtils.HAS_UNSAFE && allowFastPath && length <= 16) {
+            if (allowFastPath && length <= 16) {
                 SnappyInternalUtils.copyLong(literal, literalIndex, output, outputIndex);
                 SnappyInternalUtils.copyLong(literal, literalIndex + 8, output, outputIndex + 8);
                 outputIndex += length;

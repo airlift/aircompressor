@@ -111,7 +111,7 @@ public final class SnappyDecompressor
 
     private static int readTrailer(byte[] data, int index, int bytes)
     {
-        if (SnappyInternalUtils.HAS_UNSAFE && data.length > index + 4) {
+        if (data.length > index + 4) {
             return SnappyInternalUtils.loadInt(data, index) & wordmask[bytes];
         }
         int value = 0;
@@ -130,34 +130,30 @@ public final class SnappyDecompressor
 
     private static void copyLiteral(byte[] input, int ipIndex, byte[] output, int opIndex, int literalLength)
     {
-        if (SnappyInternalUtils.HAS_UNSAFE) {
-            if (literalLength < 0 || ipIndex + literalLength > input.length || opIndex + literalLength > output.length) {
-                throw new IndexOutOfBoundsException();
-            }
+        if (literalLength < 0 || ipIndex + literalLength > input.length || opIndex + literalLength > output.length) {
+            throw new IndexOutOfBoundsException();
+        }
 
-            int spaceLeft = output.length - opIndex;
+        int spaceLeft = output.length - opIndex;
+        int readableBytes = input.length - ipIndex;
 
-            // most literals are less than 16 bytes to handle them specially
-            if (literalLength <= 16 && spaceLeft >= 16) {
-                SnappyInternalUtils.copyLong(input, ipIndex, output, opIndex);
-                SnappyInternalUtils.copyLong(input, ipIndex + 8, output, opIndex + 8);
-            }
-            else {
-                // copy long-by-long
-                int fastLength = literalLength & 0xFFFFFFF8;
-                for (int i = 0; i < fastLength; i += 8) {
-                    SnappyInternalUtils.copyLong(input, ipIndex + i, output, opIndex + i);
-                }
-
-                // copy byte-by-byte
-                int slowLength = literalLength & 0x7;
-                for (int i = 0; i < slowLength; i += 1) {
-                    output[opIndex + fastLength + i] = input[ipIndex + fastLength + i];
-                }
-            }
+        // most literals are less than 16 bytes to handle them specially
+        if (literalLength <= 16 && spaceLeft >= 16 && readableBytes >= 16) {
+            SnappyInternalUtils.copyLong(input, ipIndex, output, opIndex);
+            SnappyInternalUtils.copyLong(input, ipIndex + 8, output, opIndex + 8);
         }
         else {
-            System.arraycopy(input, ipIndex, output, opIndex, literalLength);
+            // copy long-by-long
+            int fastLength = literalLength & 0xFFFFFFF8;
+            for (int i = 0; i < fastLength; i += 8) {
+                SnappyInternalUtils.copyLong(input, ipIndex + i, output, opIndex + i);
+            }
+
+            // copy byte-by-byte
+            int slowLength = literalLength & 0x7;
+            for (int i = 0; i < slowLength; i += 1) {
+                output[opIndex + fastLength + i] = input[ipIndex + fastLength + i];
+            }
         }
     }
 

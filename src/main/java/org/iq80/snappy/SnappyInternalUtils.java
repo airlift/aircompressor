@@ -1,30 +1,43 @@
 package org.iq80.snappy;
 
-import sun.misc.Unsafe;
-
-import java.lang.reflect.Field;
-
 final class SnappyInternalUtils
 {
     private SnappyInternalUtils()
     {
     }
 
-    static final boolean HAS_UNSAFE = true;
-    private static final Unsafe unsafe;
+    private static final Memory memory;
 
     static {
+        // Try to only load one implementation of Memory to assure the call sites are monomorphic (fast)
+        Memory memoryInstance = null;
         try {
-            Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-            theUnsafe.setAccessible(true);
-            unsafe = (Unsafe) theUnsafe.get(null);
+            Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("org.iq80.snappy.UnsafeMemory").asSubclass(Memory.class);
+            Memory unsafeMemory = unsafeMemoryClass.newInstance();
+            if (unsafeMemory.loadInt(new byte[4], 0) == 0) {
+                memoryInstance = unsafeMemory;
+            }
         }
-        catch (Exception e) {
-            throw new RuntimeException(e);
+        catch (Throwable ignored) {
         }
+        if (memoryInstance == null) {
+            try {
+                Class<? extends Memory> slowMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("org.iq80.snappy.SlowMemory").asSubclass(Memory.class);
+                Memory slowMemory = slowMemoryClass.newInstance();
+                if (slowMemory.loadInt(new byte[4], 0) == 0) {
+                    memoryInstance = slowMemory;
+                } else {
+                    throw new AssertionError("SlowMemory class is broken!");
+                }
+            }
+            catch (Throwable ignored) {
+                throw new AssertionError("Could not find SlowMemory class");
+            }
+        }
+        memory = memoryInstance;
     }
 
-    static final long BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
+    static final boolean HAS_UNSAFE = memory.fastAccessSupported();
 
     static boolean equals(byte[] left, int leftIndex, byte[] right, int rightIndex, int length)
     {
@@ -42,38 +55,17 @@ final class SnappyInternalUtils
 
     static int loadInt(byte[] data, int index)
     {
-        if (HAS_UNSAFE) {
-            return unsafe.getInt(data, BYTE_ARRAY_OFFSET + index);
-        }
-        else {
-            return (data[index] & 0xff) |
-                    (data[index + 1] & 0xff) << 8 |
-                    (data[index + 2] & 0xff) << 16 |
-                    (data[index + 3] & 0xff) << 24;
-        }
+        return memory.loadInt(data, index);
     }
 
     static void copyLong(byte[] src, int srcIndex, byte[] dest, int destIndex)
     {
-        if (HAS_UNSAFE) {
-            long value = unsafe.getLong(src, BYTE_ARRAY_OFFSET + srcIndex);
-            unsafe.putLong(dest, BYTE_ARRAY_OFFSET + destIndex, value);
-        }
-        else {
-            // this is only used in the unsafe optimized code
-            throw new UnsupportedOperationException();
-        }
+        memory.copyLong(src, srcIndex, dest, destIndex);
     }
 
     static long loadLong(byte[] data, int index)
     {
-        if (HAS_UNSAFE) {
-            return unsafe.getLong(data, BYTE_ARRAY_OFFSET + index);
-        }
-        else {
-            // this is only used in the unsafe optimized code
-            throw new UnsupportedOperationException();
-        }
+        return memory.loadLong(data, index);
     }
 
     //
