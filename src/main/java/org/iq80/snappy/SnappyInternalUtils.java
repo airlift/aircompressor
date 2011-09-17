@@ -68,6 +68,11 @@ final class SnappyInternalUtils
         return memory.loadLong(data, index);
     }
 
+    static void copyMemory(byte[] input, int inputIndex, byte[] output, int outputIndex, int length)
+    {
+        memory.copyMemory(input, inputIndex, output, outputIndex, length);
+    }
+
     //
     // Copied from Guava Preconditions
     static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)

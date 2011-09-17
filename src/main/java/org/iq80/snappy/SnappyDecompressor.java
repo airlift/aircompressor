@@ -64,10 +64,10 @@ public final class SnappyDecompressor
     }
 
     private static int decompressAllTags(
-            byte[] input,
+            final byte[] input,
             final int inputOffset,
             final int inputSize,
-            byte[] output,
+            final byte[] output,
             final int outputOffset)
     {
         final int ipLimit = inputOffset + inputSize;
@@ -96,12 +96,9 @@ public final class SnappyDecompressor
             else {
                 // copyOffset/256 is encoded in bits 8..10.  By just fetching
                 // those bits, we get copyOffset (since the bit-field starts at
-                // bit 8).
-                int copyOffset = entry & 0x700;
-                // trailer of a literal contains more of the copy offset length
-                copyOffset += trailer;
-
-                copyFromSelf(output, outputOffset, copyOffset, opIndex, length);
+                // bit 8), and the trailer of a literal contains additional bits
+                // for the copy offset length
+                copyFromSelf(output, outputOffset, (entry & 0x700) + trailer, opIndex, length);
                 opIndex += length;
             }
         }
@@ -142,17 +139,22 @@ public final class SnappyDecompressor
             SnappyInternalUtils.copyLong(input, ipIndex, output, opIndex);
             SnappyInternalUtils.copyLong(input, ipIndex + 8, output, opIndex + 8);
         }
-        else {
-            // copy long-by-long
-            int fastLength = literalLength & 0xFFFFFFF8;
-            for (int i = 0; i < fastLength; i += 8) {
-                SnappyInternalUtils.copyLong(input, ipIndex + i, output, opIndex + i);
-            }
+        else
+        {
+            if (literalLength <= 32) {
+                // copy long-by-long
+                int fastLength = literalLength & 0xFFFFFFF8;
+                for (int i = 0; i < literalLength; i += 8) {
+                    SnappyInternalUtils.copyLong(input, ipIndex + i, output, opIndex + i);
+                }
 
-            // copy byte-by-byte
-            int slowLength = literalLength & 0x7;
-            for (int i = 0; i < slowLength; i += 1) {
-                output[opIndex + fastLength + i] = input[ipIndex + fastLength + i];
+                // copy byte-by-byte
+                int slowLength = literalLength & 0x7;
+                for (int i = 0; i < slowLength; i += 1) {
+                    output[opIndex + fastLength + i] = input[ipIndex + fastLength + i];
+                }
+            } else {
+                SnappyInternalUtils.copyMemory(input, ipIndex, output, opIndex, literalLength);
             }
         }
     }

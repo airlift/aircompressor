@@ -9,4 +9,6 @@ interface Memory
     void copyLong(byte[] src, int srcIndex, byte[] dest, int destIndex);
 
     long loadLong(byte[] data, int index);
+
+    void copyMemory(byte[] input, int inputIndex, byte[] output, int outputIndex, int length);
 }

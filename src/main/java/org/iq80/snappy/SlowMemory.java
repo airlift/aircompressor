@@ -37,4 +37,10 @@ class SlowMemory implements Memory
                 (data[index + 6] & 0xffL) << 48 |
                 (data[index + 7] & 0xffL) << 56;
     }
+
+    @Override
+    public void copyMemory(byte[] input, int inputIndex, byte[] output, int outputIndex, int length)
+    {
+        System.arraycopy(input, inputIndex, output, outputIndex, length);
+    }
 }

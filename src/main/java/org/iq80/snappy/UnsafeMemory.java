@@ -19,7 +19,7 @@ class UnsafeMemory implements Memory
         }
     }
 
-    static final int BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
+    private static final int BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
 
     @Override
     public boolean fastAccessSupported()
@@ -44,5 +44,11 @@ class UnsafeMemory implements Memory
     public long loadLong(byte[] data, int index)
     {
         return unsafe.getLong(data, (long) (BYTE_ARRAY_OFFSET + index));
+    }
+
+    @Override
+    public void copyMemory(byte[] input, int inputIndex, byte[] output, int outputIndex, int literalLength)
+    {
+        unsafe.copyMemory(input, UnsafeMemory.BYTE_ARRAY_OFFSET + inputIndex, output, UnsafeMemory.BYTE_ARRAY_OFFSET + outputIndex, literalLength);
     }
 }
