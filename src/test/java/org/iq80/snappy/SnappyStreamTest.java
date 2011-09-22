@@ -6,12 +6,14 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
 import static com.google.common.io.ByteStreams.toByteArray;
+import static com.google.common.primitives.UnsignedBytes.toInt;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -28,6 +30,10 @@ public class SnappyStreamTest
 
         assertEquals(uncompressed, original);
         assertTrue(compressed.length < original.length);
+        assertEquals(compressed.length, 22);      // 3 byte header, 19 bytes compressed data
+        assertEquals(toInt(compressed[0]), 0x01); // flag: compressed
+        assertEquals(toInt(compressed[1]), 0x00); // length: 19 = 0x0013
+        assertEquals(toInt(compressed[2]), 0x13);
     }
 
     @Test
@@ -120,7 +126,10 @@ public class SnappyStreamTest
         byte[] uncompressed = uncompress(compressed);
 
         assertEquals(uncompressed, random);
-        assertEquals(compressed.length, random.length + 2);
+        assertEquals(compressed.length, random.length + 3);
+        assertEquals(toInt(compressed[0]), 0x00); // flag: uncompressed
+        assertEquals(toInt(compressed[1]), 0x13); // length: 5000 = 0x1388
+        assertEquals(toInt(compressed[2]), 0x88);
     }
 
     @Test
@@ -136,7 +145,7 @@ public class SnappyStreamTest
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
 
-            int overhead = (i <= 32768) ? 2 : 4;
+            int overhead = (i <= 32768) ? 3 : 6;
             assertEquals(uncompressed, original);
             assertEquals(compressed.length, original.length + overhead);
         }
@@ -152,6 +161,50 @@ public class SnappyStreamTest
             byte[] uncompressed = uncompress(compressed);
             assertEquals(uncompressed, original);
         }
+    }
+
+    @Test
+    public void testEmpty()
+            throws Exception
+    {
+        byte[] empty = new byte[0];
+        assertEquals(compress(empty), empty);
+        assertEquals(uncompress(empty), empty);
+    }
+
+    @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block header.*")
+    public void testShortBlockHeader()
+            throws Exception
+    {
+        uncompress(new byte[] { 0 });
+    }
+
+    @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block data.*")
+    public void testShortBlockData()
+            throws Exception
+    {
+        uncompress(new byte[] { 0, 0, 4, 'x', 'x' }); // flag = 0, size = 4, block data = [x, x]
+    }
+
+    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid compressed flag in header: 0x41")
+    public void testInvalidBlockHeaderCompressedFlag()
+            throws Exception
+    {
+        uncompress(new byte[] { 'A', 0, 1 }); // flag = 'A', block size = 1
+    }
+
+    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid block size in header: 0")
+    public void testInvalidBlockSizeZero()
+            throws Exception
+    {
+        uncompress(new byte[] { 0, 0, 0 }); // flag = 'A', block size = 0
+    }
+
+    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid block size in header: 55555")
+    public void testInvalidBlockSizeLarge()
+            throws Exception
+    {
+        uncompress(new byte[] { 0, (byte) 0xD9, 0x03 }); // flag = 'A', block size = 55555
     }
 
     private static byte[] getRandom(double compressionRatio, int length)

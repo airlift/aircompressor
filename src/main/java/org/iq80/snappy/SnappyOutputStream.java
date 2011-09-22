@@ -6,13 +6,13 @@ import java.io.OutputStream;
 /**
  * This class implements an output stream for writing Snappy compressed data.
  * The output format is one or more compressed blocks of data, each of which
- * is preceded by a two byte header.
+ * is preceded by a three byte header.
  * <p/>
- * The first bit of the header is a flag indicating if the block is compressed
- * or not. The remaining bits are the size of the block, minus one, as a big
- * endian number. Subtracting one from the size allows us to store sizes from
- * 1 to 32768 rather than 0 to 32767. This is possible because we never write
- * a block size of zero.
+ * The first byte of the header is a flag indicating if the block is compressed
+ * or not. A value of 0x00 means uncompressed, and 0x01 means compressed.
+ * <p/>
+ * The second and third bytes are the size of the block in the stream as a big
+ * endian number. This value is never zero as empty blocks are never written.
  * <p/>
  * An uncompressed block is simply copied from the input, thus guaranteeing
  * that the output is never larger than the input (not including the header).
@@ -21,7 +21,8 @@ public class SnappyOutputStream
         extends OutputStream
 {
     // the header format requires the max block size to fit in 15 bits -- do not change!
-    private final byte[] buffer = new byte[32768];
+    static final int MAX_BLOCK_SIZE = 1 << 15;
+    private final byte[] buffer = new byte[MAX_BLOCK_SIZE];
     private final byte[] outputBuffer = new byte[Snappy.maxCompressedLength(buffer.length)];
     private final OutputStream out;
 
@@ -116,28 +117,19 @@ public class SnappyOutputStream
 
         // use uncompressed input if less than 12.5% compression
         if (compressed >= (length - (length / 8))) {
-            writeUncompressedBlock(input, offset, length);
+            writeBlock(input, offset, length, false);
         }
         else {
-            writeCompressedBlock(outputBuffer, 0, compressed);
+            writeBlock(outputBuffer, 0, compressed, true);
         }
     }
 
-    private void writeUncompressedBlock(byte[] uncompressed, int offset, int length)
+    private void writeBlock(byte[] data, int offset, int length, boolean compressed)
             throws IOException
     {
-        int n = length - 1;
-        out.write(n >>> 8);
-        out.write(n & 0xFF);
-        out.write(uncompressed, offset, length);
-    }
-
-    private void writeCompressedBlock(byte[] compressed, int offset, int length)
-            throws IOException
-    {
-        int n = length - 1;
-        out.write((n >>> 8) | 0x80);
-        out.write(n & 0xFF);
-        out.write(compressed, offset, length);
+        out.write(compressed ? 0x01 : 0x00);
+        out.write(length >>> 8);
+        out.write(length & 0xFF);
+        out.write(data, offset, length);
     }
 }

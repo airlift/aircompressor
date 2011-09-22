@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static java.lang.Math.min;
+import static java.lang.String.format;
+import static org.iq80.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
 
 /**
  * This class implements an input stream for reading Snappy compressed data
@@ -15,9 +17,9 @@ public class SnappyInputStream
 {
     // The buffer size is the same as the block size.
     // This works because the original data is not allowed to expand.
-    private final byte[] input = new byte[32768];
-    private final byte[] uncompressed = new byte[32768];
-    private final byte[] headerBytes = new byte[2];
+    private final byte[] input = new byte[MAX_BLOCK_SIZE];
+    private final byte[] uncompressed = new byte[MAX_BLOCK_SIZE];
+    private final byte[] header = new byte[3];
     private final InputStream in;
 
     // Buffer is a reference to the real buffer for the current block:
@@ -89,15 +91,12 @@ public class SnappyInputStream
             return false;
         }
 
-        if (!readBlockHeaderBytes()) {
+        if (!readBlockHeader()) {
             eof = true;
             return false;
         }
-        int header = convertBlockHeaderBytes();
-
-        // extract compressed flag and length from header
-        boolean compressed = (header & 0x8000) != 0;
-        int length = (header & 0x7FFF) + 1;
+        boolean compressed = getHeaderCompressedFlag();
+        int length = getHeaderLength();
 
         readInput(length);
 
@@ -132,27 +131,47 @@ public class SnappyInputStream
         }
     }
 
-    private boolean readBlockHeaderBytes()
+    private boolean readBlockHeader()
             throws IOException
     {
-        int n = in.read(headerBytes, 0, 2);
-        if (n == -1) {
-            return false;
-        }
-        if (n == 1) {
-            int b = in.read();
-            if (b == -1) {
-                throw new EOFException("encountered EOF while reading block header");
+        int offset = 0;
+        while (offset < header.length) {
+            int size = in.read(header, offset, header.length - offset);
+            if (size == -1) {
+                // EOF on first byte means the stream ended cleanly
+                if (offset == 0) {
+                    return false;
+                }
+                throw new EOFException("encounted EOF while reading block header");
             }
-            headerBytes[1] = (byte) b;
+            offset += size;
         }
         return true;
     }
 
-    private int convertBlockHeaderBytes()
+    private boolean getHeaderCompressedFlag()
+            throws IOException
     {
-        int a = headerBytes[0] & 0xFF;
-        int b = headerBytes[1] & 0xFF;
-        return (a << 8) | b;
+        int x = header[0] & 0xFF;
+        switch (x) {
+            case 0x00:
+                return false;
+            case 0x01:
+                return true;
+            default:
+                throw new IOException(format("invalid compressed flag in header: 0x%02x", x));
+        }
+    }
+
+    private int getHeaderLength()
+            throws IOException
+    {
+        int a = header[1] & 0xFF;
+        int b = header[2] & 0xFF;
+        int length = (a << 8) | b;
+        if ((length <= 0) || (length > MAX_BLOCK_SIZE)) {
+            throw new IOException("invalid block size in header: " + length);
+        }
+        return length;
     }
 }
