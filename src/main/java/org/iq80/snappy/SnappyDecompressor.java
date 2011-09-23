@@ -141,7 +141,7 @@ public final class SnappyDecompressor
         }
         else
         {
-            if (literalLength <= 32) {
+            if (literalLength <= 32 && spaceLeft >= 32) {
                 // copy long-by-long
                 int fastLength = literalLength & 0xFFFFFFF8;
                 for (int i = 0; i < literalLength; i += 8) {
