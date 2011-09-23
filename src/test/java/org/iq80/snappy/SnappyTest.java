@@ -5,7 +5,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -32,10 +31,7 @@ public class SnappyTest
     public void testByteForByteTestData()
             throws Exception
     {
-        File[] testFiles = TEST_DATA_DIR.listFiles();
-        Assert.assertTrue(testFiles != null && testFiles.length > 0, "No test files at " +  TEST_DATA_DIR.getAbsolutePath());
-
-        for (File testFile : testFiles) {
+        for (File testFile : getTestFiles()) {
             byte[] data = Files.toByteArray(testFile);
             try {
                 verifyCompression(data, 0, data.length);
@@ -157,5 +153,12 @@ public class SnappyTest
             }
             return rawData;
         }
+    }
+
+    static File[] getTestFiles()
+    {
+        File[] testFiles = TEST_DATA_DIR.listFiles();
+        Assert.assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
+        return testFiles;
     }
 }
