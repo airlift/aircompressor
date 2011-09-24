@@ -62,6 +62,5 @@ class UnsafeMemory implements Memory
         assert outputIndex >= 0;
         assert outputIndex + length <= output.length;
         unsafe.copyMemory(input, UnsafeMemory.BYTE_ARRAY_OFFSET + inputIndex, output, UnsafeMemory.BYTE_ARRAY_OFFSET + outputIndex, length);
-        System.arraycopy(input, inputIndex, output, outputIndex, length);
     }
 }
