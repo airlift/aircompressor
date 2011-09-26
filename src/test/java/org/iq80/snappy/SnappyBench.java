@@ -128,7 +128,7 @@ public class SnappyBench
         // JNI
         long[] jniBenchmarkRuns = new long[NUMBER_OF_RUNS];
         for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
-            jniBenchmarkRuns[run] = benchmarkCompressJava(testData, iterations);
+            jniBenchmarkRuns[run] = benchmarkCompressJni(testData, iterations);
         }
         long jniMedianTimeInNanos = getMedianValue(jniBenchmarkRuns);
         long jniBytesPerSecond = (long) (1.0 * benchmarkBytesProcessed / nanosToSeconds(jniMedianTimeInNanos));
@@ -136,7 +136,7 @@ public class SnappyBench
         // Java
         long[] javaBenchmarkRuns = new long[NUMBER_OF_RUNS];
         for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
-            javaBenchmarkRuns[run] = benchmarkCompressJni(testData, iterations);
+            javaBenchmarkRuns[run] = benchmarkCompressJava(testData, iterations);
         }
         long javaMedianTimeInNanos = getMedianValue(javaBenchmarkRuns);
         long javaBytesPerSecond = (long) (1.0 * benchmarkBytesProcessed / nanosToSeconds(javaMedianTimeInNanos));
@@ -145,15 +145,15 @@ public class SnappyBench
         String heading = format("Compress/%d", testData.ordinal());
         String javaHumanReadableSpeed = toHumanReadableSpeed(javaBytesPerSecond);
         String jniHumanReadableSpeed = toHumanReadableSpeed(jniBytesPerSecond);
-        double improvement = 100.0d * (jniBytesPerSecond - javaBytesPerSecond) / jniBytesPerSecond;
+        double improvement = 100.0d * (javaBytesPerSecond - jniBytesPerSecond) / jniBytesPerSecond;
 
         System.err.printf(
                 "%-12s %10d %+9.1f%% %10s %10s %+7.1f%%  %s\n",
                 heading,
                 testData.size(),
                 testData.getCompressionRatio() * 100.0,
-                javaHumanReadableSpeed,
                 jniHumanReadableSpeed,
+                javaHumanReadableSpeed,
                 improvement,
                 testData);
     }
@@ -223,7 +223,7 @@ public class SnappyBench
         // JNI
         long[] jniBenchmarkRuns = new long[NUMBER_OF_RUNS];
         for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
-            jniBenchmarkRuns[run] = benchmarkUncompressJava(testData, iterations);
+            jniBenchmarkRuns[run] = benchmarkUncompressJni(testData, iterations);
         }
         long jniMedianTimeInNanos = getMedianValue(jniBenchmarkRuns);
         long jniBytesPerSecond = (long) (1.0 * benchmarkBytesProcessed / nanosToSeconds(jniMedianTimeInNanos));
@@ -231,7 +231,7 @@ public class SnappyBench
         // Java
         long[] javaBenchmarkRuns = new long[NUMBER_OF_RUNS];
         for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
-            javaBenchmarkRuns[run] = benchmarkUncompressJni(testData, iterations);
+            javaBenchmarkRuns[run] = benchmarkUncompressJava(testData, iterations);
         }
         long javaMedianTimeInNanos = getMedianValue(javaBenchmarkRuns);
         long javaBytesPerSecond = (long) (1.0 * benchmarkBytesProcessed / nanosToSeconds(javaMedianTimeInNanos));
@@ -240,15 +240,15 @@ public class SnappyBench
         String heading = format("Compress/%d", testData.ordinal());
         String javaHumanReadableSpeed = toHumanReadableSpeed(javaBytesPerSecond);
         String jniHumanReadableSpeed = toHumanReadableSpeed(jniBytesPerSecond);
-        double improvement = 100.0d * (jniBytesPerSecond - javaBytesPerSecond) / jniBytesPerSecond;
+        double improvement = 100.0d * (javaBytesPerSecond - jniBytesPerSecond) / jniBytesPerSecond;
 
         System.err.printf(
                 "%-12s %10d %+9.1f%% %10s %10s %+7.1f%%  %s\n",
                 heading,
                 testData.size(),
                 testData.getCompressionRatio() * 100.0,
-                javaHumanReadableSpeed,
                 jniHumanReadableSpeed,
+                javaHumanReadableSpeed,
                 improvement,
                 testData);
     }
