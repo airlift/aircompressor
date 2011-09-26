@@ -52,6 +52,15 @@ final class SnappyInternalUtils
         return true;
     }
 
+    public static int lookupShort(short[] data, int index)
+    {
+        return memory.lookupShort(data, index);
+    }
+
+    public static int loadByte(byte[] data, int index)
+    {
+        return memory.loadByte(data, index);
+    }
 
     static int loadInt(byte[] data, int index)
     {

@@ -9,6 +9,18 @@ class SlowMemory implements Memory
     }
 
     @Override
+    public int lookupShort(short[] data, int index)
+    {
+        return data[index] & 0xFFFF;
+    }
+
+    @Override
+    public int loadByte(byte[] data, int index)
+    {
+        return data[index] & 0xFF;
+    }
+
+    @Override
     public int loadInt(byte[] data, int index)
     {
         return (data[index] & 0xff) |

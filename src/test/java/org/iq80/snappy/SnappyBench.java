@@ -15,12 +15,12 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
-import static org.iq80.snappy.SnappyBench.TestSuite.Uncompress;
 import static org.iq80.snappy.SnappyBench.TestSuite.Compress;
+import static org.iq80.snappy.SnappyBench.TestSuite.Uncompress;
 
 /**
  * Port of the micro-benchmarks for  Snappy.
- *
+ * <p/>
  * Make sure to run these with the server version of hot spot.  I use the following configuration:
  * <pre>
  * {@code
@@ -30,15 +30,15 @@ import static org.iq80.snappy.SnappyBench.TestSuite.Compress;
  */
 public class SnappyBench
 {
-    private static final int NUMBER_OF_RUNS = 2;
+    private static final int NUMBER_OF_RUNS = 5;
     private static final int CALIBRATE_ITERATIONS = 100;
-    private static final int WARM_UP_SECONDS = 20;
+    private static final int WARM_UP_SECONDS = 45;
 
     public static void main(String[] args)
     {
         System.err.printf("Running micro-benchmarks.\n");
 
-          System.err.printf("%-18s %10s %10s %10s %10s\n",
+        System.err.printf("%-18s %10s %10s %10s %10s\n",
                 "Benchmark",
                 "Size",
                 "Time(ns)",
@@ -55,29 +55,28 @@ public class SnappyBench
         snappyBench.warmUp();
 
         // Easy to use individual tests
-        //TestSuite testSuite = Uncompress;
-        //for (int i = 0; i < 100; i++) {
-        //    System.err.println("GOOD");
-        //    snappyBench.run(testSuite, "lsp", 0);
-        //    snappyBench.run(testSuite, "bin", 0);
-        //    snappyBench.run(testSuite, "man", 0);
-        //    snappyBench.run(testSuite, "c", 0);
-        //    snappyBench.run(testSuite, "cp", 0);
-        //
-        //    // ok
-        //    System.err.println("OK");
-        //    snappyBench.run(testSuite, "xls", 0);
-        //
-        //    // bad
-        //    System.err.println("BAD");
-        //    snappyBench.run(testSuite, "txt1", 0);
-        //    snappyBench.run(testSuite, "txt2", 0);
-        //    snappyBench.run(testSuite, "txt3", 0);
-        //    snappyBench.run(testSuite, "txt4", 0);
-        //    snappyBench.run(testSuite, "sum", 0);
-        //}
+//        TestSuite testSuite = Uncompress;
+//        for (int i = 0; i < 100; i++) {
+//            snappyBench.run(testSuite, "jpg", 0);
+//
+//            snappyBench.run(testSuite, "lsp", 0);
+////            snappyBench.run(testSuite, "bin", 0);
+//            snappyBench.run(testSuite, "man", 0);
+//            snappyBench.run(testSuite, "c", 0);
+//            snappyBench.run(testSuite, "cp", 0);
+//
+//            // ok
+////            snappyBench.run(testSuite, "xls", 0);
+//
+//            // bad
+////            snappyBench.run(testSuite, "txt1", 0);
+////            snappyBench.run(testSuite, "txt2", 0);
+////            snappyBench.run(testSuite, "txt3", 0);
+//            snappyBench.run(testSuite, "txt4", 0);
+//            snappyBench.run(testSuite, "sum", 0);
+//        }
 
-        snappyBench.run(Compress);
+//        snappyBench.run(Compress);
         snappyBench.run(Uncompress);
 
     }
@@ -116,28 +115,23 @@ public class SnappyBench
 
     public void verify()
     {
-        // Warm up the code
-        {
-            for (String testName : files.keySet()) {
-                {
-                    byte[] contents = readTestDataFile(files.get(testName));
-                    byte[] compressed = new byte[Snappy.maxCompressedLength(contents.length)];
-                    int compressedSize = Snappy.compress(contents, 0, contents.length, compressed, 0);
+        for (String testName : files.keySet()) {
+            byte[] contents = readTestDataFile(files.get(testName));
+            byte[] compressed = new byte[Snappy.maxCompressedLength(contents.length)];
+            int compressedSize = Snappy.compress(contents, 0, contents.length, compressed, 0);
 
-                    byte[] uncompressed = new byte[contents.length];
+            byte[] uncompressed = new byte[contents.length];
 
-                    Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
-                    if (!Arrays.equals(uncompressed, contents)) {
-                        throw new AssertionError("Failed for " + testName) ;
-                    }
+            Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
+            if (!Arrays.equals(uncompressed, contents)) {
+                throw new AssertionError("Failed for " + testName);
+            }
 
-                    Arrays.fill(uncompressed, (byte) 0);
-                    compressed = Arrays.copyOf(compressed, compressedSize);
-                    Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
-                    if (!Arrays.equals(uncompressed, contents)) {
-                        throw new AssertionError("Failed for " + testName) ;
-                    }
-                }
+            Arrays.fill(uncompressed, (byte) 0);
+            compressed = Arrays.copyOf(compressed, compressedSize);
+            Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
+            if (!Arrays.equals(uncompressed, contents)) {
+                throw new AssertionError("Failed for " + testName);
             }
         }
     }
@@ -147,12 +141,12 @@ public class SnappyBench
         // Warm up the code
         {
             long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
-            do {
-                for (String testName : files.keySet()) {
-                    benchmarkCompress(100, testName, false);
-                }
-            } while (System.nanoTime() < end);
-            end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
+//            do {
+//                for (String testName : files.keySet()) {
+//                    benchmarkCompress(100, testName, false);
+//                }
+//            } while (System.nanoTime() < end);
+//            end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
             do {
                 for (String testName : files.keySet()) {
                     benchmarkUncompress(100, testName, false);
@@ -161,6 +155,7 @@ public class SnappyBench
         }
 
     }
+
     public void run(TestSuite testSuite)
     {
         int testNumber = 0;
@@ -168,6 +163,7 @@ public class SnappyBench
             for (boolean useJni : ImmutableList.of(false, true)) {
                 run(testSuite, testName, testNumber, useJni);
             }
+            System.err.println();
             testNumber++;
         }
     }
@@ -176,6 +172,7 @@ public class SnappyBench
     {
         run(testSuite, testName, testNumber, false);
         run(testSuite, testName, testNumber, true);
+        System.err.println();
     }
 
     private void run(TestSuite testSuite, String testName, int testNumber, boolean useJni)
@@ -200,7 +197,7 @@ public class SnappyBench
         // Run five times and pick the median.
         long iterations = 0;
         if (benchmarkRealTimeUsec > 0) {
-            iterations = 200000 * CALIBRATE_ITERATIONS / benchmarkRealTimeUsec;
+            iterations = 400000 * CALIBRATE_ITERATIONS / benchmarkRealTimeUsec;
         }
         iterations = Math.max(iterations, CALIBRATE_ITERATIONS);
         long[] benchmarkRuns = new long[NUMBER_OF_RUNS];
@@ -342,7 +339,7 @@ public class SnappyBench
         if (!Arrays.equals(uncompressed, contents)) {
             throw new AssertionError(String.format(
                     "Actual   : %s\n" +
-                    "Expected : %s",
+                            "Expected : %s",
                     Arrays.toString(uncompressed),
                     Arrays.toString(contents)));
         }

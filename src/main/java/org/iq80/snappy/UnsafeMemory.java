@@ -19,7 +19,9 @@ class UnsafeMemory implements Memory
         }
     }
 
-    private static final int BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
+    private static final long BYTE_ARRAY_OFFSET = unsafe.arrayBaseOffset(byte[].class);
+    private static final long SHORT_ARRAY_OFFSET = unsafe.arrayBaseOffset(short[].class);
+    private static final long SHORT_ARRAY_STRIDE = unsafe.arrayIndexScale(short[].class);
 
     @Override
     public boolean fastAccessSupported()
@@ -28,11 +30,27 @@ class UnsafeMemory implements Memory
     }
 
     @Override
+    public int lookupShort(short[] data, int index)
+    {
+        assert index >= 0;
+        assert index <= data.length;
+        return unsafe.getShort(data, SHORT_ARRAY_OFFSET + (index * SHORT_ARRAY_STRIDE)) & 0xFFFF;
+    }
+
+    @Override
+    public int loadByte(byte[] data, int index)
+    {
+        assert index >= 0;
+        assert index <= data.length;
+        return unsafe.getByte(data, BYTE_ARRAY_OFFSET + index) & 0xFF;
+    }
+
+    @Override
     public int loadInt(byte[] data, int index)
     {
         assert index >= 0;
         assert index + 4 <= data.length;
-        return unsafe.getInt(data, (long) (BYTE_ARRAY_OFFSET + index));
+        return unsafe.getInt(data, BYTE_ARRAY_OFFSET + index);
     }
 
     @Override
@@ -42,8 +60,8 @@ class UnsafeMemory implements Memory
         assert srcIndex + 8 <= src.length;
         assert destIndex >= 0;
         assert destIndex + 8 <= dest.length;
-        long value = unsafe.getLong(src, (long) (BYTE_ARRAY_OFFSET + srcIndex));
-        unsafe.putLong(dest, ((long) BYTE_ARRAY_OFFSET + destIndex), value);
+        long value = unsafe.getLong(src, BYTE_ARRAY_OFFSET + srcIndex);
+        unsafe.putLong(dest, (BYTE_ARRAY_OFFSET + destIndex), value);
     }
 
     @Override
@@ -51,7 +69,7 @@ class UnsafeMemory implements Memory
     {
         assert index > 0;
         assert index + 4 < data.length;
-        return unsafe.getLong(data, (long) (BYTE_ARRAY_OFFSET + index));
+        return unsafe.getLong(data, BYTE_ARRAY_OFFSET + index);
     }
 
     @Override
