@@ -19,13 +19,13 @@ public final class SnappyCompressor
     // helpful in implementing blocked decompression.  However the
     // decompression code should not rely on this guarantee since older
     // compression code may not obey it.
-    private static final int kBlockLog = 15;
-    private static final int kBlockSize = 1 << kBlockLog;
+    private static final int BLOCK_LOG = 15;
+    private static final int BLOCK_SIZE = 1 << BLOCK_LOG;
 
-    private static final int kInputMarginBytes = 15;
+    private static final int INPUT_MARGIN_BYTES = 15;
 
-    private static final int kMaxHashTableBits = 14;
-    private static final int kMaxHashTableSize = 1 << kMaxHashTableBits;
+    private static final int MAX_HASH_TABLE_BITS = 14;
+    private static final int MAX_HASH_TABLE_SIZE = 1 << MAX_HASH_TABLE_BITS;
 
     public static int maxCompressedLength(int sourceLength)
     {
@@ -65,14 +65,14 @@ public final class SnappyCompressor
         int hashTableSize = getHashTableSize(uncompressedLength);
         short[] table = new short[hashTableSize];
 
-        for (int read = 0; read < uncompressedLength; read += kBlockSize) {
+        for (int read = 0; read < uncompressedLength; read += BLOCK_SIZE) {
             // Get encoding table for compression
             Arrays.fill(table, (short) 0);
 
             compressedIndex = compressFragment(
                     uncompressed,
                     uncompressedOffset + read,
-                    Math.min(uncompressedLength - read, kBlockSize),
+                    Math.min(uncompressedLength - read, BLOCK_SIZE),
                     compressed,
                     compressedIndex,
                     table);
@@ -89,7 +89,7 @@ public final class SnappyCompressor
             final short[] table)
     {
         int ipIndex = inputOffset;
-        assert inputSize <= kBlockSize;
+        assert inputSize <= BLOCK_SIZE;
         final int ipEndIndex = inputOffset + inputSize;
 
         int hashTableSize = getHashTableSize(inputSize);
@@ -102,8 +102,8 @@ public final class SnappyCompressor
         // [nextEmitIndex, ipEndIndex) after the main loop.
         int nextEmitIndex = ipIndex;
 
-        if (inputSize >= kInputMarginBytes) {
-            final int ipLimit = inputOffset + inputSize - kInputMarginBytes;
+        if (inputSize >= INPUT_MARGIN_BYTES) {
+            final int ipLimit = inputOffset + inputSize - INPUT_MARGIN_BYTES;
             while (ipIndex <= ipLimit) {
                 assert nextEmitIndex <= ipIndex;
 
@@ -134,10 +134,10 @@ public final class SnappyCompressor
                 // number of bytes to move ahead for each iteration.
                 int skip = 32;
 
-                int[] lame = findCandidate(input, ipIndex, ipLimit, inputOffset, shift, table, skip);
-                ipIndex = lame[0];
-                int candidateIndex = lame[1];
-                skip = lame[2];
+                int[] candidateResult = findCandidate(input, ipIndex, ipLimit, inputOffset, shift, table, skip);
+                ipIndex = candidateResult[0];
+                int candidateIndex = candidateResult[1];
+                skip = candidateResult[2];
                 if (ipIndex + bytesBetweenHashLookups(skip) > ipLimit) {
                     break;
                 }
@@ -234,7 +234,7 @@ public final class SnappyCompressor
             outputIndex = emitCopy(output, outputIndex, offset, matched);
 
             // are we done?
-            if (ipIndex >= inputOffset + inputSize - kInputMarginBytes) {
+            if (ipIndex >= inputOffset + inputSize - INPUT_MARGIN_BYTES) {
                 return new int[]{ipIndex, outputIndex};
             }
 
@@ -420,14 +420,14 @@ public final class SnappyCompressor
         // fill the table, incurring O(hash table size) overhead for
         // compression, and if the input is short, we won't need that
         // many hash table entries anyway.
-        assert (kMaxHashTableSize >= 256);
+        assert (MAX_HASH_TABLE_SIZE >= 256);
 
         int hashTableSize = 256;
-        while (hashTableSize < kMaxHashTableSize && hashTableSize < inputSize) {
+        while (hashTableSize < MAX_HASH_TABLE_SIZE && hashTableSize < inputSize) {
             hashTableSize <<= 1;
         }
         assert 0 == (hashTableSize & (hashTableSize - 1)) : "hash must be power of two";
-        assert hashTableSize <= kMaxHashTableSize : "hash table too large";
+        assert hashTableSize <= MAX_HASH_TABLE_SIZE : "hash table too large";
         return hashTableSize;
 
 //        // todo should be faster but is not
