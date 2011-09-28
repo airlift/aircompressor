@@ -7,16 +7,19 @@ public final class Snappy
     }
 
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
+            throws CorruptionException
     {
         return SnappyDecompressor.getUncompressedLength(compressed, compressedOffset);
     }
 
     public static byte[] uncompress(byte[] compressed, int compressedOffset, int compressedSize)
+            throws CorruptionException
     {
         return SnappyDecompressor.uncompress(compressed, compressedOffset, compressedSize);
     }
 
     public static int uncompress(byte[] compressed, int compressedOffset, int compressedSize, byte[] uncompressed, int uncompressedOffset)
+            throws CorruptionException
     {
         return SnappyDecompressor.uncompress(compressed, compressedOffset, compressedSize, uncompressed, uncompressedOffset);
     }

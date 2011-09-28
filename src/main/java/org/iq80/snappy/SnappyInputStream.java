@@ -135,10 +135,16 @@ public class SnappyInputStream
     }
 
     private void handleInput(int length, boolean compressed)
+            throws IOException
     {
         if (compressed) {
             buffer = uncompressed;
-            valid = Snappy.uncompress(input, 0, length, uncompressed, 0);
+            try {
+                valid = Snappy.uncompress(input, 0, length, uncompressed, 0);
+            }
+            catch (CorruptionException e) {
+                throw new IOException("Corrupt input", e);
+            }
         }
         else {
             buffer = input;

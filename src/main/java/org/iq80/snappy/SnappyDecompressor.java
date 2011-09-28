@@ -9,11 +9,13 @@ public final class SnappyDecompressor
     private static final int MAX_INCREMENT_COPY_OVERFLOW = 20;
 
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
+            throws CorruptionException
     {
         return readUncompressedLength(compressed, compressedOffset)[0];
     }
 
     public static byte[] uncompress(byte[] compressed, int compressedOffset, int compressedSize)
+            throws CorruptionException
     {
         // Read the uncompressed length from the front of the compressed input
         int[] varInt = readUncompressedLength(compressed, compressedOffset);
@@ -32,15 +34,17 @@ public final class SnappyDecompressor
                 uncompressed,
                 0);
 
-        SnappyInternalUtils.checkArgument(expectedLength == uncompressedSize,
-                "Corrupt Input: recorded length is %s bytes but actual length after decompression is %s bytes ",
-                expectedLength,
-                uncompressedSize);
+        if (!(expectedLength == uncompressedSize)) {
+            throw new CorruptionException(String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
+                    expectedLength,
+                    uncompressedSize));
+        }
 
         return uncompressed;
     }
 
     public static int uncompress(byte[] compressed, int compressedOffset, int compressedSize, byte[] uncompressed, int uncompressedOffset)
+            throws CorruptionException
     {
         // Read the uncompressed length from the front of the compressed input
         int[] varInt = readUncompressedLength(compressed, compressedOffset);
@@ -59,10 +63,11 @@ public final class SnappyDecompressor
                 uncompressed,
                 uncompressedOffset);
 
-        SnappyInternalUtils.checkArgument(expectedLength == uncompressedSize,
-                "Corrupt Input: recorded length is %s bytes but actual length after decompression is %s bytes ",
-                expectedLength,
-                uncompressedSize);
+        if (!(expectedLength == uncompressedSize)) {
+            throw new CorruptionException(String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
+                    expectedLength,
+                    uncompressedSize));
+        }
 
         return expectedLength;
     }
@@ -73,6 +78,7 @@ public final class SnappyDecompressor
             final int inputSize,
             final byte[] output,
             final int outputOffset)
+            throws CorruptionException
     {
         final int outputLimit = output.length;
 
@@ -139,7 +145,7 @@ public final class SnappyDecompressor
                     int spaceLeft = outputLimit - opIndex;
                     int srcIndex = opIndex - copyOffset;
                     if (srcIndex < outputOffset) {
-                        throw new IndexOutOfBoundsException();
+                        throw new CorruptionException("Invalid copy offset for opcode starting at " + (ipIndex - trailerBytes - 1));
                     }
 
                     if (length <= 16 && copyOffset >= 8 && spaceLeft >= 16) {
@@ -179,6 +185,7 @@ public final class SnappyDecompressor
      * it is worth the extra maintenance pain to get the extra 10-20%.
      */
     private static int[] decompressTagSlow(byte[] input, int ipIndex, byte[] output, int outputLimit, int outputOffset, int opIndex)
+            throws CorruptionException
     {
         // read the op code
         int opCode = loadByte(input, ipIndex++);
@@ -222,7 +229,7 @@ public final class SnappyDecompressor
                 int srcIndex = opIndex - copyOffset;
 
                 if (srcIndex < outputOffset) {
-                    throw new IndexOutOfBoundsException();
+                    throw new CorruptionException("Invalid copy offset for opcode starting at " + (ipIndex - trailerBytes - 1));
                 }
 
                 if (length <= 16 && copyOffset >= 8 && spaceLeft >= 16) {
@@ -248,6 +255,7 @@ public final class SnappyDecompressor
     }
 
     private static void copyLiteral(byte[] input, int ipIndex, byte[] output, int opIndex, int length)
+            throws CorruptionException
     {
         assert length > 0;
         assert ipIndex >= 0;
@@ -257,7 +265,7 @@ public final class SnappyDecompressor
         int readableBytes = input.length - ipIndex;
 
         if (readableBytes < length || spaceLeft < length) {
-            throw new IndexOutOfBoundsException();
+            throw new CorruptionException("Corrupt literal length");
         }
 
         if (length <= 16 && spaceLeft >= 16 && readableBytes >= 16) {
@@ -377,6 +385,7 @@ public final class SnappyDecompressor
      * returns this length with the number of bytes read.
      */
     private static int[] readUncompressedLength(byte[] compressed, int compressedOffset)
+            throws CorruptionException
     {
         int result;
         int bytesRead = 0;
@@ -396,7 +405,7 @@ public final class SnappyDecompressor
                             b = compressed[compressedOffset + bytesRead++] & 0xFF;
                             result |= (b & 0x7f) << 28;
                             if ((b & 0x80) != 0) {
-                                throw new NumberFormatException("last byte of variable length int has high bit set");
+                                throw new CorruptionException("last byte of compressed length int has high bit set");
                             }
                         }
                     }
