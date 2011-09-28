@@ -6,7 +6,6 @@ import com.google.common.io.Files;
 import com.google.common.primitives.Longs;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -95,7 +94,7 @@ public class SnappyBench
             try {
                 byte[] contents = testData.getContents();
 
-                ByteArrayOutputStream rawOut = new ByteArrayOutputStream();
+                ByteArrayOutputStream rawOut = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
                 SnappyOutputStream out = new SnappyOutputStream(rawOut);
                 out.write(contents);
                 out.close();

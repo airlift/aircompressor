@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import org.iq80.snappy.SnappyBench.TestData;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -278,7 +277,7 @@ public enum BenchmarkDriver
                             out.write(contents);
                             out.close();
 
-                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.toByteArray());
+                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.getBuffer(), 0, compressedStream.size());
                             SnappyInputStream in = new SnappyInputStream(compIn);
 
                             while (in.read(inputBuffer) >= 0) {
@@ -300,7 +299,7 @@ public enum BenchmarkDriver
                     byte[] contents = testData.getContents();
                     int compressedSize;
                     try {
-                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream();
+                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
                         SnappyOutputStream out = new SnappyOutputStream(rawOut);
                         out.write(contents);
                         out.close();
@@ -395,7 +394,7 @@ public enum BenchmarkDriver
                             out.write(contents);
                             out.close();
 
-                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.toByteArray());
+                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.getBuffer(), 0, compressedStream.size());
                             org.xerial.snappy.SnappyInputStream in = new org.xerial.snappy.SnappyInputStream(compIn);
 
                             while (in.read(inputBuffer) >= 0) {
@@ -417,7 +416,7 @@ public enum BenchmarkDriver
                     byte[] contents = testData.getContents();
                     int compressedSize;
                     try {
-                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream();
+                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
                         org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(rawOut);
                         out.write(contents);
                         out.close();
