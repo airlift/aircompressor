@@ -6,6 +6,8 @@ import java.io.InputStream;
 
 import static java.lang.Math.min;
 import static java.lang.String.format;
+import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
+import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 import static org.iq80.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
 
 /**
@@ -27,9 +29,10 @@ public class SnappyInputStream
     // uncompressed if the block is compressed, or input if it is not.
     // Valid is the total valid bytes in the referenced buffer.
     private byte[] buffer;
-    private int valid = 0;
-    private int position = 0;
-    private boolean eof = false;
+    private int valid;
+    private int position;
+    private boolean closed;
+    private boolean eof;
 
     /**
      * Creates a Snappy input stream to read data from the specified underlying input stream.
@@ -49,6 +52,9 @@ public class SnappyInputStream
     public int read()
             throws IOException
     {
+        if (closed) {
+            return -1;
+        }
         if (!ensureBuffer()) {
             return -1;
         }
@@ -59,6 +65,12 @@ public class SnappyInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
+        checkNotNull(output, "output is null");
+        checkPositionIndexes(offset, offset + length, output.length);
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+
         if (length == 0) {
             return 0;
         }
@@ -76,6 +88,9 @@ public class SnappyInputStream
     public int available()
             throws IOException
     {
+        if (closed) {
+            return 0;
+        }
         return valid - position;
     }
 
@@ -87,8 +102,11 @@ public class SnappyInputStream
             in.close();
         }
         finally {
-            recycler.releaseInputBuffer(input);
-            recycler.releaseDecodeBuffer(uncompressed);
+            if (!closed) {
+                closed = true;
+                recycler.releaseInputBuffer(input);
+                recycler.releaseDecodeBuffer(uncompressed);
+            }
         }
     }
 
@@ -153,7 +171,7 @@ public class SnappyInputStream
                 if (offset == 0) {
                     return false;
                 }
-                throw new EOFException("encounted EOF while reading block header");
+                throw new EOFException("encountered EOF while reading block header");
             }
             offset += size;
         }

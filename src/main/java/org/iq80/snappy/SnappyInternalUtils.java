@@ -84,11 +84,19 @@ final class SnappyInternalUtils
 
     //
     // Copied from Guava Preconditions
+    static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)
+    {
+        if (reference == null) {
+            // If either of these parameters is null, the right thing happens anyway
+            throw new NullPointerException(String.format(errorMessageTemplate, errorMessageArgs));
+        }
+        return reference;
+    }
+
     static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)
     {
         if (!expression) {
-            throw new IllegalArgumentException(
-                    String.format(errorMessageTemplate, errorMessageArgs));
+            throw new IllegalArgumentException(String.format(errorMessageTemplate, errorMessageArgs));
         }
     }
 

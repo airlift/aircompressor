@@ -3,6 +3,9 @@ package org.iq80.snappy;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
+import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
+
 /**
  * This class implements an output stream for writing Snappy compressed data.
  * The output format is one or more compressed blocks of data, each of which
@@ -28,7 +31,8 @@ public class SnappyOutputStream
     private final byte[] outputBuffer;
     private final OutputStream out;
 
-    private int position = 0;
+    private int position;
+    private boolean closed;
 
     /**
      * Creates a Snappy output stream to write data to the specified underlying output stream.
@@ -47,6 +51,9 @@ public class SnappyOutputStream
     public void write(int b)
             throws IOException
     {
+        if (closed) {
+            throw new IOException("Stream is closed") ;
+        }
         if (position >= MAX_BLOCK_SIZE) {
             flushBuffer();
         }
@@ -57,6 +64,12 @@ public class SnappyOutputStream
     public void write(byte[] input, int offset, int length)
             throws IOException
     {
+        checkNotNull(input, "input is null");
+        checkPositionIndexes(offset, offset + length, input.length);
+        if (closed) {
+            throw new IOException("Stream is closed") ;
+        }
+
         int free = MAX_BLOCK_SIZE - position;
 
         // easy case: enough free space in buffer for entire input
@@ -88,6 +101,9 @@ public class SnappyOutputStream
     public void flush()
             throws IOException
     {
+        if (closed) {
+            throw new IOException("Stream is closed") ;
+        }
         flushBuffer();
         out.flush();
     }
@@ -101,8 +117,11 @@ public class SnappyOutputStream
             out.close();
         }
         finally {
-            recycler.releaseOutputBuffer(outputBuffer);
-            recycler.releaseEncodeBuffer(buffer);
+            if (closed) {
+                closed = true;
+                recycler.releaseOutputBuffer(outputBuffer);
+                recycler.releaseEncodeBuffer(buffer);
+            }
         }
     }
 
