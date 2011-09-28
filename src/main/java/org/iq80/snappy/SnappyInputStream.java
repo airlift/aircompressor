@@ -17,8 +17,9 @@ public class SnappyInputStream
 {
     // The buffer size is the same as the block size.
     // This works because the original data is not allowed to expand.
-    private final byte[] input = new byte[MAX_BLOCK_SIZE];
-    private final byte[] uncompressed = new byte[MAX_BLOCK_SIZE];
+    private final BufferRecycler recycler;
+    private final byte[] input;
+    private final byte[] uncompressed;
     private final byte[] header = new byte[3];
     private final InputStream in;
 
@@ -38,6 +39,10 @@ public class SnappyInputStream
     public SnappyInputStream(InputStream in)
     {
         this.in = in;
+        recycler = BufferRecycler.instance();
+        input = recycler.allocInputBuffer(MAX_BLOCK_SIZE);
+        uncompressed = recycler.allocDecodeBuffer(MAX_BLOCK_SIZE);
+
     }
 
     @Override
@@ -78,7 +83,13 @@ public class SnappyInputStream
     public void close()
             throws IOException
     {
-        in.close();
+        try {
+            in.close();
+        }
+        finally {
+            recycler.releaseInputBuffer(input);
+            recycler.releaseDecodeBuffer(uncompressed);
+        }
     }
 
     private boolean ensureBuffer()

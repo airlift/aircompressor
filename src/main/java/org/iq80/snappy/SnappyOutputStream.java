@@ -22,8 +22,10 @@ public class SnappyOutputStream
 {
     // the header format requires the max block size to fit in 15 bits -- do not change!
     static final int MAX_BLOCK_SIZE = 1 << 15;
-    private final byte[] buffer = new byte[MAX_BLOCK_SIZE];
-    private final byte[] outputBuffer = new byte[Snappy.maxCompressedLength(buffer.length)];
+
+    private final BufferRecycler recycler;
+    private final byte[] buffer;
+    private final byte[] outputBuffer;
     private final OutputStream out;
 
     private int position = 0;
@@ -36,13 +38,16 @@ public class SnappyOutputStream
     public SnappyOutputStream(OutputStream out)
     {
         this.out = out;
+        recycler = BufferRecycler.instance();
+        buffer = recycler.allocOutputBuffer(MAX_BLOCK_SIZE);
+        outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(MAX_BLOCK_SIZE));
     }
 
     @Override
     public void write(int b)
             throws IOException
     {
-        if (position >= buffer.length) {
+        if (position >= MAX_BLOCK_SIZE) {
             flushBuffer();
         }
         buffer[position++] = (byte) b;
@@ -52,7 +57,7 @@ public class SnappyOutputStream
     public void write(byte[] input, int offset, int length)
             throws IOException
     {
-        int free = buffer.length - position;
+        int free = MAX_BLOCK_SIZE - position;
 
         // easy case: enough free space in buffer for entire input
         if (free >= length) {
@@ -69,10 +74,10 @@ public class SnappyOutputStream
         }
 
         // write remaining full blocks directly from input array
-        while (length >= buffer.length) {
-            writeCompressed(input, offset, buffer.length);
-            offset += buffer.length;
-            length -= buffer.length;
+        while (length >= MAX_BLOCK_SIZE) {
+            writeCompressed(input, offset, MAX_BLOCK_SIZE);
+            offset += MAX_BLOCK_SIZE;
+            length -= MAX_BLOCK_SIZE;
         }
 
         // copy remaining partial block into now-empty buffer
@@ -91,8 +96,14 @@ public class SnappyOutputStream
     public void close()
             throws IOException
     {
-        flush();
-        out.close();
+        try {
+            flush();
+            out.close();
+        }
+        finally {
+            recycler.releaseOutputBuffer(outputBuffer);
+            recycler.releaseEncodeBuffer(buffer);
+        }
     }
 
     private void copyToBuffer(byte[] input, int offset, int length)
