@@ -60,8 +60,11 @@ public class SnappyBench
 
         snappyBench.runCompress("Block Compress", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
         snappyBench.runUncompress("Block Uncompress", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
+        snappyBench.runRoundTrip("Block Round Trip", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
+
         snappyBench.runCompress("Stream Compress", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
         snappyBench.runUncompress("Stream Uncompress", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
+        snappyBench.runRoundTrip("Stream RoundTrip", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
     }
 
     public void verify()
@@ -234,6 +237,48 @@ public class SnappyBench
         long[] jniBenchmarkRuns = new long[NUMBER_OF_RUNS];
         for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
             jniBenchmarkRuns[run] = driver.uncompress(testData, iterations);
+        }
+        long jniMedianTimeInNanos = getMedianValue(jniBenchmarkRuns);
+        return (long) (1.0 * iterations * testData.size() / nanosToSeconds(jniMedianTimeInNanos));
+    }
+
+    public void runRoundTrip(String benchmarkTitle, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)
+    {
+        printHeader(benchmarkTitle);
+        for (TestData testData : TestData.values()) {
+            runRoundTrip(testData, oldDriver, newDriver);
+        }
+    }
+
+    private void runRoundTrip(TestData testData, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)
+    {
+        long iterations = calibrateIterations(testData, oldDriver, true);
+
+        long oldBytesPerSecond = benchmarkRoundTrip(testData, oldDriver, iterations);
+        long newBytesPerSecond = benchmarkRoundTrip(testData, newDriver, iterations);
+
+        // results
+        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
+        double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
+
+        System.err.printf(
+                "%-8s %8d %8.1f%% %8.1f%% %11s %11s %+6.1f%%  %s\n",
+                testData,
+                testData.size(),
+                oldDriver.getCompressionRatio(testData) * 100.0,
+                newDriver.getCompressionRatio(testData) * 100.0,
+                oldHumanReadableSpeed,
+                newHumanReadableSpeed,
+                improvement,
+                testData.getInfo());
+    }
+
+    private long benchmarkRoundTrip(TestData testData, BenchmarkDriver driver, long iterations)
+    {
+        long[] jniBenchmarkRuns = new long[NUMBER_OF_RUNS];
+        for (int run = 0; run < NUMBER_OF_RUNS; ++run) {
+            jniBenchmarkRuns[run] = driver.roundTrip(testData, iterations);
         }
         long jniMedianTimeInNanos = getMedianValue(jniBenchmarkRuns);
         return (long) (1.0 * iterations * testData.size() / nanosToSeconds(jniMedianTimeInNanos));

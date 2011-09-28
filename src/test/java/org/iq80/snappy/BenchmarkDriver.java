@@ -57,6 +57,33 @@ public enum BenchmarkDriver
                 }
 
                 @Override
+                public long roundTrip(TestData testData, long iterations)
+                {
+                    // Read the file and create buffers out side of timing
+                    byte[] contents = testData.getContents();
+                    byte[] compressed = new byte[Snappy.maxCompressedLength(contents.length)];
+                    byte[] uncompressed = new byte[contents.length];
+
+                    long start = System.nanoTime();
+                    while (iterations-- > 0) {
+                        int compressedSize = Snappy.compress(contents, 0, contents.length, compressed, 0);
+                        Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
+                    }
+                    long timeInNanos = System.nanoTime() - start;
+
+                    // verify results
+                    if (!Arrays.equals(uncompressed, testData.getContents())) {
+                        throw new AssertionError(String.format(
+                                "Actual   : %s\n" +
+                                        "Expected : %s",
+                                Arrays.toString(uncompressed),
+                                Arrays.toString(testData.getContents())));
+                    }
+
+                    return timeInNanos;
+                }
+
+                @Override
                 public double getCompressionRatio(TestData testData)
                 {
                     byte[] contents = testData.getContents();
@@ -99,16 +126,50 @@ public enum BenchmarkDriver
 
                     byte[] uncompressed = new byte[contents.length];
 
-                    long start = System.nanoTime();
-                    while (iterations-- > 0) {
-                        try {
+                    long timeInNanos;
+                    try {
+                        long start = System.nanoTime();
+                        while (iterations-- > 0) {
                             org.xerial.snappy.Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
                         }
-                        catch (IOException e) {
-                            throw Throwables.propagate(e);
-                        }
+                        timeInNanos = System.nanoTime() - start;
                     }
-                    long timeInNanos = System.nanoTime() - start;
+                    catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
+
+                    // verify results
+                    if (!Arrays.equals(uncompressed, testData.getContents())) {
+                        throw new AssertionError(String.format(
+                                "Actual   : %s\n" +
+                                        "Expected : %s",
+                                Arrays.toString(uncompressed),
+                                Arrays.toString(testData.getContents())));
+                    }
+
+                    return timeInNanos;
+                }
+
+                @Override
+                public long roundTrip(TestData testData, long iterations)
+                {
+                    // Read the file and create buffers out side of timing
+                    byte[] contents = testData.getContents();
+                    byte[] compressed = new byte[Snappy.maxCompressedLength(contents.length)];
+                    byte[] uncompressed = new byte[contents.length];
+
+                    long timeInNanos;
+                    try {
+                        long start = System.nanoTime();
+                        while (iterations-- > 0) {
+                            int compressedSize = Snappy.compress(contents, 0, contents.length, compressed, 0);
+                            org.xerial.snappy.Snappy.uncompress(compressed, 0, compressedSize, uncompressed, 0);
+                        }
+                        timeInNanos = System.nanoTime() - start;
+                    }
+                    catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
 
                     // verify results
                     if (!Arrays.equals(uncompressed, testData.getContents())) {
@@ -144,13 +205,13 @@ public enum BenchmarkDriver
                 public long compress(TestData testData, long iterations)
                 {
                     try {
-
                         // Read the file and create buffers out side of timing
                         byte[] contents = testData.getContents();
+                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
 
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
-                            ByteArrayOutputStream rawOut = new ByteArrayOutputStream();
+                            rawOut.reset();
                             SnappyOutputStream out = new SnappyOutputStream(rawOut);
                             out.write(contents);
                             out.close();
@@ -173,7 +234,7 @@ public enum BenchmarkDriver
                         // Read the file and create buffers out side of timing
                         byte[] contents = testData.getContents();
 
-                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
+                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
                         SnappyOutputStream out = new SnappyOutputStream(compressedStream);
                         out.write(contents);
                         out.close();
@@ -185,6 +246,39 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             ByteArrayInputStream compIn = new ByteArrayInputStream(compressed);
+                            SnappyInputStream in = new SnappyInputStream(compIn);
+
+                            while (in.read(inputBuffer) >= 0) {
+                            }
+                            in.close();
+                        }
+                        timeInNanos = System.nanoTime() - start;
+
+                        return timeInNanos;
+                    }
+                    catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+
+                @Override
+                public long roundTrip(TestData testData, long iterations)
+                {
+                    try {
+                        // Read the file and create buffers out side of timing
+                        byte[] contents = testData.getContents();
+                        byte[] inputBuffer = new byte[4096];
+                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
+
+                        long timeInNanos;
+                        long start = System.nanoTime();
+                        while (iterations-- > 0) {
+                            compressedStream.reset();
+                            SnappyOutputStream out = new SnappyOutputStream(compressedStream);
+                            out.write(contents);
+                            out.close();
+
+                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.toByteArray());
                             SnappyInputStream in = new SnappyInputStream(compIn);
 
                             while (in.read(inputBuffer) >= 0) {
@@ -229,10 +323,11 @@ public enum BenchmarkDriver
 
                         // Read the file and create buffers out side of timing
                         byte[] contents = testData.getContents();
+                        ByteArrayOutputStream rawOut = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
 
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
-                            ByteArrayOutputStream rawOut = new ByteArrayOutputStream();
+                            rawOut.reset();
                             org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(rawOut);
                             out.write(contents);
                             out.close();
@@ -254,8 +349,8 @@ public enum BenchmarkDriver
 
                         // Read the file and create buffers out side of timing
                         byte[] contents = testData.getContents();
+                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
 
-                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
                         org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(compressedStream);
                         out.write(contents);
                         out.close();
@@ -267,6 +362,40 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             ByteArrayInputStream compIn = new ByteArrayInputStream(compressed);
+                            org.xerial.snappy.SnappyInputStream in = new org.xerial.snappy.SnappyInputStream(compIn);
+
+                            while (in.read(inputBuffer) >= 0) {
+                            }
+                            in.close();
+                        }
+                        timeInNanos = System.nanoTime() - start;
+
+                        return timeInNanos;
+                    }
+                    catch (IOException e) {
+                        throw Throwables.propagate(e);
+                    }
+                }
+
+                @Override
+                public long roundTrip(TestData testData, long iterations)
+                {
+                    try {
+
+                        // Read the file and create buffers out side of timing
+                        byte[] contents = testData.getContents();
+                        byte[] inputBuffer = new byte[4096];
+                        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
+
+                        long timeInNanos;
+                        long start = System.nanoTime();
+                        while (iterations-- > 0) {
+                            compressedStream.reset();
+                            org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(compressedStream);
+                            out.write(contents);
+                            out.close();
+
+                            ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.toByteArray());
                             org.xerial.snappy.SnappyInputStream in = new org.xerial.snappy.SnappyInputStream(compIn);
 
                             while (in.read(inputBuffer) >= 0) {
@@ -305,6 +434,8 @@ public enum BenchmarkDriver
     public abstract long compress(TestData testData, long iterations);
 
     public abstract long uncompress(TestData testData, long iterations);
+
+    public abstract long roundTrip(TestData testData, long iterations);
 
     public abstract double getCompressionRatio(TestData testData);
 
