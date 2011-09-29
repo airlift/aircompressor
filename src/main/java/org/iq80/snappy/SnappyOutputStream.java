@@ -3,6 +3,7 @@ package org.iq80.snappy;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static org.iq80.snappy.Crc32C.maskedCrc32c;
 import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
 import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 
@@ -143,23 +144,37 @@ public class SnappyOutputStream
     private void writeCompressed(byte[] input, int offset, int length)
             throws IOException
     {
+        // crc is based on the user supplied input data
+        int crc32c = maskedCrc32c(input, offset, length);
+
         int compressed = Snappy.compress(input, offset, length, outputBuffer, 0);
 
         // use uncompressed input if less than 12.5% compression
         if (compressed >= (length - (length / 8))) {
-            writeBlock(input, offset, length, false);
+            writeBlock(input, offset, length, false, crc32c);
         }
         else {
-            writeBlock(outputBuffer, 0, compressed, true);
+            writeBlock(outputBuffer, 0, compressed, true, crc32c);
         }
     }
 
-    private void writeBlock(byte[] data, int offset, int length, boolean compressed)
+    private void writeBlock(byte[] data, int offset, int length, boolean compressed, int crc32c)
             throws IOException
     {
+        // write compressed flag
         out.write(compressed ? 0x01 : 0x00);
+
+        // write length
         out.write(length >>> 8);
-        out.write(length & 0xFF);
+        out.write(length);
+
+        // write crc32c of user input data
+        out.write(crc32c >>> 24);
+        out.write(crc32c >>> 16);
+        out.write(crc32c >>> 8);
+        out.write(crc32c);
+
+        // write data
         out.write(data, offset, length);
     }
 }

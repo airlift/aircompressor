@@ -22,8 +22,9 @@ public class SnappyInputStream
     private final BufferRecycler recycler;
     private final byte[] input;
     private final byte[] uncompressed;
-    private final byte[] header = new byte[3];
+    private final byte[] header = new byte[7];
     private final InputStream in;
+    private final boolean verifyChecksums;
 
     // Buffer is a reference to the real buffer for the current block:
     // uncompressed if the block is compressed, or input if it is not.
@@ -41,7 +42,18 @@ public class SnappyInputStream
      */
     public SnappyInputStream(InputStream in)
     {
+        this(in, true);
+    }
+    /**
+     * Creates a Snappy input stream to read data from the specified underlying input stream.
+     *
+     * @param in the underlying input stream
+     * @param verifyChecksums if true, checksums in input stream will be verified
+     */
+    public SnappyInputStream(InputStream in, boolean verifyChecksums)
+    {
         this.in = in;
+        this.verifyChecksums = verifyChecksums;
         recycler = BufferRecycler.instance();
         input = recycler.allocInputBuffer(MAX_BLOCK_SIZE);
         uncompressed = recycler.allocDecodeBuffer(MAX_BLOCK_SIZE);
@@ -150,6 +162,15 @@ public class SnappyInputStream
             buffer = input;
             valid = length;
         }
+
+        if (verifyChecksums) {
+            int expectedCrc32c = getCrc32c();
+            int actualCrc32c = Crc32C.maskedCrc32c(buffer, 0, valid);
+            if (expectedCrc32c != actualCrc32c) {
+                throw new IOException("Corrupt input: invalid checksum");
+            }
+        }
+
         position = 0;
     }
 
@@ -208,5 +229,15 @@ public class SnappyInputStream
             throw new IOException("invalid block size in header: " + length);
         }
         return length;
+    }
+
+    private int getCrc32c()
+            throws IOException
+    {
+        return ((header[3] & 0xFF) << 24) |
+                ((header[4] & 0xFF) << 16) |
+                ((header[5] & 0xFF) << 8) |
+                (header[6] & 0xFF);
+
     }
 }
