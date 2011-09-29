@@ -14,6 +14,10 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
+import static org.iq80.snappy.BenchmarkDriver.JAVA_BLOCK;
+import static org.iq80.snappy.BenchmarkDriver.JAVA_STREAM;
+import static org.iq80.snappy.BenchmarkDriver.JNI_BLOCK;
+import static org.iq80.snappy.BenchmarkDriver.JNI_STREAM;
 
 /**
  * Port of the micro-benchmarks for  Snappy.
@@ -57,13 +61,13 @@ public class SnappyBench
 //            snappyBench.runUncompress(TestData.cp);
 //        }
 
-        snappyBench.runCompress("Block Compress", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
-        snappyBench.runUncompress("Block Uncompress", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
-        snappyBench.runRoundTrip("Block Round Trip", BenchmarkDriver.JNI_BLOCK, BenchmarkDriver.JAVA_BLOCK);
+        snappyBench.runCompress("Block Compress", JNI_BLOCK, JAVA_BLOCK);
+        snappyBench.runUncompress("Block Uncompress", JNI_BLOCK, JAVA_BLOCK);
+        snappyBench.runRoundTrip("Block Round Trip", JNI_BLOCK, JAVA_BLOCK);
 
-        snappyBench.runCompress("Stream Compress", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
-        snappyBench.runUncompress("Stream Uncompress", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
-        snappyBench.runRoundTrip("Stream RoundTrip", BenchmarkDriver.JNI_STREAM, BenchmarkDriver.JAVA_STREAM);
+        snappyBench.runCompress("Stream Compress", JNI_STREAM, JAVA_STREAM);
+        snappyBench.runUncompress("Stream Uncompress", JNI_STREAM, JAVA_STREAM);
+        snappyBench.runRoundTrip("Stream RoundTrip", JNI_STREAM, JAVA_STREAM);
     }
 
     public void verify()
@@ -119,13 +123,13 @@ public class SnappyBench
             long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
             do {
                 for (TestData testData : TestData.values()) {
-                    benchmarkCompress(testData, BenchmarkDriver.JAVA_BLOCK, 100);
+                    benchmarkCompress(testData, JAVA_BLOCK, 100);
                 }
             } while (System.nanoTime() < end);
             end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
             do {
                 for (TestData testData : TestData.values()) {
-                    benchmarkUncompress(testData, BenchmarkDriver.JAVA_BLOCK, 100);
+                    benchmarkUncompress(testData, JAVA_BLOCK, 100);
                 }
             } while (System.nanoTime() < end);
         }
