@@ -65,9 +65,9 @@ public class SnappyBench
         snappyBench.runUncompress("Block Uncompress", JNI_BLOCK, JAVA_BLOCK);
         snappyBench.runRoundTrip("Block Round Trip", JNI_BLOCK, JAVA_BLOCK);
 
-        snappyBench.runCompress("Stream Compress", JNI_STREAM, JAVA_STREAM);
-        snappyBench.runUncompress("Stream Uncompress", JNI_STREAM, JAVA_STREAM);
-        snappyBench.runRoundTrip("Stream RoundTrip", JNI_STREAM, JAVA_STREAM);
+        snappyBench.runCompress("Stream Compress (no checksum)", JNI_STREAM, JAVA_STREAM);
+        snappyBench.runUncompress("Stream Uncompress (no checksum)", JNI_STREAM, JAVA_STREAM);
+        snappyBench.runRoundTrip("Stream RoundTrip (no checksum)", JNI_STREAM, JAVA_STREAM);
     }
 
     public void verify()
