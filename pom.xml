@@ -270,8 +270,11 @@
                     <version>2.1</version>
                     <configuration>
                         <mavenExecutorId>forked-path</mavenExecutorId>
-                        <useReleaseProfile>false</useReleaseProfile>
                         <arguments>-Psonatype-oss-release</arguments>
+                        <useReleaseProfile>false</useReleaseProfile>
+                        <pushChanges>false</pushChanges>
+                        <localCheckout>true</localCheckout>
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
                     </configuration>
                 </plugin>
 
