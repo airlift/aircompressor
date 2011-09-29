@@ -15,6 +15,7 @@ import java.util.Arrays;
 
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.primitives.UnsignedBytes.toInt;
+import static org.iq80.snappy.SnappyOutputStream.FILE_HEADER;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -30,14 +31,15 @@ public class SnappyStreamTest
         byte[] uncompressed = uncompress(compressed);
 
         assertEquals(uncompressed, original);
-        assertEquals(compressed.length, 26);      // 7 byte header, 19 bytes compressed data
-        assertEquals(toInt(compressed[0]), 0x01); // flag: compressed
-        assertEquals(toInt(compressed[1]), 0x00); // length: 19 = 0x0013
-        assertEquals(toInt(compressed[2]), 0x13);
-        assertEquals(toInt(compressed[3]), 0x92); // crc32c: 0x9274cda8
-        assertEquals(toInt(compressed[4]), 0x74);
-        assertEquals(toInt(compressed[5]), 0xCD);
-        assertEquals(toInt(compressed[6]), 0xA8);
+        assertEquals(compressed.length, 33);      // 7 byte file header, 7 byte block header, 19 bytes compressed data
+        assertEquals(Arrays.copyOf(compressed, 7), FILE_HEADER); // file header
+        assertEquals(toInt(compressed[7]), 0x01); // flag: compressed
+        assertEquals(toInt(compressed[8]), 0x00); // length: 19 = 0x0013
+        assertEquals(toInt(compressed[9]), 0x13);
+        assertEquals(toInt(compressed[10]), 0x92); // crc32c: 0x9274cda8
+        assertEquals(toInt(compressed[11]), 0x74);
+        assertEquals(toInt(compressed[12]), 0xCD);
+        assertEquals(toInt(compressed[13]), 0xA8);
     }
 
     @Test
@@ -131,11 +133,11 @@ public class SnappyStreamTest
         byte[] uncompressed = uncompress(compressed);
 
         assertEquals(uncompressed, random);
-        assertEquals(compressed.length, random.length + 7);
-        assertEquals(toInt(compressed[0]), 0x00); // flag: uncompressed
-        assertEquals(toInt(compressed[1]), 0x13); // length: 5000 = 0x1388
-        assertEquals(toInt(compressed[2]), 0x88);
-        assertEquals(ByteBuffer.wrap(compressed, 3, 4).getInt(), crc32c); // crc: see above
+        assertEquals(compressed.length, random.length + 7 + 7);
+        assertEquals(toInt(compressed[7]), 0x00); // flag: uncompressed
+        assertEquals(toInt(compressed[8]), 0x13); // length: 5000 = 0x1388
+        assertEquals(toInt(compressed[9]), 0x88);
+        assertEquals(ByteBuffer.wrap(compressed, 10, 4).getInt(), crc32c); // crc: see above
     }
 
     @Test
@@ -151,8 +153,8 @@ public class SnappyStreamTest
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
 
-            // Always one or two blocks
-            int overhead = (i <= 32768) ? 7 : 14;
+            // File header plus one or two blocks
+            int overhead = 7 + ((i <= 32768) ? 7 : 14);
 
             assertEquals(uncompressed, original);
             assertEquals(compressed.length, original.length + overhead);
@@ -176,8 +178,8 @@ public class SnappyStreamTest
             throws Exception
     {
         byte[] empty = new byte[0];
-        assertEquals(compress(empty), empty);
-        assertEquals(uncompress(empty), empty);
+        assertEquals(compress(empty), FILE_HEADER);
+        assertEquals(uncompress(FILE_HEADER), empty);
     }
 
     @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block header.*")

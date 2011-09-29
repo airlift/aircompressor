@@ -75,6 +75,7 @@ public class HadoopSnappyCodec
             extends CompressionOutputStream
     {
         public SnappyCompressionOutputStream(OutputStream outputStream)
+                throws IOException
         {
             super(new SnappyOutputStream(outputStream));
         }

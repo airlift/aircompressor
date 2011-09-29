@@ -9,14 +9,18 @@ import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 
 /**
  * This class implements an output stream for writing Snappy compressed data.
- * The output format is one or more compressed blocks of data, each of which
- * is preceded by a three byte header.
+ * The output format is a file header "snappy\0" followed by one or more
+ * compressed blocks of data, each of which is preceded by a seven byte header.
  * <p/>
  * The first byte of the header is a flag indicating if the block is compressed
  * or not. A value of 0x00 means uncompressed, and 0x01 means compressed.
  * <p/>
  * The second and third bytes are the size of the block in the stream as a big
  * endian number. This value is never zero as empty blocks are never written.
+ * The maximum allowed length is 32k (1 << 15).
+ * <p/>
+ * The remaining four byes are crc32c checksum of the user input data masked
+ * with the following function: {@code ((crc >>> 15) | (crc << 17)) + 0xa282ead8 }
  * <p/>
  * An uncompressed block is simply copied from the input, thus guaranteeing
  * that the output is never larger than the input (not including the header).
@@ -24,6 +28,8 @@ import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 public class SnappyOutputStream
         extends OutputStream
 {
+    static final byte[] FILE_HEADER = new byte[] { 's', 'n', 'a', 'p', 'p', 'y', 0};
+
     // the header format requires the max block size to fit in 15 bits -- do not change!
     static final int MAX_BLOCK_SIZE = 1 << 15;
 
@@ -41,11 +47,13 @@ public class SnappyOutputStream
      * @param out the underlying output stream
      */
     public SnappyOutputStream(OutputStream out)
+            throws IOException
     {
         this.out = out;
         recycler = BufferRecycler.instance();
         buffer = recycler.allocOutputBuffer(MAX_BLOCK_SIZE);
         outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(MAX_BLOCK_SIZE));
+        out.write(FILE_HEADER);
     }
 
     @Override

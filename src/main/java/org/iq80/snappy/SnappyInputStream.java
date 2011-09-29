@@ -3,11 +3,13 @@ package org.iq80.snappy;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
 import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
+import static org.iq80.snappy.SnappyOutputStream.FILE_HEADER;
 import static org.iq80.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
 
 /**
@@ -190,18 +192,20 @@ public class SnappyInputStream
     private boolean readBlockHeader()
             throws IOException
     {
-        int offset = 0;
-        while (offset < header.length) {
-            int size = in.read(header, offset, header.length - offset);
-            if (size == -1) {
-                // EOF on first byte means the stream ended cleanly
-                if (offset == 0) {
-                    return false;
+        do {
+            int offset = 0;
+            while (offset < header.length) {
+                int size = in.read(header, offset, header.length - offset);
+                if (size == -1) {
+                    // EOF on first byte means the stream ended cleanly
+                    if (offset == 0) {
+                        return false;
+                    }
+                    throw new EOFException("encountered EOF while reading block header");
                 }
-                throw new EOFException("encountered EOF while reading block header");
+                offset += size;
             }
-            offset += size;
-        }
+        } while (Arrays.equals(header, FILE_HEADER));
         return true;
     }
 
