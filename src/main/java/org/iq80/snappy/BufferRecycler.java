@@ -10,7 +10,7 @@ import java.util.Arrays;
  *
  * @author tatu
  */
-public class BufferRecycler
+class BufferRecycler
 {
     private final static int MIN_ENCODING_BUFFER = 4000;
 

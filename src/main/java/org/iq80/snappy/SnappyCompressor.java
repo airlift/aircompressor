@@ -7,7 +7,7 @@ import static org.iq80.snappy.Snappy.COPY_1_BYTE_OFFSET;
 import static org.iq80.snappy.Snappy.COPY_2_BYTE_OFFSET;
 import static org.iq80.snappy.Snappy.LITERAL;
 
-public final class SnappyCompressor
+final class SnappyCompressor
 {
     private static final boolean NATIVE_LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
