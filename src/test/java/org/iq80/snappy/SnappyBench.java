@@ -135,7 +135,7 @@ public class SnappyBench
             end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
             do {
                 for (TestData testData : TestData.values()) {
-                    benchmarkUncompress(testData, JAVA_STREAM, 100);
+                    benchmarkCompress(testData, JAVA_STREAM, 100);
                 }
             } while (System.nanoTime() < end);
             end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
