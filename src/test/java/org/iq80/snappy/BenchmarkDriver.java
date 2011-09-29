@@ -245,7 +245,7 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             ByteArrayInputStream compIn = new ByteArrayInputStream(compressed);
-                            SnappyInputStream in = new SnappyInputStream(compIn);
+                            SnappyInputStream in = new SnappyInputStream(compIn, false);
 
                             while (in.read(inputBuffer) >= 0) {
                             }
@@ -278,7 +278,7 @@ public enum BenchmarkDriver
                             out.close();
 
                             ByteArrayInputStream compIn = new ByteArrayInputStream(compressedStream.getBuffer(), 0, compressedStream.size());
-                            SnappyInputStream in = new SnappyInputStream(compIn);
+                            SnappyInputStream in = new SnappyInputStream(compIn, false);
 
                             while (in.read(inputBuffer) >= 0) {
                             }
