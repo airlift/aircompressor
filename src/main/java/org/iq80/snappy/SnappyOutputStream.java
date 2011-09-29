@@ -37,6 +37,7 @@ public class SnappyOutputStream
     private final byte[] buffer;
     private final byte[] outputBuffer;
     private final OutputStream out;
+    private final boolean writeChecksums;
 
     private int position;
     private boolean closed;
@@ -49,7 +50,26 @@ public class SnappyOutputStream
     public SnappyOutputStream(OutputStream out)
             throws IOException
     {
-        this.out = out;
+        this(out, true);
+    }
+
+    /**
+     * Creates a Snappy output stream with block checksums disabled.  This is only useful for
+     * apples-to-apples benchmarks with other compressors that do not perform block checksums.
+     *
+     * @param out the underlying output stream
+     */
+    public static SnappyOutputStream newChecksumFreeBenchmarkOutputStream(OutputStream out)
+            throws IOException
+    {
+        return new SnappyOutputStream(out, false);
+    }
+
+    private SnappyOutputStream(OutputStream out, boolean writeChecksums)
+            throws IOException
+    {
+        this.out = checkNotNull(out, "out is null");
+        this.writeChecksums = writeChecksums;
         recycler = BufferRecycler.instance();
         buffer = recycler.allocOutputBuffer(MAX_BLOCK_SIZE);
         outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(MAX_BLOCK_SIZE));
@@ -153,7 +173,7 @@ public class SnappyOutputStream
             throws IOException
     {
         // crc is based on the user supplied input data
-        int crc32c = maskedCrc32c(input, offset, length);
+        int crc32c = writeChecksums ? maskedCrc32c(input, offset, length) : 0;
 
         int compressed = Snappy.compress(input, offset, length, outputBuffer, 0);
 

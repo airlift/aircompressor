@@ -211,7 +211,7 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             rawOut.reset();
-                            SnappyOutputStream out = new SnappyOutputStream(rawOut);
+                            SnappyOutputStream out = SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(rawOut);
                             out.write(contents);
                             out.close();
                         }
@@ -234,7 +234,7 @@ public enum BenchmarkDriver
                         byte[] contents = testData.getContents();
 
                         ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
-                        SnappyOutputStream out = new SnappyOutputStream(compressedStream);
+                        SnappyOutputStream out = SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(compressedStream);
                         out.write(contents);
                         out.close();
                         byte[] compressed = compressedStream.toByteArray();
@@ -273,7 +273,7 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             compressedStream.reset();
-                            SnappyOutputStream out = new SnappyOutputStream(compressedStream);
+                            SnappyOutputStream out = SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(compressedStream);
                             out.write(contents);
                             out.close();
 
@@ -300,7 +300,7 @@ public enum BenchmarkDriver
                     int compressedSize;
                     try {
                         ByteArrayOutputStream rawOut = new ByteArrayOutputStream(Snappy.maxCompressedLength(contents.length));
-                        SnappyOutputStream out = new SnappyOutputStream(rawOut);
+                        SnappyOutputStream out = SnappyOutputStream.newChecksumFreeBenchmarkOutputStream(rawOut);
                         out.write(contents);
                         out.close();
 
