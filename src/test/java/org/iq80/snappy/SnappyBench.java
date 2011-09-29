@@ -183,8 +183,8 @@ public class SnappyBench
                 testData.size(),
                 oldDriver.getCompressionRatio(testData) * 100.0,
                 newDriver.getCompressionRatio(testData) * 100.0,
-                newHumanReadableSpeed,
                 oldHumanReadableSpeed,
+                newHumanReadableSpeed,
                 improvement,
                 testData.getInfo());
     }
