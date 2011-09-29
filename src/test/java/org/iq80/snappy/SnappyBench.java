@@ -132,6 +132,18 @@ public class SnappyBench
                     benchmarkUncompress(testData, JAVA_BLOCK, 100);
                 }
             } while (System.nanoTime() < end);
+            end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
+            do {
+                for (TestData testData : TestData.values()) {
+                    benchmarkUncompress(testData, JAVA_STREAM, 100);
+                }
+            } while (System.nanoTime() < end);
+            end = System.nanoTime() + TimeUnit.SECONDS.toNanos(WARM_UP_SECONDS);
+            do {
+                for (TestData testData : TestData.values()) {
+                    benchmarkUncompress(testData, JAVA_STREAM, 100);
+                }
+            } while (System.nanoTime() < end);
         }
 
     }
@@ -140,8 +152,8 @@ public class SnappyBench
     {
         System.err.println();
         System.err.println();
-        System.err.println(benchmarkTitle);
-        System.err.println();
+        System.err.println("### " +benchmarkTitle);
+        System.err.println("<pre><code>");
         System.err.printf("%-8s %8s %9s %9s %11s %11s %7s\n",
                 "",
                 "",
@@ -161,12 +173,18 @@ public class SnappyBench
         System.err.printf("---------------------------------------------------------------------\n");
     }
 
+    private static void printFooter()
+    {
+        System.err.println("</code></pre>");
+    }
+
     public void runCompress(String benchmarkTitle, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)
     {
         printHeader(benchmarkTitle);
         for (TestData testData : TestData.values()) {
             runCompress(testData, oldDriver, newDriver);
         }
+        printFooter();
     }
 
     private void runCompress(TestData testData, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)
@@ -209,6 +227,7 @@ public class SnappyBench
         for (TestData testData : TestData.values()) {
             runUncompress(testData, oldDriver, newDriver);
         }
+        printFooter();
     }
 
     private void runUncompress(TestData testData, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)
@@ -251,6 +270,7 @@ public class SnappyBench
         for (TestData testData : TestData.values()) {
             runRoundTrip(testData, oldDriver, newDriver);
         }
+        printFooter();
     }
 
     private void runRoundTrip(TestData testData, BenchmarkDriver oldDriver, BenchmarkDriver newDriver)

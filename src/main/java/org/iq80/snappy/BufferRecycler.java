@@ -1,7 +1,6 @@
 package org.iq80.snappy;
 
 import java.lang.ref.SoftReference;
-import java.util.Arrays;
 
 /**
  * Simple helper class to encapsulate details of basic buffer
@@ -31,7 +30,7 @@ class BufferRecycler
     private byte[] decodingBuffer;
     private byte[] encodingBuffer;
 
-    private int[] encodingHash;
+    private short[] encodingHash;
 
 
     /**
@@ -98,11 +97,11 @@ class BufferRecycler
         }
     }
 
-    public int[] allocEncodingHash(int suggestedSize)
+    public short[] allocEncodingHash(int suggestedSize)
     {
-        int[] buf = encodingHash;
+        short[] buf = encodingHash;
         if (buf == null || buf.length < suggestedSize) {
-            buf = new int[suggestedSize];
+            buf = new short[suggestedSize];
         }
         else {
             encodingHash = null;
@@ -110,7 +109,7 @@ class BufferRecycler
         return buf;
     }
 
-    public void releaseEncodingHash(int[] buffer)
+    public void releaseEncodingHash(short[] buffer)
     {
         if (encodingHash == null || (buffer != null && buffer.length > encodingHash.length)) {
             encodingHash = buffer;

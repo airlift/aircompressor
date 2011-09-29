@@ -63,7 +63,8 @@ final class SnappyCompressor
         int compressedIndex = writeUncompressedLength(compressed, compressedOffset, uncompressedLength);
 
         int hashTableSize = getHashTableSize(uncompressedLength);
-        short[] table = new short[hashTableSize];
+        BufferRecycler recycler = BufferRecycler.instance();
+        short[] table = recycler.allocEncodingHash(hashTableSize);
 
         for (int read = 0; read < uncompressedLength; read += BLOCK_SIZE) {
             // Get encoding table for compression
@@ -77,6 +78,9 @@ final class SnappyCompressor
                     compressedIndex,
                     table);
         }
+
+        recycler.releaseEncodingHash(table);
+
         return compressedIndex - compressedOffset;
     }
 
