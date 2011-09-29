@@ -9,7 +9,7 @@ import static java.lang.Math.min;
 import static java.lang.String.format;
 import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
 import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
-import static org.iq80.snappy.SnappyOutputStream.FILE_HEADER;
+import static org.iq80.snappy.SnappyOutputStream.STREAM_HEADER;
 import static org.iq80.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
 
 /**
@@ -43,6 +43,7 @@ public class SnappyInputStream
      * @param in the underlying input stream
      */
     public SnappyInputStream(InputStream in)
+            throws IOException
     {
         this(in, true);
     }
@@ -53,6 +54,7 @@ public class SnappyInputStream
      * @param verifyChecksums if true, checksums in input stream will be verified
      */
     public SnappyInputStream(InputStream in, boolean verifyChecksums)
+            throws IOException
     {
         this.in = in;
         this.verifyChecksums = verifyChecksums;
@@ -60,6 +62,18 @@ public class SnappyInputStream
         input = recycler.allocInputBuffer(MAX_BLOCK_SIZE);
         uncompressed = recycler.allocDecodeBuffer(MAX_BLOCK_SIZE);
 
+        // stream must begin with stream header
+        int offset = 0;
+        while (offset < header.length) {
+            int size = in.read(header, offset, header.length - offset);
+            if (size == -1) {
+                throw new EOFException("encountered EOF while reading stream header");
+            }
+            offset += size;
+        }
+        if (!Arrays.equals(header, STREAM_HEADER)) {
+            throw new IOException("invalid stream header");
+        }
     }
 
     @Override
@@ -205,7 +219,7 @@ public class SnappyInputStream
                 }
                 offset += size;
             }
-        } while (Arrays.equals(header, FILE_HEADER));
+        } while (Arrays.equals(header, STREAM_HEADER));
         return true;
     }
 

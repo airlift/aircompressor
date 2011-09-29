@@ -121,7 +121,7 @@ the user input data for each block is written to the stream.  This safety check
 assures that the stream has not been corrupted in transit or by a bad Snappy
 implementation.  Finally, like gzip, compressed Snappy files can be
 concatenated together without issue, since the input stream will ignore a
-Snappy file header in the middle of a stream.  This makes combining files in
+Snappy stream header in the middle of a stream.  This makes combining files in
 Hadoop and S3 trivial.
 
 The the SnappyOutputStream javadocs contain formal definition of the stream

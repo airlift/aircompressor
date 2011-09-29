@@ -9,7 +9,7 @@ import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 
 /**
  * This class implements an output stream for writing Snappy compressed data.
- * The output format is a file header "snappy\0" followed by one or more
+ * The output format is the stream header "snappy\0" followed by one or more
  * compressed blocks of data, each of which is preceded by a seven byte header.
  * <p/>
  * The first byte of the header is a flag indicating if the block is compressed
@@ -28,7 +28,7 @@ import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
 public class SnappyOutputStream
         extends OutputStream
 {
-    static final byte[] FILE_HEADER = new byte[] { 's', 'n', 'a', 'p', 'p', 'y', 0};
+    static final byte[] STREAM_HEADER = new byte[] { 's', 'n', 'a', 'p', 'p', 'y', 0};
 
     // the header format requires the max block size to fit in 15 bits -- do not change!
     static final int MAX_BLOCK_SIZE = 1 << 15;
@@ -73,7 +73,7 @@ public class SnappyOutputStream
         recycler = BufferRecycler.instance();
         buffer = recycler.allocOutputBuffer(MAX_BLOCK_SIZE);
         outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(MAX_BLOCK_SIZE));
-        out.write(FILE_HEADER);
+        out.write(STREAM_HEADER);
     }
 
     @Override
