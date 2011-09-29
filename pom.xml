@@ -285,11 +285,19 @@
                     <version>1.9.0</version>
                     <configuration>
                         <header>license-header.txt</header>
+                        <mapping>
+                            <java>SLASHSTAR_STYLE</java>
+                        </mapping>
                         <excludes>
                             <exclude>**/README.md</exclude>
                             <exclude>**/README.txt</exclude>
                             <exclude>**/config.properties</exclude>
                             <exclude>**/log.properties</exclude>
+                            <exclude>testdata/**</exclude>
+                            <exclude>snappy-cc/**</exclude>
+                            <exclude>.gitignore</exclude>
+                            <exclude>notice.md</exclude>
+                            <exclude>license.txt</exclude>
                         </excludes>
                     </configuration>
                 </plugin>
