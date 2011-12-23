@@ -17,6 +17,8 @@
  */
 package org.iq80.snappy;
 
+import java.util.Arrays;
+
 public final class Snappy
 {
     private Snappy()
@@ -58,6 +60,14 @@ public final class Snappy
                 uncompressedLength,
                 compressed,
                 compressedOffset);
+    }
+
+
+    public byte[] compress( byte[] data) {
+        byte[] compressedOut = new byte[maxCompressedLength(data.length)];
+        int compressedSize = compress(data, 0, data.length, compressedOut, 0);
+        byte[] trimmedBuffer = Arrays.copyOf(compressedOut, compressedSize);
+        return trimmedBuffer;
     }
 
     static final int LITERAL = 0;
