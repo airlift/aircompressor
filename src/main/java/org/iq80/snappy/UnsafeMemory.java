@@ -30,6 +30,8 @@ class UnsafeMemory implements Memory
             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
             theUnsafe.setAccessible(true);
             unsafe = (Unsafe) theUnsafe.get(null);
+            // It seems not all Unsafe implementations implement the following method.
+            new UnsafeMemory().copyMemory(new byte[1], 0, new byte[1], 0, 1);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
