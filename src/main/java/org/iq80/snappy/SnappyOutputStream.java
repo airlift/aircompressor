@@ -163,7 +163,7 @@ public class SnappyOutputStream
             out.close();
         }
         finally {
-            if (closed) {
+            if (!closed) {
                 closed = true;
                 recycler.releaseOutputBuffer(outputBuffer);
                 recycler.releaseEncodeBuffer(buffer);
