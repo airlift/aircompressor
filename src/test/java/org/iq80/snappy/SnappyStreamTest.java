@@ -245,7 +245,7 @@ public class SnappyStreamTest
     public void testInvalidBlockSizeLarge()
             throws Exception
     {
-        uncompressBlock(new byte[]{0, (byte) 0xD9, 0x03, 0, 0, 0, 0}); // flag = 'A', block size = 55555, crc32c = 0
+        uncompressBlock(new byte[]{0, (byte) 0xD9, 0x03, 0, 0, 0, 0}); // flag = 0, block size = 55555, crc32c = 0
     }
 
     @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "Corrupt input: invalid checksum")
