@@ -165,8 +165,7 @@ public class SnappyTest
         {
             byte[] rawData = new byte[length];
             for (int i = 0; i < rawData.length; i++) {
-                rawData[i] = (byte) (' ' + random.nextInt(95));
-
+                rawData[i] = (byte) random.nextInt(256);
             }
             return rawData;
         }

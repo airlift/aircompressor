@@ -103,7 +103,7 @@ public class SnappyInputStream
         if (!ensureBuffer()) {
             return -1;
         }
-        return buffer[position++];
+        return buffer[position++] & 0xFF;
     }
 
     @Override
