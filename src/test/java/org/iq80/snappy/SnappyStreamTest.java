@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -262,6 +263,30 @@ public class SnappyStreamTest
         byte[] block = {0, 0, 1, 0, 0, 0, 0, 'a'}; // flag = 0, size = 4, crc32c = 0, block data = [a]
         ByteArrayInputStream inputData = new ByteArrayInputStream(blockToStream(block));
         assertEquals(toByteArray(new SnappyInputStream(inputData, false)), new byte[] {'a'});
+    }
+
+    @Test
+    public void testCloseIsIdempotent()
+            throws Exception
+    {
+        byte[] random = getRandom(0.5, 500000);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        OutputStream snappyOut = new SnappyOutputStream(out);
+
+        snappyOut.write(random);
+
+        snappyOut.close();
+        snappyOut.close();
+
+        byte[] compressed = out.toByteArray();
+
+        InputStream snappyIn = new SnappyInputStream(new ByteArrayInputStream(compressed));
+        byte[] uncompressed = toByteArray(snappyIn);
+        assertEquals(uncompressed, random);
+
+        snappyIn.close();
+        snappyIn.close();
     }
 
     private static byte[] getRandom(double compressionRatio, int length)

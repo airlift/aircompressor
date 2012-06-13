@@ -158,16 +158,17 @@ public class SnappyOutputStream
     public void close()
             throws IOException
     {
+        if (closed) {
+            return;
+        }
         try {
             flush();
             out.close();
         }
         finally {
-            if (!closed) {
-                closed = true;
-                recycler.releaseOutputBuffer(outputBuffer);
-                recycler.releaseEncodeBuffer(buffer);
-            }
+            closed = true;
+            recycler.releaseOutputBuffer(outputBuffer);
+            recycler.releaseEncodeBuffer(buffer);
         }
     }
 
