@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
-import static org.iq80.snappy.Snappy.COPY_1_BYTE_OFFSET;
-import static org.iq80.snappy.Snappy.COPY_2_BYTE_OFFSET;
-import static org.iq80.snappy.Snappy.LITERAL;
+import static io.airlift.compress.Snappy.COPY_1_BYTE_OFFSET;
+import static io.airlift.compress.Snappy.COPY_2_BYTE_OFFSET;
+import static io.airlift.compress.Snappy.LITERAL;
 
 final class SnappyCompressor
 {

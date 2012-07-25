@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
-import static org.iq80.snappy.SnappyInternalUtils.copyLong;
-import static org.iq80.snappy.SnappyInternalUtils.loadByte;
-import static org.iq80.snappy.SnappyInternalUtils.lookupShort;
+import static io.airlift.compress.SnappyInternalUtils.copyLong;
+import static io.airlift.compress.SnappyInternalUtils.loadByte;
+import static io.airlift.compress.SnappyInternalUtils.lookupShort;
 
 final class SnappyDecompressor
 {

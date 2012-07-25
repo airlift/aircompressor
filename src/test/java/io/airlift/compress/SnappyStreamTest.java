@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
@@ -33,7 +33,7 @@ import java.util.Arrays;
 
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.primitives.UnsignedBytes.toInt;
-import static org.iq80.snappy.SnappyOutputStream.STREAM_HEADER;
+import static io.airlift.compress.SnappyOutputStream.STREAM_HEADER;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 

@@ -3,15 +3,15 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.iq80.snappy</groupId>
-    <artifactId>snappy</artifactId>
+    <groupId>io.airlift</groupId>
+    <artifactId>aircompressor</artifactId>
     <version>0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>snappy</name>
+    <name>aircompressor</name>
 
     <description>Port of Snappy to Java</description>
-    <url>http://github.com/dain/snappy</url>
+    <url>http://github.com/airlift/aircompressor</url>
 
     <inceptionYear>2011</inceptionYear>
 
@@ -41,9 +41,9 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/dain/snapy.git</connection>
-        <developerConnection>scm:git:git@github.com:dain/snapy.git</developerConnection>
-        <url>http://github.com/dain/snapy/tree/master</url>
+        <connection>scm:git:git://github.com/airlift/aircompressor.git</connection>
+        <developerConnection>scm:git:git@github.com:airlift/aircompressor.git</developerConnection>
+        <url>http://github.com/airlift/aircompressor/tree/master</url>
     </scm>
 
     <prerequisites>
@@ -149,7 +149,7 @@
                             <classifier>bin</classifier>
                             <archive>
                                 <manifest>
-                                    <mainClass>org.iq80.snappy.Main</mainClass>
+                                    <mainClass>io.airlift.compress.Main</mainClass>
                                 </manifest>
                             </archive>
                         </configuration>

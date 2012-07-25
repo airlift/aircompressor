@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -24,10 +24,10 @@ import java.util.Arrays;
 
 import static java.lang.Math.min;
 import static java.lang.String.format;
-import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
-import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
-import static org.iq80.snappy.SnappyOutputStream.STREAM_HEADER;
-import static org.iq80.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
+import static io.airlift.compress.SnappyInternalUtils.checkNotNull;
+import static io.airlift.compress.SnappyInternalUtils.checkPositionIndexes;
+import static io.airlift.compress.SnappyOutputStream.STREAM_HEADER;
+import static io.airlift.compress.SnappyOutputStream.MAX_BLOCK_SIZE;
 
 /**
  * This class implements an input stream for reading Snappy compressed data

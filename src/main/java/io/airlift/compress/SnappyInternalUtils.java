@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 final class SnappyInternalUtils
 {
@@ -29,7 +29,7 @@ final class SnappyInternalUtils
         // Try to only load one implementation of Memory to assure the call sites are monomorphic (fast)
         Memory memoryInstance = null;
         try {
-            Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("org.iq80.snappy.UnsafeMemory").asSubclass(Memory.class);
+            Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.UnsafeMemory").asSubclass(Memory.class);
             Memory unsafeMemory = unsafeMemoryClass.newInstance();
             if (unsafeMemory.loadInt(new byte[4], 0) == 0) {
                 memoryInstance = unsafeMemory;
@@ -39,7 +39,7 @@ final class SnappyInternalUtils
         }
         if (memoryInstance == null) {
             try {
-                Class<? extends Memory> slowMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("org.iq80.snappy.SlowMemory").asSubclass(Memory.class);
+                Class<? extends Memory> slowMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.SlowMemory").asSubclass(Memory.class);
                 Memory slowMemory = slowMemoryClass.newInstance();
                 if (slowMemory.loadInt(new byte[4], 0) == 0) {
                     memoryInstance = slowMemory;

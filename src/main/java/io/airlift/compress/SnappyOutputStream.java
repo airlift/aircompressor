@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
-import static org.iq80.snappy.Crc32C.maskedCrc32c;
-import static org.iq80.snappy.SnappyInternalUtils.checkNotNull;
-import static org.iq80.snappy.SnappyInternalUtils.checkPositionIndexes;
+import static io.airlift.compress.Crc32C.maskedCrc32c;
+import static io.airlift.compress.SnappyInternalUtils.checkNotNull;
+import static io.airlift.compress.SnappyInternalUtils.checkPositionIndexes;
 
 /**
  * This class implements an output stream for writing Snappy compressed data.

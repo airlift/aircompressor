@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import com.google.common.base.Throwables;
-import org.iq80.snappy.SnappyBench.TestData;
+import io.airlift.compress.SnappyBench.TestData;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.iq80.snappy;
+package io.airlift.compress;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
@@ -31,10 +31,10 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.String.format;
-import static org.iq80.snappy.BenchmarkDriver.JAVA_BLOCK;
-import static org.iq80.snappy.BenchmarkDriver.JAVA_STREAM;
-import static org.iq80.snappy.BenchmarkDriver.JNI_BLOCK;
-import static org.iq80.snappy.BenchmarkDriver.JNI_STREAM;
+import static io.airlift.compress.BenchmarkDriver.JAVA_BLOCK;
+import static io.airlift.compress.BenchmarkDriver.JAVA_STREAM;
+import static io.airlift.compress.BenchmarkDriver.JNI_BLOCK;
+import static io.airlift.compress.BenchmarkDriver.JNI_STREAM;
 
 /**
  * Port of the micro-benchmarks for  Snappy.
