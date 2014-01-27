@@ -212,8 +212,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkCompress(testData, newDriver, iterations);
 
         // results
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(
@@ -255,8 +255,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkUncompress(testData, newDriver, iterations);
 
         // results
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(
@@ -298,8 +298,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkRoundTrip(testData, newDriver, iterations);
 
         // results
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(
@@ -352,24 +352,6 @@ public class SnappyBench
     private double nanosToSeconds(long nanos)
     {
         return 1.0 * nanos / TimeUnit.SECONDS.toNanos(1);
-    }
-
-    private String toHumanReadableSpeed(long bytesPerSecond)
-    {
-        String humanReadableSpeed;
-        if (bytesPerSecond < 1024) {
-            humanReadableSpeed = format("%dB/s", bytesPerSecond);
-        }
-        else if (bytesPerSecond < 1024 * 1024) {
-            humanReadableSpeed = format("%.1fkB/s", bytesPerSecond / 1024.0f);
-        }
-        else if (bytesPerSecond < 1024 * 1024 * 1024) {
-            humanReadableSpeed = format("%.1fMB/s", bytesPerSecond / (1024.0f * 1024.0f));
-        }
-        else {
-            humanReadableSpeed = format("%.1fGB/s", bytesPerSecond / (1024.0f * 1024.0f * 1024.0f));
-        }
-        return humanReadableSpeed;
     }
 
     private long getMedianValue(long[] benchmarkRuns)
