@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import static io.airlift.compress.Util.toHumanReadableSpeed;
 import static java.lang.String.format;
 import static io.airlift.compress.BenchmarkDriver.JAVA_BLOCK;
 import static io.airlift.compress.BenchmarkDriver.JAVA_STREAM;
@@ -352,24 +353,6 @@ public class SnappyBench
     private double nanosToSeconds(long nanos)
     {
         return 1.0 * nanos / TimeUnit.SECONDS.toNanos(1);
-    }
-
-    private String toHumanReadableSpeed(long bytesPerSecond)
-    {
-        String humanReadableSpeed;
-        if (bytesPerSecond < 1024) {
-            humanReadableSpeed = format("%dB/s", bytesPerSecond);
-        }
-        else if (bytesPerSecond < 1024 * 1024) {
-            humanReadableSpeed = format("%.1fkB/s", bytesPerSecond / 1024.0f);
-        }
-        else if (bytesPerSecond < 1024 * 1024 * 1024) {
-            humanReadableSpeed = format("%.1fMB/s", bytesPerSecond / (1024.0f * 1024.0f));
-        }
-        else {
-            humanReadableSpeed = format("%.1fGB/s", bytesPerSecond / (1024.0f * 1024.0f * 1024.0f));
-        }
-        return humanReadableSpeed;
     }
 
     private long getMedianValue(long[] benchmarkRuns)
