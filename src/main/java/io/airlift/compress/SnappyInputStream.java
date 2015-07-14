@@ -22,73 +22,81 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-import static java.lang.Math.min;
-import static java.lang.String.format;
+import static io.airlift.compress.SnappyFramed.COMPRESSED_DATA_FLAG;
+import static io.airlift.compress.SnappyFramed.HEADER_BYTES;
+import static io.airlift.compress.SnappyFramed.STREAM_IDENTIFIER_FLAG;
+import static io.airlift.compress.SnappyFramed.UNCOMPRESSED_DATA_FLAG;
 import static io.airlift.compress.SnappyInternalUtils.checkNotNull;
 import static io.airlift.compress.SnappyInternalUtils.checkPositionIndexes;
-import static io.airlift.compress.SnappyOutputStream.STREAM_HEADER;
+import static io.airlift.compress.SnappyInternalUtils.readBytes;
 import static io.airlift.compress.SnappyOutputStream.MAX_BLOCK_SIZE;
+import static java.lang.Math.min;
 
 /**
- * This class implements an input stream for reading Snappy compressed data
- * of the format produced by {@link SnappyOutputStream}.
+ * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link InputStream}.
  */
-public class SnappyInputStream
+public final class SnappyInputStream
         extends InputStream
 {
-    // The buffer size is the same as the block size.
-    // This works because the original data is not allowed to expand.
-    private final BufferRecycler recycler;
-    private final byte[] input;
-    private final byte[] uncompressed;
-    private final byte[] header = new byte[7];
     private final InputStream in;
+    private final byte[] frameHeader;
     private final boolean verifyChecksums;
-
-    // Buffer is a reference to the real buffer for the current block:
-    // uncompressed if the block is compressed, or input if it is not.
-    // Valid is the total valid bytes in the referenced buffer.
-    private byte[] buffer;
-    private int valid;
-    private int position;
-    private boolean closed;
-    private boolean eof;
+    private final BufferRecycler recycler;
 
     /**
-     * Creates a Snappy input stream to read data from the specified underlying input stream.
-     *
-     * @param in the underlying input stream
+     * A single frame read from the underlying {@link InputStream}.
      */
+    private byte[] input;
+    /**
+     * The decompressed data from {@link #input}.
+     */
+    private byte[] uncompressed;
+    /**
+     * Indicates if this instance has been closed.
+     */
+    private boolean closed;
+    /**
+     * Indicates if we have reached the EOF on {@link #in}.
+     */
+    private boolean eof;
+    /**
+     * The position in {@link #input} to read to.
+     */
+    private int valid;
+    /**
+     * The next position to read from {@link #buffer}.
+     */
+    private int position;
+    /**
+     * Buffer is a reference to the real buffer of uncompressed data for the
+     * current block: uncompressed if the block is compressed, or input if it is
+     * not.
+     */
+    private byte[] buffer;
+
     public SnappyInputStream(InputStream in)
             throws IOException
     {
         this(in, true);
     }
-    /**
-     * Creates a Snappy input stream to read data from the specified underlying input stream.
-     *
-     * @param in the underlying input stream
-     * @param verifyChecksums if true, checksums in input stream will be verified
-     */
+
     public SnappyInputStream(InputStream in, boolean verifyChecksums)
             throws IOException
     {
         this.in = in;
         this.verifyChecksums = verifyChecksums;
-        recycler = BufferRecycler.instance();
-        input = recycler.allocInputBuffer(MAX_BLOCK_SIZE);
-        uncompressed = recycler.allocDecodeBuffer(MAX_BLOCK_SIZE);
+        this.recycler = BufferRecycler.instance();
+        allocateBuffersBasedOnSize(MAX_BLOCK_SIZE + 5);
+        this.frameHeader = new byte[4];
 
         // stream must begin with stream header
-        int offset = 0;
-        while (offset < header.length) {
-            int size = in.read(header, offset, header.length - offset);
-            if (size == -1) {
-                throw new EOFException("encountered EOF while reading stream header");
-            }
-            offset += size;
+        byte[] actualHeader = new byte[HEADER_BYTES.length];
+
+        int read = readBytes(in, actualHeader, 0, actualHeader.length);
+        if (read < HEADER_BYTES.length) {
+            throw new EOFException("encountered EOF while reading stream header");
         }
-        if (!Arrays.equals(header, STREAM_HEADER)) {
+        if (!Arrays.equals(HEADER_BYTES, actualHeader)) {
             throw new IOException("invalid stream header");
         }
     }
@@ -169,110 +177,175 @@ public class SnappyInputStream
             eof = true;
             return false;
         }
-        boolean compressed = getHeaderCompressedFlag();
-        int length = getHeaderLength();
 
-        readInput(length);
+        // get action based on header
+        FrameMetaData frameMetaData = getFrameMetaData(frameHeader);
 
-        handleInput(length, compressed);
+        if (FrameAction.SKIP == frameMetaData.frameAction) {
+            SnappyInternalUtils.skip(in, frameMetaData.length);
+            return ensureBuffer();
+        }
 
-        return true;
-    }
+        if (frameMetaData.length > input.length) {
+            allocateBuffersBasedOnSize(frameMetaData.length);
+        }
 
-    private void handleInput(int length, boolean compressed)
-            throws IOException
-    {
-        if (compressed) {
-            buffer = uncompressed;
-            try {
-                valid = Snappy.uncompress(input, 0, length, uncompressed, 0);
+        int actualRead = readBytes(in, input, 0, frameMetaData.length);
+        if (actualRead != frameMetaData.length) {
+            throw new EOFException("unexpectd EOF when reading frame");
+        }
+
+        FrameData frameData = getFrameData(input);
+
+        if (FrameAction.UNCOMPRESS == frameMetaData.frameAction) {
+            int uncompressedLength = Snappy.getUncompressedLength(input,
+                    frameData.offset);
+
+            if (uncompressedLength > uncompressed.length) {
+                uncompressed = recycler.allocDecodeBuffer(uncompressedLength);
             }
-            catch (CorruptionException e) {
-                throw new IOException("Corrupt input", e);
-            }
+
+            this.valid = Snappy.uncompress(input, frameData.offset, actualRead
+                    - frameData.offset, uncompressed, 0);
+            this.buffer = uncompressed;
+            this.position = 0;
         }
         else {
-            buffer = input;
-            valid = length;
+            // we need to start reading at the offset
+            this.position = frameData.offset;
+            this.buffer = input;
+            // valid is until the end of the read data, regardless of offset
+            // indicating where we start
+            this.valid = actualRead;
         }
 
         if (verifyChecksums) {
-            int expectedCrc32c = getCrc32c();
-            int actualCrc32c = Crc32C.maskedCrc32c(buffer, 0, valid);
-            if (expectedCrc32c != actualCrc32c) {
+            int actualCrc32c = Crc32C.maskedCrc32c(buffer, position, valid - position);
+            if (frameData.checkSum != actualCrc32c) {
                 throw new IOException("Corrupt input: invalid checksum");
             }
         }
 
-        position = 0;
+        return true;
     }
 
-    private void readInput(int length)
+    private void allocateBuffersBasedOnSize(int size)
+    {
+        input = recycler.allocInputBuffer(size);
+        uncompressed = recycler.allocDecodeBuffer(size);
+    }
+
+    /**
+     * Use the content of the frameHeader to describe what type of frame we have
+     * and the action to take.
+     */
+    private static FrameMetaData getFrameMetaData(byte[] frameHeader)
             throws IOException
     {
-        int offset = 0;
-        while (offset < length) {
-            int size = in.read(input, offset, length - offset);
-            if (size == -1) {
-                throw new EOFException("encountered EOF while reading block data");
-            }
-            offset += size;
+        int length = (frameHeader[1] & 0xFF);
+        length |= (frameHeader[2] & 0xFF) << 8;
+        length |= (frameHeader[3] & 0xFF) << 16;
+
+        int minLength;
+        FrameAction frameAction;
+        int flag = frameHeader[0] & 0xFF;
+        switch (flag) {
+            case COMPRESSED_DATA_FLAG:
+                frameAction = FrameAction.UNCOMPRESS;
+                minLength = 5;
+                break;
+            case UNCOMPRESSED_DATA_FLAG:
+                frameAction = FrameAction.RAW;
+                minLength = 5;
+                break;
+            case STREAM_IDENTIFIER_FLAG:
+                if (length != 6) {
+                    throw new IOException("stream identifier chunk with invalid length: " + length);
+                }
+                frameAction = FrameAction.SKIP;
+                minLength = 6;
+                break;
+            default:
+                // Reserved unskippable chunks (chunk types 0x02-0x7f)
+                if (flag <= 0x7f) {
+                    throw new IOException("unsupported unskippable chunk: " + Integer.toHexString(flag));
+                }
+
+                // all that is left is Reserved skippable chunks (chunk types 0x80-0xfe)
+                frameAction = FrameAction.SKIP;
+                minLength = 0;
         }
+
+        if (length < minLength) {
+            throw new IOException("invalid length: " + length + " for chunk flag: " + Integer.toHexString(flag));
+        }
+
+        return new FrameMetaData(frameAction, length);
+    }
+
+    /**
+     * Extract frame data
+     *
+     * @param content The content of the of the frame. Content begins at index {@code 0}.
+     * @return Metadata about the content of the frame.
+     */
+    private static FrameData getFrameData(byte[] content)
+    {
+        // crc is contained in the frame content
+        int crc32c = (content[3] & 0xFF) << 24 |
+                (content[2] & 0xFF) << 16 |
+                (content[1] & 0xFF) << 8 |
+                (content[0] & 0xFF);
+
+        return new FrameData(crc32c, 4);
     }
 
     private boolean readBlockHeader()
             throws IOException
     {
-        do {
-            int offset = 0;
-            while (offset < header.length) {
-                int size = in.read(header, offset, header.length - offset);
-                if (size == -1) {
-                    // EOF on first byte means the stream ended cleanly
-                    if (offset == 0) {
-                        return false;
-                    }
-                    throw new EOFException("encountered EOF while reading block header");
-                }
-                offset += size;
-            }
-        } while (Arrays.equals(header, STREAM_HEADER));
+        int read = readBytes(in, frameHeader, 0, frameHeader.length);
+
+        if (read == -1) {
+            return false;
+        }
+
+        if (read < frameHeader.length) {
+            throw new EOFException("encountered EOF while reading block header");
+        }
+
         return true;
     }
 
-    private boolean getHeaderCompressedFlag()
-            throws IOException
+    enum FrameAction
     {
-        int x = header[0] & 0xFF;
-        switch (x) {
-            case 0x00:
-                return false;
-            case 0x01:
-                return true;
-            default:
-                throw new IOException(format("invalid compressed flag in header: 0x%02x", x));
+        RAW, SKIP, UNCOMPRESS
+    }
+
+    public static final class FrameMetaData
+    {
+        final int length;
+        final FrameAction frameAction;
+
+        /**
+         * @param frameAction
+         * @param length
+         */
+        public FrameMetaData(FrameAction frameAction, int length)
+        {
+            this.frameAction = frameAction;
+            this.length = length;
         }
     }
 
-    private int getHeaderLength()
-            throws IOException
+    public static final class FrameData
     {
-        int a = header[1] & 0xFF;
-        int b = header[2] & 0xFF;
-        int length = (a << 8) | b;
-        if ((length <= 0) || (length > MAX_BLOCK_SIZE)) {
-            throw new IOException("invalid block size in header: " + length);
+        final int checkSum;
+        final int offset;
+
+        public FrameData(int checkSum, int offset)
+        {
+            this.checkSum = checkSum;
+            this.offset = offset;
         }
-        return length;
-    }
-
-    private int getCrc32c()
-            throws IOException
-    {
-        return ((header[3] & 0xFF) << 24) |
-                ((header[4] & 0xFF) << 16) |
-                ((header[5] & 0xFF) << 8) |
-                (header[6] & 0xFF);
-
     }
 }

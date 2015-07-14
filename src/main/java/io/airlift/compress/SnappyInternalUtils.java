@@ -17,7 +17,11 @@
  */
 package io.airlift.compress;
 
-public final class SnappyInternalUtils
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteOrder;
+
+final class SnappyInternalUtils
 {
     private SnappyInternalUtils()
     {
@@ -28,14 +32,24 @@ public final class SnappyInternalUtils
     static {
         // Try to only load one implementation of Memory to assure the call sites are monomorphic (fast)
         Memory memoryInstance = null;
-        try {
-            Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.UnsafeMemory").asSubclass(Memory.class);
-            Memory unsafeMemory = unsafeMemoryClass.newInstance();
-            if (unsafeMemory.loadInt(new byte[4], 0) == 0) {
-                memoryInstance = unsafeMemory;
+
+        // TODO enable UnsafeMemory on big endian machines
+        //
+        // The current UnsafeMemory code assumes the machine is little endian, and will
+        // not work correctly on big endian CPUs.  For now, we will disable UnsafeMemory on
+        // big endian machines.  This will make the code significantly slower on big endian.
+        // In the future someone should add the necessary flip bytes calls to make this
+        // work efficiently on big endian machines.
+        if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
+            try {
+                Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.UnsafeMemory").asSubclass(Memory.class);
+                Memory unsafeMemory = unsafeMemoryClass.newInstance();
+                if (unsafeMemory.loadInt(new byte[4], 0) == 0) {
+                    memoryInstance = unsafeMemory;
+                }
             }
-        }
-        catch (Throwable ignored) {
+            catch (Throwable ignored) {
+            }
         }
         if (memoryInstance == null) {
             try {
@@ -102,16 +116,7 @@ public final class SnappyInternalUtils
 
     //
     // Copied from Guava Preconditions
-    public static <T> T checkNotNull(T reference, String errorMessage)
-    {
-        if (reference == null) {
-            // If either of these parameters is null, the right thing happens anyway
-            throw new NullPointerException(errorMessage);
-        }
-        return reference;
-    }
-
-    public static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)
+    static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)
     {
         if (reference == null) {
             // If either of these parameters is null, the right thing happens anyway
@@ -120,23 +125,14 @@ public final class SnappyInternalUtils
         return reference;
     }
 
-    public static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)
+    static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)
     {
         if (!expression) {
             throw new IllegalArgumentException(String.format(errorMessageTemplate, errorMessageArgs));
         }
     }
 
-    public static int checkPositionIndex(int index, int size)
-    {
-        // Carefully optimized for execution by hotspot (explanatory comment above)
-        if (index < 0 || index > size) {
-            throw new IndexOutOfBoundsException(badPositionIndex(index, size, null));
-        }
-        return index;
-    }
-
-    public static void checkPositionIndexes(int start, int end, int size)
+    static void checkPositionIndexes(int start, int end, int size)
     {
         // Carefully optimized for execution by hotspot (explanatory comment above)
         if (start < 0 || end < start || end > size) {
@@ -144,7 +140,7 @@ public final class SnappyInternalUtils
         }
     }
 
-    public static String badPositionIndexes(int start, int end, int size)
+    static String badPositionIndexes(int start, int end, int size)
     {
         if (start < 0 || start > size) {
             return badPositionIndex(start, size, "start index");
@@ -156,7 +152,7 @@ public final class SnappyInternalUtils
         return String.format("end index (%s) must not be less than start index (%s)", end, start);
     }
 
-    public static String badPositionIndex(int index, int size, String desc)
+    static String badPositionIndex(int index, int size, String desc)
     {
         if (index < 0) {
             return String.format("%s (%s) must not be negative", desc, index);
@@ -167,5 +163,73 @@ public final class SnappyInternalUtils
         else { // index > size
             return String.format("%s (%s) must not be greater than size (%s)", desc, index, size);
         }
+    }
+
+    /**
+     * Reads <i>length</i> bytes from <i>source</i> into <i>dest</i> starting at <i>offset</i>. <br/>
+     * <p/>
+     * The only case where the <i>length</i> <tt>byte</tt>s will not be read is if <i>source</i> returns EOF.
+     *
+     * @param source The source of bytes to read from. Must not be <code>null</code>.
+     * @param dest The <tt>byte[]</tt> to read bytes into. Must not be <code>null</code>.
+     * @param offset The index in <i>dest</i> to start filling.
+     * @param length The number of bytes to read.
+     * @return Total number of bytes actually read.
+     * @throws IndexOutOfBoundsException if <i>offset</i> or <i>length</i> are invalid.
+     */
+    static int readBytes(InputStream source, byte[] dest, int offset, int length)
+            throws IOException
+    {
+        checkNotNull(source, "source is null");
+        checkNotNull(dest, "dest is null");
+
+        // how many bytes were read.
+        int lastRead = source.read(dest, offset, length);
+
+        int totalRead = lastRead;
+
+        // if we did not read as many bytes as we had hoped, try reading again.
+        if (lastRead < length) {
+            // as long the buffer is not full (remaining() == 0) and we have not reached EOF (lastRead == -1) keep reading.
+            while (totalRead < length && lastRead != -1) {
+                lastRead = source.read(dest, offset + totalRead, length - totalRead);
+
+                // if we got EOF, do not add to total read.
+                if (lastRead != -1) {
+                    totalRead += lastRead;
+                }
+            }
+        }
+
+        return totalRead;
+    }
+
+    static int skip(InputStream source, int skip)
+            throws IOException
+    {
+        // optimization also avoids potential for error with some implementation of
+        // InputStream.skip() which throw exceptions with negative numbers (ie. ZipInputStream).
+        if (skip <= 0) {
+            return 0;
+        }
+
+        int toSkip = skip - (int) source.skip(skip);
+
+        boolean more = true;
+        while (toSkip > 0 && more) {
+            // check to see if we reached EOF
+            int read = source.read();
+            if (read == -1) {
+                more = false;
+            }
+            else {
+                --toSkip;
+                toSkip -= source.skip(toSkip);
+            }
+        }
+
+        int skipped = skip - toSkip;
+
+        return skipped;
     }
 }

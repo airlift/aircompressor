@@ -344,7 +344,7 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             rawOut.reset();
-                            org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(rawOut);
+                            org.xerial.snappy.SnappyFramedOutputStream out = new org.xerial.snappy.SnappyFramedOutputStream(rawOut);
                             out.write(contents);
                             out.close();
                         }
@@ -367,7 +367,7 @@ public enum BenchmarkDriver
                         byte[] contents = testData.getContents();
                         ByteArrayOutputStream compressedStream = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
 
-                        org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(compressedStream);
+                        org.xerial.snappy.SnappyFramedOutputStream out = new org.xerial.snappy.SnappyFramedOutputStream(compressedStream);
                         out.write(contents);
                         out.close();
                         byte[] compressed = compressedStream.toByteArray();
@@ -407,7 +407,7 @@ public enum BenchmarkDriver
                         long start = System.nanoTime();
                         while (iterations-- > 0) {
                             compressedStream.reset();
-                            org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(compressedStream);
+                            org.xerial.snappy.SnappyFramedOutputStream out = new org.xerial.snappy.SnappyFramedOutputStream(compressedStream);
                             out.write(contents);
                             out.close();
 
@@ -434,7 +434,7 @@ public enum BenchmarkDriver
                     int compressedSize;
                     try {
                         ByteArrayOutputStream rawOut = new ByteArrayOutputStream(org.xerial.snappy.Snappy.maxCompressedLength(contents.length));
-                        org.xerial.snappy.SnappyOutputStream out = new org.xerial.snappy.SnappyOutputStream(rawOut);
+                        org.xerial.snappy.SnappyFramedOutputStream out = new org.xerial.snappy.SnappyFramedOutputStream(rawOut);
                         out.write(contents);
                         out.close();
 

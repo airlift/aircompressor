@@ -120,7 +120,7 @@ public class SnappyBench
                 out.write(contents);
                 out.close();
 
-                SnappyInputStream in = new SnappyInputStream(new ByteArrayInputStream(rawOut.toByteArray()));
+                SnappyInputStream in = new SnappyInputStream(new ByteArrayInputStream(rawOut.toByteArray()), false);
                 byte[] uncompressed = ByteStreams.toByteArray(in);
 
                 if (!Arrays.equals(uncompressed, testData.getContents())) {
