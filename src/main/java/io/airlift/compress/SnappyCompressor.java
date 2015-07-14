@@ -28,46 +28,22 @@ final class SnappyCompressor
 {
     private static final boolean NATIVE_LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
-    // *** DO NOT CHANGE THE VALUE OF kBlockSize ***
+    // The size of a compression block. Note that many parts of the compression
+    // code assumes that kBlockSize <= 65536; in particular, the hash table
+    // can only store 16-bit offsets, and EmitCopy() also assumes the offset
+    // is 65535 bytes or less. Note also that if you change this, it will
+    // affect the framing format (see framing_format.txt).
     //
-    // New Compression code chops up the input into blocks of at most
-    // the following size.  This ensures that back-references in the
-    // output never cross kBlockSize block boundaries.  This can be
-    // helpful in implementing blocked decompression.  However the
-    // decompression code should not rely on this guarantee since older
-    // compression code may not obey it.
-    private static final int BLOCK_LOG = 15;
+    // Note that there might be older data around that is compressed with larger
+    // block sizes, so the decompression code should not rely on the
+    // non-existence of long backreferences.
+    private static final int BLOCK_LOG = 16;
     private static final int BLOCK_SIZE = 1 << BLOCK_LOG;
 
     private static final int INPUT_MARGIN_BYTES = 15;
 
     private static final int MAX_HASH_TABLE_BITS = 14;
     private static final int MAX_HASH_TABLE_SIZE = 1 << MAX_HASH_TABLE_BITS;
-
-    public static int maxCompressedLength(int sourceLength)
-    {
-        // Compressed data can be defined as:
-        //    compressed := item* literal*
-        //    item       := literal* copy
-        //
-        // The trailing literal sequence has a space blowup of at most 62/60
-        // since a literal of length 60 needs one tag byte + one extra byte
-        // for length information.
-        //
-        // Item blowup is trickier to measure.  Suppose the "copy" op copies
-        // 4 bytes of data.  Because of a special check in the encoding code,
-        // we produce a 4-byte copy only if the offset is < 65536.  Therefore
-        // the copy op takes 3 bytes to encode, and this type of item leads
-        // to at most the 62/60 blowup for representing literals.
-        //
-        // Suppose the "copy" op copies 5 bytes of data.  If the offset is big
-        // enough, it will take 5 bytes to encode the copy op.  Therefore the
-        // worst case here is a one-byte literal followed by a five-byte copy.
-        // I.e., 6 bytes of input turn into 7 bytes of "compressed" data.
-        //
-        // This last factor dominates the blowup, so the final estimate is:
-        return 32 + sourceLength + sourceLength / 6;
-    }
 
     public static int compress(
             final byte[] uncompressed,
@@ -202,8 +178,10 @@ final class SnappyCompressor
             int hash = hashBytes(currentInt, shift);
 
             // get the position of a 4 bytes sequence with the same hash
-            candidateIndex = inputOffset + table[hash];
-            assert candidateIndex >= 0;
+            candidateIndex = inputOffset + (table[hash] & 0xFFFF);
+            if (candidateIndex < 0) {
+                throw new AssertionError();
+            }
             assert candidateIndex < ipIndex;
 
             // update the hash to point to the current position
@@ -215,7 +193,7 @@ final class SnappyCompressor
                 break;
             }
         }
-        return new int[]{ipIndex, candidateIndex, skip};
+        return new int[] {ipIndex, candidateIndex, skip};
     }
 
     private static int bytesBetweenHashLookups(int skip)
@@ -256,7 +234,7 @@ final class SnappyCompressor
 
             // are we done?
             if (ipIndex >= inputOffset + inputSize - INPUT_MARGIN_BYTES) {
-                return new int[]{ipIndex, outputIndex};
+                return new int[] {ipIndex, outputIndex};
             }
 
             // We could immediately start working at ip now, but to improve
@@ -279,11 +257,11 @@ final class SnappyCompressor
             // update hash of current byte
             int curHash = hashBytes(inputBytes, shift);
 
-            candidateIndex = inputOffset + table[curHash];
+            candidateIndex = inputOffset + (table[curHash] & 0xFFFF);
             table[curHash] = (short) (ipIndex - inputOffset);
 
         } while (inputBytes == SnappyInternalUtils.loadInt(input, candidateIndex));
-        return new int[]{ipIndex, outputIndex};
+        return new int[] {ipIndex, outputIndex};
     }
 
     private static int emitLiteral(
@@ -362,11 +340,11 @@ final class SnappyCompressor
         if ((length < 12) && (offset < 2048)) {
             int lenMinus4 = length - 4;
             assert (lenMinus4 < 8);            // Must fit in 3 bits
-            output[outputIndex++] = (byte) (COPY_1_BYTE_OFFSET | ((lenMinus4) << 2) | ((offset >>> 8) << 5));
+            output[outputIndex++] = (byte) (COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5));
             output[outputIndex++] = (byte) (offset);
         }
         else {
-            output[outputIndex++] = (byte) (COPY_2_BYTE_OFFSET | ((length - 1) << 2));
+            output[outputIndex++] = (byte) (COPY_2_BYTE_OFFSET + ((length - 1) << 2));
             output[outputIndex++] = (byte) (offset);
             output[outputIndex++] = (byte) (offset >>> 8);
         }
@@ -455,15 +433,15 @@ final class SnappyCompressor
 //        int newHashTableSize;
 //        if (inputSize < 256) {
 //            newHashTableSize = 256;
-//        } else if (inputSize > kMaxHashTableSize) {
-//            newHashTableSize = kMaxHashTableSize;
+//        } else if (inputSize > MAX_HASH_TABLE_SIZE) {
+//            newHashTableSize = MAX_HASH_TABLE_SIZE;
 //        } else {
 //            int leadingZeros = Integer.numberOfLeadingZeros(inputSize - 1);
 //            newHashTableSize = 1 << (32 - leadingZeros);
 //        }
 //
 //        assert 0 == (newHashTableSize & (newHashTableSize - 1)) : "hash must be power of two";
-//        assert newHashTableSize <= kMaxHashTableSize : "hash table too large";
+//        assert newHashTableSize <= MAX_HASH_TABLE_SIZE : "hash table too large";
 //        return newHashTableSize;
     }
 

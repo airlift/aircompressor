@@ -17,7 +17,7 @@
  */
 package io.airlift.compress;
 
-final class SnappyInternalUtils
+public final class SnappyInternalUtils
 {
     private SnappyInternalUtils()
     {
@@ -43,7 +43,8 @@ final class SnappyInternalUtils
                 Memory slowMemory = slowMemoryClass.newInstance();
                 if (slowMemory.loadInt(new byte[4], 0) == 0) {
                     memoryInstance = slowMemory;
-                } else {
+                }
+                else {
                     throw new AssertionError("SlowMemory class is broken!");
                 }
             }
@@ -101,7 +102,16 @@ final class SnappyInternalUtils
 
     //
     // Copied from Guava Preconditions
-    static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)
+    public static <T> T checkNotNull(T reference, String errorMessage)
+    {
+        if (reference == null) {
+            // If either of these parameters is null, the right thing happens anyway
+            throw new NullPointerException(errorMessage);
+        }
+        return reference;
+    }
+
+    public static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)
     {
         if (reference == null) {
             // If either of these parameters is null, the right thing happens anyway
@@ -110,14 +120,23 @@ final class SnappyInternalUtils
         return reference;
     }
 
-    static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)
+    public static void checkArgument(boolean expression, String errorMessageTemplate, Object... errorMessageArgs)
     {
         if (!expression) {
             throw new IllegalArgumentException(String.format(errorMessageTemplate, errorMessageArgs));
         }
     }
 
-    static void checkPositionIndexes(int start, int end, int size)
+    public static int checkPositionIndex(int index, int size)
+    {
+        // Carefully optimized for execution by hotspot (explanatory comment above)
+        if (index < 0 || index > size) {
+            throw new IndexOutOfBoundsException(badPositionIndex(index, size, null));
+        }
+        return index;
+    }
+
+    public static void checkPositionIndexes(int start, int end, int size)
     {
         // Carefully optimized for execution by hotspot (explanatory comment above)
         if (start < 0 || end < start || end > size) {
@@ -125,7 +144,7 @@ final class SnappyInternalUtils
         }
     }
 
-    static String badPositionIndexes(int start, int end, int size)
+    public static String badPositionIndexes(int start, int end, int size)
     {
         if (start < 0 || start > size) {
             return badPositionIndex(start, size, "start index");
@@ -137,7 +156,7 @@ final class SnappyInternalUtils
         return String.format("end index (%s) must not be less than start index (%s)", end, start);
     }
 
-    static String badPositionIndex(int index, int size, String desc)
+    public static String badPositionIndex(int index, int size, String desc)
     {
         if (index < 0) {
             return String.format("%s (%s) must not be negative", desc, index);

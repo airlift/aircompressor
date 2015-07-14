@@ -30,12 +30,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static io.airlift.compress.Util.toHumanReadableSpeed;
-import static java.lang.String.format;
 import static io.airlift.compress.BenchmarkDriver.JAVA_BLOCK;
 import static io.airlift.compress.BenchmarkDriver.JAVA_STREAM;
 import static io.airlift.compress.BenchmarkDriver.JNI_BLOCK;
 import static io.airlift.compress.BenchmarkDriver.JNI_STREAM;
+import static io.airlift.compress.Util.toHumanReadableSpeed;
 
 /**
  * Port of the micro-benchmarks for  Snappy.
@@ -170,7 +169,7 @@ public class SnappyBench
     {
         System.err.println();
         System.err.println();
-        System.err.println("### " +benchmarkTitle);
+        System.err.println("### " + benchmarkTitle);
         System.err.println("<pre><code>");
         System.err.printf("%-8s %8s %9s %9s %11s %11s %7s\n",
                 "",
@@ -357,13 +356,14 @@ public class SnappyBench
 
     private long getMedianValue(long[] benchmarkRuns)
     {
-        ArrayList<Long> list = new ArrayList<Long>(Longs.asList(benchmarkRuns));
+        ArrayList<Long> list = new ArrayList<>(Longs.asList(benchmarkRuns));
         Collections.sort(list);
         return list.get(benchmarkRuns.length / 2);
     }
 
     @SuppressWarnings({"UnusedDeclaration"})
-    public enum TestData {
+    public enum TestData
+    {
         html("html"),
         urls("urls.10K"),
         jpg("house.jpg", false),
@@ -405,7 +405,6 @@ public class SnappyBench
                 throw Throwables.propagate(e);
             }
 
-
             // Read the file and create buffers out side of timing
             byte[] compressed = new byte[Snappy.maxCompressedLength(contents.length)];
             int compressedSize;
@@ -432,7 +431,8 @@ public class SnappyBench
         {
             if (compressibleData) {
                 return name();
-            } else {
+            }
+            else {
                 return name() + " (not compressible)";
             }
         }

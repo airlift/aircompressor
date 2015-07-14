@@ -34,24 +34,24 @@ your actual use case.
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%   294.9MB/s   384.8MB/s  +30.5%  html
-urls       702087     49.1%     49.1%   178.7MB/s   226.5MB/s  +26.8%  urls
-jpg        126958      0.1%      0.1%     2.7GB/s     3.2GB/s  +17.4%  jpg (not compressible)
-pdf         94330     17.9%     17.9%   642.4MB/s   910.3MB/s  +41.7%  pdf
-html4      409600     76.4%     76.4%   289.2MB/s   377.3MB/s  +30.5%  html4
-cp          24603     51.9%     51.9%   166.4MB/s   233.7MB/s  +40.5%  cp
-c           11150     57.6%     57.6%   177.1MB/s   295.4MB/s  +66.8%  c
-lsp          3721     51.6%     51.6%   245.5MB/s   278.0MB/s  +13.2%  lsp
-xls       1029744     58.7%     58.7%   263.0MB/s   292.5MB/s  +11.2%  xls
-txt1       152089     40.2%     40.2%   116.8MB/s   163.1MB/s  +39.7%  txt1
-txt2       125179     35.9%     35.9%   112.5MB/s   153.4MB/s  +36.3%  txt2
-txt3       426754     42.9%     42.9%   123.3MB/s   169.8MB/s  +37.6%  txt3
-txt4       481861     31.7%     31.7%   107.8MB/s   146.2MB/s  +35.6%  txt4
-bin        513216     81.8%     81.8%   413.1MB/s   497.8MB/s  +20.5%  bin
-sum         38240     48.1%     48.1%   162.4MB/s   213.9MB/s  +31.7%  sum
-man          4227     40.6%     40.6%   194.6MB/s   241.7MB/s  +24.2%  man
-pb         118588     76.8%     76.8%   363.7MB/s   450.3MB/s  +23.8%  pb
-gaviota    184320     61.7%     61.7%   166.7MB/s   253.7MB/s  +52.2%  gaviota
+html       102400     76.4%     76.4%   371.5MB/s   390.4MB/s   +5.1%  html
+urls       702087     49.1%     49.1%   219.8MB/s   225.3MB/s   +2.5%  urls
+jpg        126958      0.1%      0.1%     3.5GB/s     3.1GB/s  -11.1%  jpg (not compressible)
+pdf         94330     17.9%     17.9%   824.7MB/s   902.0MB/s   +9.4%  pdf
+html4      409600     76.4%     76.4%   365.4MB/s   386.2MB/s   +5.7%  html4
+cp          24603     51.9%     51.9%   206.0MB/s   230.7MB/s  +12.0%  cp
+c           11150     57.6%     57.6%   220.8MB/s   298.3MB/s  +35.1%  c
+lsp          3721     51.6%     51.6%   291.3MB/s   281.7MB/s   -3.3%  lsp
+xls       1029744     58.7%     58.7%   309.5MB/s   299.0MB/s   -3.4%  xls
+txt1       152089     40.2%     40.2%   140.6MB/s   166.8MB/s  +18.6%  txt1
+txt2       125179     35.9%     35.9%   136.7MB/s   155.3MB/s  +13.6%  txt2
+txt3       426754     42.9%     42.9%   146.9MB/s   173.9MB/s  +18.4%  txt3
+txt4       481861     31.7%     31.7%   130.0MB/s   148.5MB/s  +14.2%  txt4
+bin        513216     81.8%     81.8%   514.2MB/s   509.6MB/s   -0.9%  bin
+sum         38240     48.1%     48.1%   201.4MB/s   213.5MB/s   +6.0%  sum
+man          4227     40.6%     40.6%   240.2MB/s   234.4MB/s   -2.4%  man
+pb         118588     76.8%     76.8%   459.7MB/s   453.0MB/s   -1.5%  pb
+gaviota    184320     61.7%     61.7%   201.6MB/s   266.1MB/s  +32.0%  gaviota
 </code></pre>
 
 
@@ -60,24 +60,24 @@ gaviota    184320     61.7%     61.7%   166.7MB/s   253.7MB/s  +52.2%  gaviota
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%     1.5GB/s     1.3GB/s  -12.2%  html
-urls       702087     49.1%     49.1%   969.2MB/s   827.5MB/s  -14.6%  urls
-jpg        126958      0.1%      0.1%    18.6GB/s    19.4GB/s   +4.2%  jpg (not compressible)
-pdf         94330     17.9%     17.9%     4.1GB/s     3.7GB/s   -8.8%  pdf
-html4      409600     76.4%     76.4%     1.5GB/s     1.2GB/s  -16.8%  html4
-cp          24603     51.9%     51.9%   965.2MB/s   956.0MB/s   -1.0%  cp
-c           11150     57.6%     57.6%   989.1MB/s   924.9MB/s   -6.5%  c
-lsp          3721     51.6%     51.6%   991.6MB/s   964.8MB/s   -2.7%  lsp
-xls       1029744     58.7%     58.7%   798.4MB/s   747.3MB/s   -6.4%  xls
-txt1       152089     40.2%     40.2%   643.8MB/s   580.8MB/s   -9.8%  txt1
-txt2       125179     35.9%     35.9%   610.0MB/s   549.6MB/s   -9.9%  txt2
-txt3       426754     42.9%     42.9%   683.8MB/s   614.4MB/s  -10.2%  txt3
-txt4       481861     31.7%     31.7%   565.4MB/s   505.5MB/s  -10.6%  txt4
-bin        513216     81.8%     81.8%     1.5GB/s     1.2GB/s  -20.4%  bin
-sum         38240     48.1%     48.1%   838.1MB/s   771.6MB/s   -7.9%  sum
-man          4227     40.6%     40.6%   856.9MB/s   847.2MB/s   -1.1%  man
-pb         118588     76.8%     76.8%     1.7GB/s     1.5GB/s  -12.9%  pb
-gaviota    184320     61.7%     61.7%   769.1MB/s   693.4MB/s   -9.9%  gaviota
+html       102400     76.4%     76.4%     1.2GB/s     1.4GB/s  +16.9%  html
+urls       702087     49.1%     49.1%   814.3MB/s   874.3MB/s   +7.4%  urls
+jpg        126958      0.1%      0.1%    20.1GB/s    19.7GB/s   -2.0%  jpg (not compressible)
+pdf         94330     17.9%     17.9%     3.2GB/s     3.9GB/s  +24.4%  pdf
+html4      409600     76.4%     76.4%     1.1GB/s     1.3GB/s  +13.2%  html4
+cp          24603     51.9%     51.9%   777.4MB/s  1016.2MB/s  +30.7%  cp
+c           11150     57.6%     57.6%   789.0MB/s   972.3MB/s  +23.2%  c
+lsp          3721     51.6%     51.6%   931.7MB/s  1014.3MB/s   +8.9%  lsp
+xls       1029744     58.7%     58.7%   724.8MB/s   790.1MB/s   +9.0%  xls
+txt1       152089     40.2%     40.2%   484.5MB/s   607.0MB/s  +25.3%  txt1
+txt2       125179     35.9%     35.9%   458.2MB/s   571.2MB/s  +24.7%  txt2
+txt3       426754     42.9%     42.9%   508.2MB/s   631.1MB/s  +24.2%  txt3
+txt4       481861     31.7%     31.7%   419.7MB/s   522.8MB/s  +24.6%  txt4
+bin        513216     81.8%     81.8%     1.2GB/s     1.2GB/s   +3.1%  bin
+sum         38240     48.1%     48.1%   676.2MB/s   811.2MB/s  +20.0%  sum
+man          4227     40.6%     40.6%   777.2MB/s   867.5MB/s  +11.6%  man
+pb         118588     76.8%     76.8%     1.4GB/s     1.5GB/s  +13.1%  pb
+gaviota    184320     61.7%     61.7%   574.8MB/s   698.9MB/s  +21.6%  gaviota
 </code></pre>
 
 
@@ -86,24 +86,24 @@ gaviota    184320     61.7%     61.7%   769.1MB/s   693.4MB/s   -9.9%  gaviota
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%   300.3MB/s   287.1MB/s   -4.4%  html
-urls       702087     49.1%     49.1%   182.7MB/s   177.0MB/s   -3.2%  urls
-jpg        126958      0.1%      0.1%     2.6GB/s     2.6GB/s   +1.1%  jpg (not compressible)
-pdf         94330     17.9%     17.9%   695.3MB/s   680.0MB/s   -2.2%  pdf
-html4      409600     76.4%     76.4%   296.4MB/s   282.1MB/s   -4.8%  html4
-cp          24603     51.9%     51.9%   177.0MB/s   172.5MB/s   -2.5%  cp
-c           11150     57.6%     57.6%   221.7MB/s   218.3MB/s   -1.5%  c
-lsp          3721     51.6%     51.6%   217.3MB/s   216.3MB/s   -0.5%  lsp
-xls       1029744     58.7%     58.7%   213.3MB/s   209.9MB/s   -1.6%  xls
-txt1       152089     40.2%     40.2%   129.4MB/s   126.3MB/s   -2.4%  txt1
-txt2       125179     35.9%     35.9%   121.7MB/s   118.8MB/s   -2.4%  txt2
-txt3       426754     42.9%     42.9%   135.2MB/s   132.8MB/s   -1.8%  txt3
-txt4       481861     31.7%     31.7%   115.2MB/s   113.0MB/s   -1.9%  txt4
-bin        513216     81.8%     81.8%   371.2MB/s   350.7MB/s   -5.5%  bin
-sum         38240     48.1%     48.1%   164.2MB/s   160.0MB/s   -2.6%  sum
-man          4227     40.6%     40.6%   184.8MB/s   185.3MB/s   +0.3%  man
-pb         118588     76.8%     76.8%   344.1MB/s   326.3MB/s   -5.2%  pb
-gaviota    184320     61.7%     61.7%   188.0MB/s   185.2MB/s   -1.5%  gaviota
+html       102400     76.4%     76.4%   281.8MB/s   293.3MB/s   +4.1%  html
+urls       702087     49.1%     49.1%   172.3MB/s   175.5MB/s   +1.9%  urls
+jpg        126958      0.1%      0.1%     2.5GB/s     2.5GB/s   -0.1%  jpg (not compressible)
+pdf         94330     17.9%     17.9%   639.9MB/s   671.9MB/s   +5.0%  pdf
+html4      409600     76.4%     76.4%   279.5MB/s   286.4MB/s   +2.5%  html4
+cp          24603     51.9%     51.9%   166.1MB/s   170.1MB/s   +2.4%  cp
+c           11150     57.6%     57.6%   196.6MB/s   212.7MB/s   +8.2%  c
+lsp          3721     51.6%     51.6%   207.0MB/s   215.1MB/s   +3.9%  lsp
+xls       1029744     58.7%     58.7%   209.1MB/s   214.2MB/s   +2.4%  xls
+txt1       152089     40.2%     40.2%   120.6MB/s   127.2MB/s   +5.5%  txt1
+txt2       125179     35.9%     35.9%   113.6MB/s   119.4MB/s   +5.1%  txt2
+txt3       426754     42.9%     42.9%   127.9MB/s   134.9MB/s   +5.4%  txt3
+txt4       481861     31.7%     31.7%   110.3MB/s   115.0MB/s   +4.2%  txt4
+bin        513216     81.8%     81.8%   357.4MB/s   359.2MB/s   +0.5%  bin
+sum         38240     48.1%     48.1%   157.9MB/s   162.6MB/s   +3.0%  sum
+man          4227     40.6%     40.6%   178.3MB/s   184.3MB/s   +3.4%  man
+pb         118588     76.8%     76.8%   332.2MB/s   338.8MB/s   +2.0%  pb
+gaviota    184320     61.7%     61.7%   180.6MB/s   190.3MB/s   +5.4%  gaviota
 </code></pre>
 
 # Stream Format
@@ -140,74 +140,74 @@ check sum is enabled the performance drops off by about 20%.
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%   275.8MB/s   373.5MB/s  +35.4%  html
-urls       702087     49.1%     49.1%   176.5MB/s   225.2MB/s  +27.6%  urls
-jpg        126958      0.1%     -0.0%     1.7GB/s     2.0GB/s  +15.8%  jpg (not compressible)
-pdf         94330     17.8%     16.0%   557.2MB/s   793.2MB/s  +42.4%  pdf
-html4      409600     76.4%     76.4%   281.0MB/s   369.9MB/s  +31.7%  html4
-cp          24603     51.8%     51.8%   151.7MB/s   214.3MB/s  +41.3%  cp
-c           11150     57.4%     57.5%   149.1MB/s   243.3MB/s  +63.1%  c
-lsp          3721     51.1%     51.2%   141.3MB/s   181.1MB/s  +28.2%  lsp
-xls       1029744     58.6%     58.6%   253.9MB/s   290.5MB/s  +14.4%  xls
-txt1       152089     40.2%     40.2%   114.8MB/s   159.4MB/s  +38.8%  txt1
-txt2       125179     35.9%     35.9%   110.0MB/s   150.4MB/s  +36.7%  txt2
-txt3       426754     42.9%     42.9%   121.0MB/s   167.9MB/s  +38.8%  txt3
-txt4       481861     31.6%     31.6%   105.1MB/s   143.2MB/s  +36.2%  txt4
-bin        513216     81.8%     81.8%   387.7MB/s   484.5MB/s  +25.0%  bin
-sum         38240     48.1%     48.1%   153.0MB/s   203.1MB/s  +32.8%  sum
-man          4227     40.2%     40.3%   125.9MB/s   171.9MB/s  +36.5%  man
-pb         118588     76.8%     76.8%   342.2MB/s   431.4MB/s  +26.1%  pb
-gaviota    184320     61.7%     61.7%   161.1MB/s   246.1MB/s  +52.7%  gaviota
+html       102400     76.4%     76.4%   340.3MB/s   390.6MB/s  +14.8%  html
+urls       702087     49.1%     49.1%   213.1MB/s   222.9MB/s   +4.6%  urls
+jpg        126958      0.1%     -0.0%     2.1GB/s     2.5GB/s  +18.5%  jpg (not compressible)
+pdf         94330     17.8%     16.0%   713.9MB/s   849.3MB/s  +19.0%  pdf
+html4      409600     76.4%     76.4%   350.7MB/s   387.1MB/s  +10.4%  html4
+cp          24603     51.8%     51.8%   184.5MB/s   228.9MB/s  +24.1%  cp
+c           11150     57.4%     57.5%   193.8MB/s   292.0MB/s  +50.6%  c
+lsp          3721     51.1%     51.2%   204.6MB/s   280.4MB/s  +37.1%  lsp
+xls       1029744     58.6%     58.6%   299.9MB/s   301.2MB/s   +0.4%  xls
+txt1       152089     40.2%     40.2%   137.2MB/s   165.6MB/s  +20.7%  txt1
+txt2       125179     35.9%     35.9%   133.3MB/s   154.9MB/s  +16.2%  txt2
+txt3       426754     42.9%     42.9%   144.8MB/s   171.1MB/s  +18.2%  txt3
+txt4       481861     31.6%     31.6%   127.5MB/s   147.9MB/s  +16.0%  txt4
+bin        513216     81.8%     81.8%   487.2MB/s   507.0MB/s   +4.1%  bin
+sum         38240     48.1%     48.1%   185.9MB/s   212.0MB/s  +14.0%  sum
+man          4227     40.2%     40.3%   179.7MB/s   236.0MB/s  +31.3%  man
+pb         118588     76.8%     76.8%   436.2MB/s   446.9MB/s   +2.5%  pb
+gaviota    184320     61.7%     61.7%   195.2MB/s   264.6MB/s  +35.6%  gaviota
 </code></pre>
 
 
-### Stream Uncompress (no checksums)
+### Stream Uncompress (no checksum)
 <pre><code>
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%     1.2GB/s     1.2GB/s   +0.4%  html
-urls       702087     49.1%     49.1%   853.9MB/s   786.6MB/s   -7.9%  urls
-jpg        126958      0.1%     -0.0%     3.0GB/s    10.3GB/s +239.0%  jpg (not compressible)
-pdf         94330     17.8%     16.0%     2.0GB/s     3.4GB/s  +71.5%  pdf
-html4      409600     76.4%     76.4%     1.2GB/s     1.1GB/s   -8.4%  html4
-cp          24603     51.8%     51.8%   785.2MB/s   905.6MB/s  +15.3%  cp
-c           11150     57.4%     57.5%   778.9MB/s   889.7MB/s  +14.2%  c
-lsp          3721     51.1%     51.2%   739.0MB/s   905.5MB/s  +22.5%  lsp
-xls       1029744     58.6%     58.6%   730.3MB/s   718.8MB/s   -1.6%  xls
-txt1       152089     40.2%     40.2%   582.4MB/s   559.0MB/s   -4.0%  txt1
-txt2       125179     35.9%     35.9%   540.7MB/s   526.4MB/s   -2.6%  txt2
-txt3       426754     42.9%     42.9%   620.5MB/s   583.9MB/s   -5.9%  txt3
-txt4       481861     31.6%     31.6%   519.4MB/s   487.0MB/s   -6.2%  txt4
-bin        513216     81.8%     81.8%     1.2GB/s     1.1GB/s  -11.6%  bin
-sum         38240     48.1%     48.1%   693.4MB/s   742.4MB/s   +7.1%  sum
-man          4227     40.2%     40.3%   637.3MB/s   784.3MB/s  +23.1%  man
-pb         118588     76.8%     76.8%     1.4GB/s     1.4GB/s   +0.4%  pb
-gaviota    184320     61.7%     61.7%   688.5MB/s   668.2MB/s   -3.0%  gaviota
+html       102400     76.4%     76.4%     1.0GB/s     1.3GB/s  +27.1%  html
+urls       702087     49.1%     49.1%   739.6MB/s   827.1MB/s  +11.8%  urls
+jpg        126958      0.1%     -0.0%     3.8GB/s    12.8GB/s +238.5%  jpg (not compressible)
+pdf         94330     17.8%     16.0%     1.9GB/s     3.7GB/s  +95.7%  pdf
+html4      409600     76.4%     76.4%  1023.5MB/s     1.2GB/s  +20.2%  html4
+cp          24603     51.8%     51.8%   658.2MB/s   960.6MB/s  +45.9%  cp
+c           11150     57.4%     57.5%   664.3MB/s   940.4MB/s  +41.6%  c
+lsp          3721     51.1%     51.2%   706.6MB/s   943.7MB/s  +33.6%  lsp
+xls       1029744     58.6%     58.6%   671.2MB/s   752.6MB/s  +12.1%  xls
+txt1       152089     40.2%     40.2%   455.7MB/s   587.9MB/s  +29.0%  txt1
+txt2       125179     35.9%     35.9%   423.2MB/s   558.7MB/s  +32.0%  txt2
+txt3       426754     42.9%     42.9%   484.3MB/s   618.2MB/s  +27.6%  txt3
+txt4       481861     31.6%     31.6%   403.7MB/s   514.4MB/s  +27.4%  txt4
+bin        513216     81.8%     81.8%     1.0GB/s     1.2GB/s  +11.9%  bin
+sum         38240     48.1%     48.1%   595.4MB/s   782.1MB/s  +31.4%  sum
+man          4227     40.2%     40.3%   609.6MB/s   816.8MB/s  +34.0%  man
+pb         118588     76.8%     76.8%     1.2GB/s     1.4GB/s  +24.3%  pb
+gaviota    184320     61.7%     61.7%   517.2MB/s   679.8MB/s  +31.4%  gaviota
 </code></pre>
 
 
-### Stream RoundTrip (no checksums)
+### Stream RoundTrip (no checksum)
 <pre><code>
                         JNI      Java         JNI        Java
 Input        Size  Compress  Compress  Throughput  Throughput  Change
 ---------------------------------------------------------------------
-html       102400     76.4%     76.4%   223.8MB/s   272.5MB/s  +21.8%  html
-urls       702087     49.1%     49.1%   142.8MB/s   174.1MB/s  +22.0%  urls
-jpg        126958      0.1%     -0.0%     1.1GB/s     1.6GB/s  +52.1%  jpg (not compressible)
-pdf         94330     17.8%     16.0%   421.9MB/s   610.1MB/s  +44.6%  pdf
-html4      409600     76.4%     76.4%   226.2MB/s   275.5MB/s  +21.8%  html4
-cp          24603     51.8%     51.8%   125.3MB/s   160.3MB/s  +27.9%  cp
-c           11150     57.4%     57.5%   125.1MB/s   183.2MB/s  +46.5%  c
-lsp          3721     51.1%     51.2%   130.6MB/s   149.5MB/s  +14.5%  lsp
-xls       1029744     58.6%     58.6%   188.2MB/s   206.1MB/s   +9.5%  xls
-txt1       152089     40.2%     40.2%    95.3MB/s   123.3MB/s  +29.4%  txt1
-txt2       125179     35.9%     35.9%    91.4MB/s   116.8MB/s  +27.9%  txt2
-txt3       426754     42.9%     42.9%   101.3MB/s   130.3MB/s  +28.6%  txt3
-txt4       481861     31.6%     31.6%    87.9MB/s   111.1MB/s  +26.3%  txt4
-bin        513216     81.8%     81.8%   294.7MB/s   337.9MB/s  +14.7%  bin
-sum         38240     48.1%     48.1%   122.9MB/s   152.9MB/s  +24.3%  sum
-man          4227     40.2%     40.3%   113.0MB/s   139.1MB/s  +23.1%  man
-pb         118588     76.8%     76.8%   269.5MB/s   313.8MB/s  +16.4%  pb
-gaviota    184320     61.7%     61.7%   131.1MB/s   180.3MB/s  +37.6%  gaviota
+html       102400     76.4%     76.4%   253.0MB/s   289.2MB/s  +14.3%  html
+urls       702087     49.1%     49.1%   164.4MB/s   175.8MB/s   +6.9%  urls
+jpg        126958      0.1%     -0.0%     1.4GB/s     2.0GB/s  +48.0%  jpg (not compressible)
+pdf         94330     17.8%     16.0%   480.2MB/s   636.8MB/s  +32.6%  pdf
+html4      409600     76.4%     76.4%   256.8MB/s   285.5MB/s  +11.2%  html4
+cp          24603     51.8%     51.8%   141.0MB/s   169.8MB/s  +20.5%  cp
+c           11150     57.4%     57.5%   141.9MB/s   211.6MB/s  +49.1%  c
+lsp          3721     51.1%     51.2%   150.2MB/s   212.8MB/s  +41.6%  lsp
+xls       1029744     58.6%     58.6%   206.2MB/s   213.5MB/s   +3.5%  xls
+txt1       152089     40.2%     40.2%   105.2MB/s   127.9MB/s  +21.6%  txt1
+txt2       125179     35.9%     35.9%   100.4MB/s   119.7MB/s  +19.2%  txt2
+txt3       426754     42.9%     42.9%   110.3MB/s   133.8MB/s  +21.3%  txt3
+txt4       481861     31.6%     31.6%    95.1MB/s   113.0MB/s  +18.8%  txt4
+bin        513216     81.8%     81.8%   327.2MB/s   343.7MB/s   +5.0%  bin
+sum         38240     48.1%     48.1%   138.5MB/s   158.9MB/s  +14.7%  sum
+man          4227     40.2%     40.3%   128.7MB/s   178.2MB/s  +38.4%  man
+pb         118588     76.8%     76.8%   308.6MB/s   331.0MB/s   +7.2%  pb
+gaviota    184320     61.7%     61.7%   138.0MB/s   189.4MB/s  +37.2%  gaviota
 </code></pre>

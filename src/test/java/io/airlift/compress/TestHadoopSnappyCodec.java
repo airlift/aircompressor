@@ -41,7 +41,7 @@ public class TestHadoopSnappyCodec
     public void testByteForByteTestData()
             throws Exception
     {
-        for (File testFile : SnappyTest.getTestFiles()) {
+        for (File testFile : AbstractSnappyTest.getTestFiles()) {
             byte[] original = Files.toByteArray(testFile);
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);

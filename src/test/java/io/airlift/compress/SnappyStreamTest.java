@@ -183,7 +183,7 @@ public class SnappyStreamTest
     public void testByteForByteTestData()
             throws Exception
     {
-        for (File testFile : SnappyTest.getTestFiles()) {
+        for (File testFile : AbstractSnappyTest.getTestFiles()) {
             byte[] original = Files.toByteArray(testFile);
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
@@ -218,42 +218,42 @@ public class SnappyStreamTest
     public void testShortBlockHeader()
             throws Exception
     {
-        uncompressBlock(new byte[]{0});
+        uncompressBlock(new byte[] {0});
     }
 
     @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block data.*")
     public void testShortBlockData()
             throws Exception
     {
-        uncompressBlock(new byte[]{0, 0, 4, 0, 0, 0, 0, 'x', 'x'}); // flag = 0, size = 4, crc32c = 0, block data = [x, x]
+        uncompressBlock(new byte[] {0, 0, 4, 0, 0, 0, 0, 'x', 'x'}); // flag = 0, size = 4, crc32c = 0, block data = [x, x]
     }
 
     @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid compressed flag in header: 0x41")
     public void testInvalidBlockHeaderCompressedFlag()
             throws Exception
     {
-        uncompressBlock(new byte[]{'A', 0, 1, 0, 0, 0, 0, 0}); // flag = 'A', block size = 1, crc32c = 0
+        uncompressBlock(new byte[] {'A', 0, 1, 0, 0, 0, 0, 0}); // flag = 'A', block size = 1, crc32c = 0
     }
 
     @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid block size in header: 0")
     public void testInvalidBlockSizeZero()
             throws Exception
     {
-        uncompressBlock(new byte[]{0, 0, 0, 0, 0, 0, 0}); // flag = '0', block size = 0, crc32c = 0
+        uncompressBlock(new byte[] {0, 0, 0, 0, 0, 0, 0}); // flag = '0', block size = 0, crc32c = 0
     }
 
     @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid block size in header: 55555")
     public void testInvalidBlockSizeLarge()
             throws Exception
     {
-        uncompressBlock(new byte[]{0, (byte) 0xD9, 0x03, 0, 0, 0, 0}); // flag = 0, block size = 55555, crc32c = 0
+        uncompressBlock(new byte[] {0, (byte) 0xD9, 0x03, 0, 0, 0, 0}); // flag = 0, block size = 55555, crc32c = 0
     }
 
     @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "Corrupt input: invalid checksum")
     public void testInvalidChecksum()
             throws Exception
     {
-        uncompressBlock(new byte[]{0, 0, 1, 0, 0, 0, 0, 'a'}); // flag = 0, size = 4, crc32c = 0, block data = [a]
+        uncompressBlock(new byte[] {0, 0, 1, 0, 0, 0, 0, 'a'}); // flag = 0, size = 4, crc32c = 0, block data = [a]
     }
 
     @Test
@@ -291,7 +291,7 @@ public class SnappyStreamTest
 
     private static byte[] getRandom(double compressionRatio, int length)
     {
-        SnappyTest.RandomGenerator gen = new SnappyTest.RandomGenerator(compressionRatio);
+        AbstractSnappyTest.RandomGenerator gen = new AbstractSnappyTest.RandomGenerator(compressionRatio);
         gen.getNextPosition(length);
         byte[] random = Arrays.copyOf(gen.data, length);
         assertEquals(random.length, length);
