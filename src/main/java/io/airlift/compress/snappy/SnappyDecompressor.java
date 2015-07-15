@@ -17,8 +17,6 @@
  */
 package io.airlift.compress.snappy;
 
-import io.airlift.compress.CorruptionException;
-
 import static io.airlift.compress.snappy.SnappyInternalUtils.copyLong;
 import static io.airlift.compress.snappy.SnappyInternalUtils.loadByte;
 import static io.airlift.compress.snappy.SnappyInternalUtils.lookupShort;

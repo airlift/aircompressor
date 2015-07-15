@@ -17,8 +17,6 @@
  */
 package io.airlift.compress.snappy;
 
-import io.airlift.compress.CorruptionException;
-
 import java.util.Arrays;
 
 public final class Snappy
