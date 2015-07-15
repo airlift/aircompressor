@@ -17,8 +17,8 @@ import com.facebook.presto.hadoop.HadoopNative;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import io.airlift.compress.lz4.Lz4Decompressor;
-import io.airlift.compress.snappy.HadoopSnappyCodec;
 import io.airlift.compress.snappy.Snappy;
+import io.airlift.compress.snappy.SnappyCodec;
 import io.airlift.compress.snappy.SnappyDecompressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -26,7 +26,6 @@ import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
-import org.apache.hadoop.io.compress.SnappyCodec;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -79,8 +78,8 @@ public class DecompressBenchmark
     private final LZ4SafeDecompressor jpountzLz4JniDecompressor = LZ4Factory.fastestInstance().safeDecompressor();
     private final Lz4Decompressor airliftLz4Decompressor = new Lz4Decompressor();
 
-    private HadoopSnappyCodec airliftSnappyCodec;
-    private SnappyCodec hadoopSnappyCodec;
+    private SnappyCodec airliftSnappyCodec;
+    private org.apache.hadoop.io.compress.SnappyCodec hadoopSnappyCodec;
 
     private byte[] blockCompressedSnappy;
     private byte[] streamCompressedAirliftSnappy;
@@ -96,10 +95,10 @@ public class DecompressBenchmark
 
         blockCompressedSnappy = compressBlockSnappy(data);
 
-        airliftSnappyCodec = new HadoopSnappyCodec();
+        airliftSnappyCodec = new SnappyCodec();
         streamCompressedAirliftSnappy = compressHadoopStream(airliftSnappyCodec, data, 0, data.length);
 
-        hadoopSnappyCodec = new SnappyCodec();
+        hadoopSnappyCodec = new org.apache.hadoop.io.compress.SnappyCodec();
         hadoopSnappyCodec.setConf(HADOOP_CONF);
         streamCompressedHadoopSnappy = compressHadoopStream(hadoopSnappyCodec, data, 0, data.length);
 
