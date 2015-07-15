@@ -19,6 +19,7 @@ import com.google.common.io.Files;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.snappy.HadoopSnappyCodec;
 import io.airlift.compress.snappy.Snappy;
+import io.airlift.compress.snappy.SnappyDecompressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;
@@ -170,7 +171,7 @@ public class DecompressBenchmark
     @Benchmark
     public int blockAirliftSnappy(BytesCounter counter)
     {
-        int read = Snappy.uncompress(blockCompressedSnappy, 0, blockCompressedSnappy.length, uncompressedBytes, 0);
+        int read = SnappyDecompressor.uncompress(blockCompressedSnappy, 0, blockCompressedSnappy.length, uncompressedBytes, 0);
         counter.add(uncompressedBytes.length);
         return read;
     }

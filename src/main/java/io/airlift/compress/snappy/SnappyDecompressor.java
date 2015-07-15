@@ -17,13 +17,18 @@
  */
 package io.airlift.compress.snappy;
 
-import static io.airlift.compress.snappy.SnappyInternalUtils.copyLong;
-import static io.airlift.compress.snappy.SnappyInternalUtils.loadByte;
-import static io.airlift.compress.snappy.SnappyInternalUtils.lookupShort;
+import io.airlift.compress.MalformedInputException;
 
-final class SnappyDecompressor
+import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+
+public final class SnappyDecompressor
 {
-    private static final int MAX_INCREMENT_COPY_OVERFLOW = 20;
+    private final static int SIZE_OF_INT = 4;
+    private final static int SIZE_OF_LONG = 8;
+
+    private final static int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
+    private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
             throws CorruptionException
@@ -31,25 +36,29 @@ final class SnappyDecompressor
         return readUncompressedLength(compressed, compressedOffset)[0];
     }
 
-    public static byte[] uncompress(byte[] compressed, int compressedOffset, int compressedSize)
+    public static byte[] uncompress(
+            final byte[] input,
+            int inputOffset,
+            int inputLength)
             throws CorruptionException
     {
-        // Read the uncompressed length from the front of the compressed input
-        int[] varInt = readUncompressedLength(compressed, compressedOffset);
+        // Read the uncompressed length from the front of the input
+        int[] varInt = readUncompressedLength(input, inputOffset);
         int expectedLength = varInt[0];
-        compressedOffset += varInt[1];
-        compressedSize -= varInt[1];
+        inputOffset += varInt[1];
+        inputLength -= varInt[1];
 
-        // allocate the uncompressed buffer
-        byte[] uncompressed = new byte[expectedLength];
+        // allocate the output buffer
+        byte[] output = new byte[expectedLength];
 
         // Process the entire input
-        int uncompressedSize = decompressAllTags(
-                compressed,
-                compressedOffset,
-                compressedSize,
-                uncompressed,
-                0);
+        int uncompressedSize = uncompressAll(
+                input,
+                ARRAY_BYTE_BASE_OFFSET + inputOffset,
+                ARRAY_BYTE_BASE_OFFSET + inputOffset + inputLength,
+                output,
+                ARRAY_BYTE_BASE_OFFSET,
+                ARRAY_BYTE_BASE_OFFSET + output.length);
 
         if (!(expectedLength == uncompressedSize)) {
             throw new CorruptionException(String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
@@ -57,28 +66,34 @@ final class SnappyDecompressor
                     uncompressedSize));
         }
 
-        return uncompressed;
+        return output;
     }
 
-    public static int uncompress(byte[] compressed, int compressedOffset, int compressedSize, byte[] uncompressed, int uncompressedOffset)
+    public static int uncompress(
+            final byte[] input,
+            int inputOffset,
+            int inputLength,
+            final byte[] output,
+            final int outputOffset)
             throws CorruptionException
     {
-        // Read the uncompressed length from the front of the compressed input
-        int[] varInt = readUncompressedLength(compressed, compressedOffset);
+        // Read the uncompressed length from the front of the input
+        int[] varInt = readUncompressedLength(input, inputOffset);
         int expectedLength = varInt[0];
-        compressedOffset += varInt[1];
-        compressedSize -= varInt[1];
+        inputOffset += varInt[1];
+        inputLength -= varInt[1];
 
-        SnappyInternalUtils.checkArgument(expectedLength <= uncompressed.length - uncompressedOffset,
-                "Uncompressed length %s must be less than %s", expectedLength, uncompressed.length - uncompressedOffset);
+        SnappyInternalUtils.checkArgument(expectedLength <= output.length - outputOffset,
+                "Uncompressed length %s must be less than %s", expectedLength, output.length - outputOffset);
 
         // Process the entire input
-        int uncompressedSize = decompressAllTags(
-                compressed,
-                compressedOffset,
-                compressedSize,
-                uncompressed,
-                uncompressedOffset);
+        int uncompressedSize = uncompressAll(
+                input,
+                ARRAY_BYTE_BASE_OFFSET + inputOffset,
+                ARRAY_BYTE_BASE_OFFSET + inputOffset + inputLength,
+                output,
+                ARRAY_BYTE_BASE_OFFSET + outputOffset,
+                ARRAY_BYTE_BASE_OFFSET + output.length);
 
         if (!(expectedLength == uncompressedSize)) {
             throw new CorruptionException(String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
@@ -89,265 +104,157 @@ final class SnappyDecompressor
         return expectedLength;
     }
 
-    private static int decompressAllTags(
-            final byte[] input,
-            final int inputOffset,
-            final int inputSize,
-            final byte[] output,
-            final int outputOffset)
+    private static int uncompressAll(
+            final Object inputBase,
+            final long inputAddress,
+            final long inputLimit,
+            final Object outputBase,
+            final long outputAddress,
+            final long outputLimit)
             throws CorruptionException
     {
-        final int outputLimit = output.length;
+        final long fastOutputLimit = outputLimit - SIZE_OF_LONG; // maximum offset in output buffer to which it's safe to write long-at-a-time
 
-        final int ipLimit = inputOffset + inputSize;
-        int opIndex = outputOffset;
-        int ipIndex = inputOffset;
+        long output = outputAddress;
+        long input = inputAddress;
 
-        while (ipIndex < ipLimit - 5) {
-            int opCode = loadByte(input, ipIndex++);
-            int entry = lookupShort(opLookupTable, opCode);
+        while (input < inputLimit) {
+            int opCode = UNSAFE.getByte(inputBase, input++) & 0xFF;
+            int entry = opLookupTable[opCode] & 0xFFFF;
+
             int trailerBytes = entry >>> 11;
-            int trailer = readTrailer(input, ipIndex, trailerBytes);
+            int trailer = 0;
+            if (input + SIZE_OF_INT < inputLimit) {
+                trailer = UNSAFE.getInt(inputBase, input) & wordmask[trailerBytes];
+            }
+            else {
+                if (input + trailerBytes > inputLimit) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
+                switch (trailerBytes) {
+                    case 4:
+                        trailer = (UNSAFE.getByte(inputBase, input + 3) & 0xff) << 24;
+                    case 3:
+                        trailer |= (UNSAFE.getByte(inputBase, input + 2) & 0xff) << 16;
+                    case 2:
+                        trailer |= (UNSAFE.getByte(inputBase, input + 1) & 0xff) << 8;
+                    case 1:
+                        trailer |= (UNSAFE.getByte(inputBase, input) & 0xff);
+                }
+                if (trailer < 0) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
+            }
+            input += trailerBytes;
 
-            // advance the ipIndex past the op codes
-            ipIndex += entry >>> 11;
             int length = entry & 0xff;
+            if (length == 0) {
+                continue;
+            }
 
             if ((opCode & 0x3) == Snappy.LITERAL) {
                 int literalLength = length + trailer;
-                copyLiteral(input, ipIndex, output, opIndex, literalLength);
-                ipIndex += literalLength;
-                opIndex += literalLength;
-            }
-            else {
-                // copyOffset/256 is encoded in bits 8..10.  By just fetching
-                // those bits, we get copyOffset (since the bit-field starts at
-                // bit 8).
-                int copyOffset = entry & 0x700;
-                copyOffset += trailer;
 
-                // inline to force hot-spot to keep inline
-                //
-                // Equivalent to incrementalCopy (below) except that it can write up to ten extra
-                // bytes after the end of the copy, and that it is faster.
-                //
-                // The main part of this loop is a simple copy of eight bytes at a time until
-                // we've copied (at least) the requested amount of bytes.  However, if op and
-                // src are less than eight bytes apart (indicating a repeating pattern of
-                // length < 8), we first need to expand the pattern in order to get the correct
-                // results. For instance, if the buffer looks like this, with the eight-byte
-                // <src> and <op> patterns marked as intervals:
-                //
-                //    abxxxxxxxxxxxx
-                //    [------]           src
-                //      [------]         op
-                //
-                // a single eight-byte copy from <src> to <op> will repeat the pattern once,
-                // after which we can move <op> two bytes without moving <src>:
-                //
-                //    ababxxxxxxxxxx
-                //    [------]           src
-                //        [------]       op
-                //
-                // and repeat the exercise until the two no longer overlap.
-                //
-                // This allows us to do very well in the special case of one single byte
-                // repeated many times, without taking a big hit for more general cases.
-                //
-                // The worst case of extra writing past the end of the match occurs when
-                // op - src == 1 and len == 1; the last copy will read from byte positions
-                // [0..7] and write to [4..11], whereas it was only supposed to write to
-                // position 1. Thus, ten excess bytes.
-                {
-                    int spaceLeft = outputLimit - opIndex;
-                    int srcIndex = opIndex - copyOffset;
-                    if (srcIndex < outputOffset) {
-                        throw new CorruptionException("Invalid copy offset for opcode starting at " + (ipIndex - trailerBytes - 1));
+                // copy literal
+                long literalOutputLimit = output + literalLength;
+                if (literalOutputLimit > fastOutputLimit || input + literalLength > inputLimit - SIZE_OF_LONG) {
+                    if (literalOutputLimit > outputLimit) {
+                        throw new MalformedInputException(input - inputAddress);
                     }
 
-                    if (length <= 16 && copyOffset >= 8 && spaceLeft >= 16) {
-                        // Fast path, used for the majority (70-80%) of dynamic invocations.
-                        copyLong(output, srcIndex, output, opIndex);
-                        copyLong(output, srcIndex + 8, output, opIndex + 8);
-                    }
-                    else if (spaceLeft >= length + MAX_INCREMENT_COPY_OVERFLOW) {
-                        incrementalCopyFastPath(output, srcIndex, opIndex, length);
-                    }
-                    else {
-                        incrementalCopy(output, srcIndex, output, opIndex, length);
-                    }
-                }
-                opIndex += length;
-            }
-        }
-
-
-        for (; ipIndex < ipLimit; ) {
-            int[] result = decompressTagSlow(input, ipIndex, output, outputLimit, outputOffset, opIndex);
-            ipIndex = result[0];
-            opIndex = result[1];
-        }
-
-        return opIndex - outputOffset;
-    }
-
-    /**
-     * This is a second copy of the inner loop of decompressTags used when near the end
-     * of the input. The key difference is the reading of the trailer bytes.  The fast
-     * code does a blind read of the next 4 bytes as an int, and this code assembles
-     * the int byte-by-byte to assure that the array is not over run.  The reason this
-     * code path is separate is the if condition to choose between these two seemingly
-     * small differences costs like 10-20% of the throughput.  I'm hoping in future
-     * versions of hot-spot this code can be integrated into the main loop but for now
-     * it is worth the extra maintenance pain to get the extra 10-20%.
-     */
-    private static int[] decompressTagSlow(byte[] input, int ipIndex, byte[] output, int outputLimit, int outputOffset, int opIndex)
-            throws CorruptionException
-    {
-        // read the op code
-        int opCode = loadByte(input, ipIndex++);
-        int entry = lookupShort(opLookupTable, opCode);
-        int trailerBytes = entry >>> 11;
-        //
-        // Key difference here
-        //
-        int trailer = 0;
-        switch (trailerBytes) {
-            case 4:
-                trailer = (input[ipIndex + 3] & 0xff) << 24;
-            case 3:
-                trailer |= (input[ipIndex + 2] & 0xff) << 16;
-            case 2:
-                trailer |= (input[ipIndex + 1] & 0xff) << 8;
-            case 1:
-                trailer |= (input[ipIndex] & 0xff);
-        }
-
-        // advance the ipIndex past the op codes
-        ipIndex += trailerBytes;
-        int length = entry & 0xff;
-
-        if ((opCode & 0x3) == Snappy.LITERAL) {
-            int literalLength = length + trailer;
-            copyLiteral(input, ipIndex, output, opIndex, literalLength);
-            ipIndex += literalLength;
-            opIndex += literalLength;
-        }
-        else {
-            // copyOffset/256 is encoded in bits 8..10.  By just fetching
-            // those bits, we get copyOffset (since the bit-field starts at
-            // bit 8).
-            int copyOffset = entry & 0x700;
-            copyOffset += trailer;
-
-            // inline to force hot-spot to keep inline
-            {
-                int spaceLeft = outputLimit - opIndex;
-                int srcIndex = opIndex - copyOffset;
-
-                if (srcIndex < outputOffset) {
-                    throw new CorruptionException("Invalid copy offset for opcode starting at " + (ipIndex - trailerBytes - 1));
-                }
-
-                if (length <= 16 && copyOffset >= 8 && spaceLeft >= 16) {
-                    // Fast path, used for the majority (70-80%) of dynamic invocations.
-                    copyLong(output, srcIndex, output, opIndex);
-                    copyLong(output, srcIndex + 8, output, opIndex + 8);
-                }
-                else if (spaceLeft >= length + MAX_INCREMENT_COPY_OVERFLOW) {
-                    incrementalCopyFastPath(output, srcIndex, opIndex, length);
+                    // slow, precise copy
+                    UNSAFE.copyMemory(inputBase, input, outputBase, output, literalLength);
+                    input += literalLength;
+                    output += literalLength;
                 }
                 else {
-                    incrementalCopy(output, srcIndex, output, opIndex, length);
-                }
-            }
-            opIndex += length;
-        }
-        return new int[] {ipIndex, opIndex};
-    }
-
-    private static int readTrailer(byte[] data, int index, int bytes)
-    {
-        return SnappyInternalUtils.loadInt(data, index) & wordmask[bytes];
-    }
-
-    private static void copyLiteral(byte[] input, int ipIndex, byte[] output, int opIndex, int length)
-            throws CorruptionException
-    {
-        assert length > 0;
-        assert ipIndex >= 0;
-        assert opIndex >= 0;
-
-        int spaceLeft = output.length - opIndex;
-        int readableBytes = input.length - ipIndex;
-
-        if (readableBytes < length || spaceLeft < length) {
-            throw new CorruptionException("Corrupt literal length");
-        }
-
-        if (length <= 16 && spaceLeft >= 16 && readableBytes >= 16) {
-            copyLong(input, ipIndex, output, opIndex);
-            copyLong(input, ipIndex + 8, output, opIndex + 8);
-        }
-        else  {
-            int fastLength = length & 0xFFFFFFF8;
-            if (fastLength <= 64) {
-                // copy long-by-long
-                for (int i = 0; i < fastLength; i += 8) {
-                    copyLong(input, ipIndex + i, output, opIndex + i);
-                }
-
-                // copy byte-by-byte
-                int slowLength = length & 0x7;
-                // NOTE: This is not a manual array copy.  We are copying an overlapping region
-                // and we want input data to repeat as it is recopied. see incrementalCopy below.
-                //noinspection ManualArrayCopy
-                for (int i = 0; i < slowLength; i += 1) {
-                    output[opIndex + fastLength + i] = input[ipIndex + fastLength + i];
+                    // fast copy. We may over-copy but there's enough room in input and output to not overrun them
+                    do {
+                        UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
+                        input += SIZE_OF_LONG;
+                        output += SIZE_OF_LONG;
+                    }
+                    while (output < literalOutputLimit);
+                    input -= (output - literalOutputLimit); // adjust index if we over-copied
+                    output = literalOutputLimit;
                 }
             }
             else {
-                SnappyInternalUtils.copyMemory(input, ipIndex, output, opIndex, length);
+                // matchOffset/256 is encoded in bits 8..10.  By just fetching
+                // those bits, we get matchOffset (since the bit-field starts at
+                // bit 8).
+                int matchOffset = entry & 0x700;
+                matchOffset += trailer;
+
+                long matchAddress = output - matchOffset;
+                if (matchAddress < outputAddress || output + length > outputLimit) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
+                long matchOutputLimit = output + length;
+
+                if (output > fastOutputLimit) {
+                    // slow match copy
+                    while (output < matchOutputLimit) {
+                        UNSAFE.putByte(outputBase, output++, UNSAFE.getByte(outputBase, matchAddress++));
+                    }
+                }
+                else {
+                    // copy repeated sequence
+                    if (matchOffset < SIZE_OF_LONG) {
+                        // 8 bytes apart so that we can copy long-at-a-time below
+                        int increment32 = DEC_32_TABLE[matchOffset];
+                        int decrement64 = DEC_64_TABLE[matchOffset];
+
+                        UNSAFE.putByte(outputBase, output, UNSAFE.getByte(outputBase, matchAddress));
+                        UNSAFE.putByte(outputBase, output + 1, UNSAFE.getByte(outputBase, matchAddress + 1));
+                        UNSAFE.putByte(outputBase, output + 2, UNSAFE.getByte(outputBase, matchAddress + 2));
+                        UNSAFE.putByte(outputBase, output + 3, UNSAFE.getByte(outputBase, matchAddress + 3));
+                        output += SIZE_OF_INT;
+                        matchAddress += increment32;
+
+                        UNSAFE.putInt(outputBase, output, UNSAFE.getInt(outputBase, matchAddress));
+                        output += SIZE_OF_INT;
+                        matchAddress -= decrement64;
+                    }
+                    else {
+                        UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                        matchAddress += SIZE_OF_LONG;
+                        output += SIZE_OF_LONG;
+                    }
+
+                    if (matchOutputLimit > fastOutputLimit) {
+                        if (matchOutputLimit > outputLimit) {
+                            throw new MalformedInputException(input - inputAddress);
+                        }
+
+                        while (output < fastOutputLimit) {
+                            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                            matchAddress += SIZE_OF_LONG;
+                            output += SIZE_OF_LONG;
+                        }
+
+                        while (output < matchOutputLimit) {
+                            UNSAFE.putByte(outputBase, output++, UNSAFE.getByte(outputBase, matchAddress++));
+                        }
+                    }
+                    else {
+                        do {
+                            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                            matchAddress += SIZE_OF_LONG;
+                            output += SIZE_OF_LONG;
+                        }
+                        while (output < matchOutputLimit);
+                    }
+                }
+                output = matchOutputLimit; // correction in case we over-copied
             }
         }
-    }
 
-    /**
-     * Copy "len" bytes from "src" to "op", one byte at a time.  Used for
-     * handling COPY operations where the input and output regions may
-     * overlap.  For example, suppose:
-     * src    == "ab"
-     * op     == src + 2
-     * len    == 20
-     *
-     * After incrementalCopy, the result will have
-     * eleven copies of "ab"
-     * ababababababababababab
-     * Note that this does not match the semantics of either memcpy()
-     * or memmove().
-     */
-    private static void incrementalCopy(byte[] src, int srcIndex, byte[] op, int opIndex, int length)
-    {
-        do {
-            op[opIndex++] = src[srcIndex++];
-        } while (--length > 0);
-    }
-
-    private static void incrementalCopyFastPath(byte[] output, int srcIndex, int opIndex, int length)
-    {
-        int copiedLength = 0;
-        while ((opIndex + copiedLength) - srcIndex < 8) {
-            copyLong(output, srcIndex, output, opIndex + copiedLength);
-            copiedLength += (opIndex + copiedLength) - srcIndex;
-        }
-
-        for (int i = 0; i < length - copiedLength; i += 8) {
-            copyLong(output, srcIndex + i, output, opIndex + copiedLength + i);
-        }
+        return (int) (output - outputAddress);
     }
 
     // Mapping from i in range [0,4] to a mask to extract the bottom 8*i bits
-    private static final int[] wordmask = new int[]{
+    private static final int[] wordmask = new int[] {
             0, 0xff, 0xffff, 0xffffff, 0xffffffff
     };
 
@@ -362,7 +269,7 @@ final class SnappyDecompressor
     // because of efficiency reasons:
     //      (1) Extracting a byte is faster than a bit-field
     //      (2) It properly aligns copy offset so we do not need a <<8
-    private static final short[] opLookupTable = new short[]{
+    private static final short[] opLookupTable = new short[] {
             0x0001, 0x0804, 0x1001, 0x2001, 0x0002, 0x0805, 0x1002, 0x2002,
             0x0003, 0x0806, 0x1003, 0x2003, 0x0004, 0x0807, 0x1004, 0x2004,
             0x0005, 0x0808, 0x1005, 0x2005, 0x0006, 0x0809, 0x1006, 0x2006,
@@ -429,6 +336,6 @@ final class SnappyDecompressor
                 }
             }
         }
-        return new int[]{result, bytesRead};
+        return new int[] {result, bytesRead};
     }
 }
