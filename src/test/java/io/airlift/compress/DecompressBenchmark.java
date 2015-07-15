@@ -84,6 +84,23 @@ public class DecompressBenchmark
 
         blockCompressedSnappy = compressBlockSnappy(data);
 
+        airliftSnappyCodec = new HadoopSnappyCodec();
+        streamCompressedAirliftSnappy = compressHadoopStream(airliftSnappyCodec, data, 0, data.length);
+
+        hadoopSnappyCodec = new SnappyCodec();
+        hadoopSnappyCodec.setConf(HADOOP_CONF);
+        streamCompressedHadoopSnappy = compressHadoopStream(hadoopSnappyCodec, data, 0, data.length);
+    }
+
+    /**
+     * DO NOT call this from prepare!
+     * Verify the implementations are working.  This executes all implementation code,
+     * which can cause some implementations (e.g. Hadoop) to become highly virtualized
+     * and thus slow.
+     */
+    public void verify()
+            throws IOException
+    {
         Arrays.fill(uncompressedBytes, (byte) 0);
         blockAirliftSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
@@ -96,17 +113,12 @@ public class DecompressBenchmark
             throw new IllegalStateException("broken decompressor");
         }
 
-        airliftSnappyCodec = new HadoopSnappyCodec();
-        streamCompressedAirliftSnappy = compressHadoopStream(airliftSnappyCodec, data, 0, data.length);
         Arrays.fill(uncompressedBytes, (byte) 0);
         streamAirliftSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
             throw new IllegalStateException("broken decompressor");
         }
 
-        hadoopSnappyCodec = new SnappyCodec();
-        hadoopSnappyCodec.setConf(HADOOP_CONF);
-        streamCompressedHadoopSnappy = compressHadoopStream(hadoopSnappyCodec, data, 0, data.length);
         Arrays.fill(uncompressedBytes, (byte) 0);
         streamHadoopSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
@@ -141,22 +153,20 @@ public class DecompressBenchmark
     public int streamAirliftSnappy(BytesCounter counter)
             throws IOException
     {
-        InputStream in = airliftSnappyCodec.createInputStream(new ByteArrayInputStream(streamCompressedAirliftSnappy));
-
-        int decompressedOffset = 0;
-        while (decompressedOffset < uncompressedBytes.length) {
-            decompressedOffset += in.read(uncompressedBytes, decompressedOffset, uncompressedBytes.length - decompressedOffset);
-        }
-
-        counter.add(uncompressedBytes.length);
-        return decompressedOffset;
+        return streamHadoop(counter, airliftSnappyCodec, streamCompressedAirliftSnappy);
     }
 
     @Benchmark
     public int streamHadoopSnappy(BytesCounter counter)
             throws IOException
     {
-        InputStream in = hadoopSnappyCodec.createInputStream(new ByteArrayInputStream(streamCompressedHadoopSnappy));
+        return streamHadoop(counter, hadoopSnappyCodec, streamCompressedHadoopSnappy);
+    }
+
+    private int streamHadoop(BytesCounter counter, CompressionCodec codec, byte[] compressed)
+            throws IOException
+    {
+        InputStream in = codec.createInputStream(new ByteArrayInputStream(compressed));
 
         int decompressedOffset = 0;
         while (decompressedOffset < uncompressedBytes.length) {
@@ -193,7 +203,9 @@ public class DecompressBenchmark
     public static void main(String[] args)
             throws Exception
     {
-        new DecompressBenchmark().prepare();
+        DecompressBenchmark verifyDecompressor = new DecompressBenchmark();
+        verifyDecompressor.prepare();
+        verifyDecompressor.verify();
 
         Options opt = new OptionsBuilder()
 //                .outputFormat(OutputFormatType.Silent)
