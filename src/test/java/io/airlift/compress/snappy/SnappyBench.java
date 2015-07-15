@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.primitives.Longs;
+import io.airlift.compress.Util;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -30,11 +31,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-import static io.airlift.compress.BenchmarkDriver.JAVA_BLOCK;
-import static io.airlift.compress.BenchmarkDriver.JAVA_STREAM;
-import static io.airlift.compress.BenchmarkDriver.JNI_BLOCK;
-import static io.airlift.compress.BenchmarkDriver.JNI_STREAM;
-import static io.airlift.compress.Util.toHumanReadableSpeed;
+import static io.airlift.compress.snappy.BenchmarkDriver.JAVA_BLOCK;
+import static io.airlift.compress.snappy.BenchmarkDriver.JAVA_STREAM;
+import static io.airlift.compress.snappy.BenchmarkDriver.JNI_BLOCK;
+import static io.airlift.compress.snappy.BenchmarkDriver.JNI_STREAM;
 
 /**
  * Port of the micro-benchmarks for  Snappy.
@@ -212,8 +212,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkCompress(testData, newDriver, iterations);
 
         // results
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(
@@ -255,8 +255,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkUncompress(testData, newDriver, iterations);
 
         // results
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(
@@ -298,8 +298,8 @@ public class SnappyBench
         long newBytesPerSecond = benchmarkRoundTrip(testData, newDriver, iterations);
 
         // results
-        String newHumanReadableSpeed = toHumanReadableSpeed(newBytesPerSecond);
-        String oldHumanReadableSpeed = toHumanReadableSpeed(oldBytesPerSecond);
+        String newHumanReadableSpeed = Util.toHumanReadableSpeed(newBytesPerSecond);
+        String oldHumanReadableSpeed = Util.toHumanReadableSpeed(oldBytesPerSecond);
         double improvement = 100.0d * (newBytesPerSecond - oldBytesPerSecond) / oldBytesPerSecond;
 
         System.err.printf(

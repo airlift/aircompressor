@@ -1,4 +1,4 @@
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import com.google.common.io.Files;
 import org.testng.Assert;

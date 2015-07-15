@@ -15,21 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-import static io.airlift.compress.SnappyFramed.COMPRESSED_DATA_FLAG;
-import static io.airlift.compress.SnappyFramed.HEADER_BYTES;
-import static io.airlift.compress.SnappyFramed.STREAM_IDENTIFIER_FLAG;
-import static io.airlift.compress.SnappyFramed.UNCOMPRESSED_DATA_FLAG;
-import static io.airlift.compress.SnappyInternalUtils.checkNotNull;
-import static io.airlift.compress.SnappyInternalUtils.checkPositionIndexes;
-import static io.airlift.compress.SnappyInternalUtils.readBytes;
-import static io.airlift.compress.SnappyOutputStream.MAX_BLOCK_SIZE;
+import static io.airlift.compress.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
 import static java.lang.Math.min;
 
 /**
@@ -90,13 +83,13 @@ public final class SnappyInputStream
         this.frameHeader = new byte[4];
 
         // stream must begin with stream header
-        byte[] actualHeader = new byte[HEADER_BYTES.length];
+        byte[] actualHeader = new byte[SnappyFramed.HEADER_BYTES.length];
 
-        int read = readBytes(in, actualHeader, 0, actualHeader.length);
-        if (read < HEADER_BYTES.length) {
+        int read = SnappyInternalUtils.readBytes(in, actualHeader, 0, actualHeader.length);
+        if (read < SnappyFramed.HEADER_BYTES.length) {
             throw new EOFException("encountered EOF while reading stream header");
         }
-        if (!Arrays.equals(HEADER_BYTES, actualHeader)) {
+        if (!Arrays.equals(SnappyFramed.HEADER_BYTES, actualHeader)) {
             throw new IOException("invalid stream header");
         }
     }
@@ -118,8 +111,8 @@ public final class SnappyInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
-        checkNotNull(output, "output is null");
-        checkPositionIndexes(offset, offset + length, output.length);
+        SnappyInternalUtils.checkNotNull(output, "output is null");
+        SnappyInternalUtils.checkPositionIndexes(offset, offset + length, output.length);
         if (closed) {
             throw new IOException("Stream is closed");
         }
@@ -190,7 +183,7 @@ public final class SnappyInputStream
             allocateBuffersBasedOnSize(frameMetaData.length);
         }
 
-        int actualRead = readBytes(in, input, 0, frameMetaData.length);
+        int actualRead = SnappyInternalUtils.readBytes(in, input, 0, frameMetaData.length);
         if (actualRead != frameMetaData.length) {
             throw new EOFException("unexpectd EOF when reading frame");
         }
@@ -250,15 +243,15 @@ public final class SnappyInputStream
         FrameAction frameAction;
         int flag = frameHeader[0] & 0xFF;
         switch (flag) {
-            case COMPRESSED_DATA_FLAG:
+            case SnappyFramed.COMPRESSED_DATA_FLAG:
                 frameAction = FrameAction.UNCOMPRESS;
                 minLength = 5;
                 break;
-            case UNCOMPRESSED_DATA_FLAG:
+            case SnappyFramed.UNCOMPRESSED_DATA_FLAG:
                 frameAction = FrameAction.RAW;
                 minLength = 5;
                 break;
-            case STREAM_IDENTIFIER_FLAG:
+            case SnappyFramed.STREAM_IDENTIFIER_FLAG:
                 if (length != 6) {
                     throw new IOException("stream identifier chunk with invalid length: " + length);
                 }
@@ -303,7 +296,7 @@ public final class SnappyInputStream
     private boolean readBlockHeader()
             throws IOException
     {
-        int read = readBytes(in, frameHeader, 0, frameHeader.length);
+        int read = SnappyInternalUtils.readBytes(in, frameHeader, 0, frameHeader.length);
 
         if (read == -1) {
             return false;

@@ -15,14 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import java.nio.ByteOrder;
 import java.util.Arrays;
-
-import static io.airlift.compress.Snappy.COPY_1_BYTE_OFFSET;
-import static io.airlift.compress.Snappy.COPY_2_BYTE_OFFSET;
-import static io.airlift.compress.Snappy.LITERAL;
 
 final class SnappyCompressor
 {
@@ -277,7 +273,7 @@ final class SnappyCompressor
         int n = length - 1;      // Zero-length literals are disallowed
         if (n < 60) {
             // Size fits in tag byte
-            output[outputIndex++] = (byte) (LITERAL | n << 2);
+            output[outputIndex++] = (byte) (Snappy.LITERAL | n << 2);
 
             // The vast majority of copies are below 16 bytes, for which a
             // call to memcpy is overkill. This fast path can sometimes
@@ -297,22 +293,22 @@ final class SnappyCompressor
             }
         }
         else if (n < (1 << 8)) {
-            output[outputIndex++] = (byte) (LITERAL | 59 + 1 << 2);
+            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 1 << 2);
             output[outputIndex++] = (byte) (n);
         }
         else if (n < (1 << 16)) {
-            output[outputIndex++] = (byte) (LITERAL | 59 + 2 << 2);
+            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 2 << 2);
             output[outputIndex++] = (byte) (n);
             output[outputIndex++] = (byte) (n >>> 8);
         }
         else if (n < (1 << 24)) {
-            output[outputIndex++] = (byte) (LITERAL | 59 + 3 << 2);
+            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 3 << 2);
             output[outputIndex++] = (byte) (n);
             output[outputIndex++] = (byte) (n >>> 8);
             output[outputIndex++] = (byte) (n >>> 16);
         }
         else {
-            output[outputIndex++] = (byte) (LITERAL | 59 + 4 << 2);
+            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 4 << 2);
             output[outputIndex++] = (byte) (n);
             output[outputIndex++] = (byte) (n >>> 8);
             output[outputIndex++] = (byte) (n >>> 16);
@@ -340,11 +336,11 @@ final class SnappyCompressor
         if ((length < 12) && (offset < 2048)) {
             int lenMinus4 = length - 4;
             assert (lenMinus4 < 8);            // Must fit in 3 bits
-            output[outputIndex++] = (byte) (COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5));
+            output[outputIndex++] = (byte) (Snappy.COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5));
             output[outputIndex++] = (byte) (offset);
         }
         else {
-            output[outputIndex++] = (byte) (COPY_2_BYTE_OFFSET + ((length - 1) << 2));
+            output[outputIndex++] = (byte) (Snappy.COPY_2_BYTE_OFFSET + ((length - 1) << 2));
             output[outputIndex++] = (byte) (offset);
             output[outputIndex++] = (byte) (offset >>> 8);
         }

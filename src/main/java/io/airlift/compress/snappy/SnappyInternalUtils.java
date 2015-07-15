@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,7 +42,7 @@ final class SnappyInternalUtils
         // work efficiently on big endian machines.
         if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
             try {
-                Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.UnsafeMemory").asSubclass(Memory.class);
+                Class<? extends Memory> unsafeMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.snappy.UnsafeMemory").asSubclass(Memory.class);
                 Memory unsafeMemory = unsafeMemoryClass.newInstance();
                 if (unsafeMemory.loadInt(new byte[4], 0) == 0) {
                     memoryInstance = unsafeMemory;
@@ -53,7 +53,7 @@ final class SnappyInternalUtils
         }
         if (memoryInstance == null) {
             try {
-                Class<? extends Memory> slowMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.SlowMemory").asSubclass(Memory.class);
+                Class<? extends Memory> slowMemoryClass = SnappyInternalUtils.class.getClassLoader().loadClass("io.airlift.compress.snappy.SlowMemory").asSubclass(Memory.class);
                 Memory slowMemory = slowMemoryClass.newInstance();
                 if (slowMemory.loadInt(new byte[4], 0) == 0) {
                     memoryInstance = slowMemory;

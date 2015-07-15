@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import com.google.common.base.Throwables;
-import io.airlift.compress.SnappyBench.TestData;
+import io.airlift.compress.snappy.SnappyBench.TestData;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

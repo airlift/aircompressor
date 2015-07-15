@@ -15,19 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
-import static io.airlift.compress.Crc32C.maskedCrc32c;
-import static io.airlift.compress.Snappy.maxCompressedLength;
-import static io.airlift.compress.SnappyFramed.COMPRESSED_DATA_FLAG;
-import static io.airlift.compress.SnappyFramed.HEADER_BYTES;
-import static io.airlift.compress.SnappyFramed.UNCOMPRESSED_DATA_FLAG;
-import static io.airlift.compress.SnappyInternalUtils.checkArgument;
-import static io.airlift.compress.SnappyInternalUtils.checkNotNull;
-import static io.airlift.compress.SnappyInternalUtils.checkPositionIndexes;
+import static io.airlift.compress.snappy.Crc32C.maskedCrc32c;
 
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link OutputStream}.
@@ -88,17 +81,17 @@ public final class SnappyOutputStream
     public SnappyOutputStream(OutputStream out, boolean writeChecksums, int blockSize, double minCompressionRatio)
             throws IOException
     {
-        this.out = checkNotNull(out, "out is null");
+        this.out = SnappyInternalUtils.checkNotNull(out, "out is null");
         this.writeChecksums = writeChecksums;
-        checkArgument(minCompressionRatio > 0 && minCompressionRatio <= 1.0, "minCompressionRatio %1s must be between (0,1.0].", minCompressionRatio);
+        SnappyInternalUtils.checkArgument(minCompressionRatio > 0 && minCompressionRatio <= 1.0, "minCompressionRatio %1s must be between (0,1.0].", minCompressionRatio);
         this.minCompressionRatio = minCompressionRatio;
         this.recycler = BufferRecycler.instance();
         this.blockSize = blockSize;
         this.buffer = recycler.allocOutputBuffer(blockSize);
-        this.outputBuffer = recycler.allocEncodingBuffer(maxCompressedLength(blockSize));
+        this.outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(blockSize));
 
-        out.write(HEADER_BYTES);
-        checkArgument(blockSize > 0 && blockSize <= MAX_BLOCK_SIZE, "blockSize must be in (0, 65536]", blockSize);
+        out.write(SnappyFramed.HEADER_BYTES);
+        SnappyInternalUtils.checkArgument(blockSize > 0 && blockSize <= MAX_BLOCK_SIZE, "blockSize must be in (0, 65536]", blockSize);
     }
 
     @Override
@@ -118,8 +111,8 @@ public final class SnappyOutputStream
     public void write(byte[] input, int offset, int length)
             throws IOException
     {
-        checkNotNull(input, "input is null");
-        checkPositionIndexes(offset, offset + length, input.length);
+        SnappyInternalUtils.checkNotNull(input, "input is null");
+        SnappyInternalUtils.checkPositionIndexes(offset, offset + length, input.length);
         if (closed) {
             throw new IOException("Stream is closed");
         }
@@ -213,7 +206,7 @@ public final class SnappyOutputStream
             throws IOException
     {
         // crc is based on the user supplied input data
-        int crc32c = writeChecksums ? maskedCrc32c(input, offset, length) : 0;
+        int crc32c = writeChecksums ? Crc32C.maskedCrc32c(input, offset, length) : 0;
 
         int compressed = Snappy.compress(input, offset, length, outputBuffer, 0);
 
@@ -242,7 +235,7 @@ public final class SnappyOutputStream
     private void writeBlock(OutputStream out, byte[] data, int offset, int length, boolean compressed, int crc32c)
             throws IOException
     {
-        out.write(compressed ? COMPRESSED_DATA_FLAG : UNCOMPRESSED_DATA_FLAG);
+        out.write(compressed ? SnappyFramed.COMPRESSED_DATA_FLAG : SnappyFramed.UNCOMPRESSED_DATA_FLAG);
 
         // the length written out to the header is both the checksum and the frame
         int headerLength = length + 4;

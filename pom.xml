@@ -106,7 +106,7 @@
                             <classifier>bin</classifier>
                             <archive>
                                 <manifest>
-                                    <mainClass>io.airlift.compress.Main</mainClass>
+                                    <mainClass>io.airlift.compress.snappy.Main</mainClass>
                                 </manifest>
                             </archive>
                         </configuration>

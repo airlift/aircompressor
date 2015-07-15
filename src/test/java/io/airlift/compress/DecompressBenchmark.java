@@ -16,6 +16,8 @@ package io.airlift.compress;
 import com.facebook.presto.hadoop.HadoopNative;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import io.airlift.compress.snappy.HadoopSnappyCodec;
+import io.airlift.compress.snappy.Snappy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionOutputStream;

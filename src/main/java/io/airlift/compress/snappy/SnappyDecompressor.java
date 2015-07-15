@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
-import static io.airlift.compress.SnappyInternalUtils.copyLong;
-import static io.airlift.compress.SnappyInternalUtils.loadByte;
-import static io.airlift.compress.SnappyInternalUtils.lookupShort;
+import io.airlift.compress.CorruptionException;
+
+import static io.airlift.compress.snappy.SnappyInternalUtils.copyLong;
+import static io.airlift.compress.snappy.SnappyInternalUtils.loadByte;
+import static io.airlift.compress.snappy.SnappyInternalUtils.lookupShort;
 
 final class SnappyDecompressor
 {

@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.snappy;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -29,9 +30,6 @@ import java.util.Arrays;
 
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.primitives.UnsignedBytes.toInt;
-import static io.airlift.compress.SnappyFramed.COMPRESSED_DATA_FLAG;
-import static io.airlift.compress.SnappyFramed.HEADER_BYTES;
-import static io.airlift.compress.SnappyFramed.UNCOMPRESSED_DATA_FLAG;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -40,11 +38,11 @@ import static org.testng.Assert.fail;
  * Tests the functionality of {@link org.iq80.snappy.SnappyFramedInputStream}
  * and {@link org.iq80.snappy.SnappyFramedOutputStream}.
  */
-public class SnappyStreamTest
+public class TestSnappyStream
 {
     protected static byte[] getRandom(double compressionRatio, int length)
     {
-        SnappyTest.RandomGenerator gen = new SnappyTest.RandomGenerator(compressionRatio);
+        TestSnappy.RandomGenerator gen = new TestSnappy.RandomGenerator(compressionRatio);
         gen.getNextPosition(length);
         byte[] random = Arrays.copyOf(gen.data, length);
         assertEquals(random.length, length);
@@ -60,7 +58,7 @@ public class SnappyStreamTest
 
     protected byte[] getMarkerFrame()
     {
-        return HEADER_BYTES;
+        return SnappyFramed.HEADER_BYTES;
     }
 
     @Test
@@ -77,10 +75,10 @@ public class SnappyStreamTest
         assertEquals(compressed.length, 37);
 
         // stream header
-        assertEquals(Arrays.copyOf(compressed, 10), HEADER_BYTES);
+        Assert.assertEquals(Arrays.copyOf(compressed, 10), SnappyFramed.HEADER_BYTES);
 
         // flag: compressed
-        assertEquals(toInt(compressed[10]), COMPRESSED_DATA_FLAG);
+        Assert.assertEquals(toInt(compressed[10]), SnappyFramed.COMPRESSED_DATA_FLAG);
 
         // length: 23 = 0x000017
         assertEquals(toInt(compressed[11]), 0x17);
@@ -107,7 +105,7 @@ public class SnappyStreamTest
         assertEquals(compressed.length, random.length + 10 + 4 + 4);
 
         // flag: uncompressed
-        assertEquals(toInt(compressed[10]), UNCOMPRESSED_DATA_FLAG);
+        Assert.assertEquals(toInt(compressed[10]), SnappyFramed.UNCOMPRESSED_DATA_FLAG);
 
         // length: 5004 = 0x138c
         assertEquals(toInt(compressed[13]), 0x00);
@@ -120,8 +118,8 @@ public class SnappyStreamTest
             throws Exception
     {
         byte[] empty = new byte[0];
-        assertEquals(compress(empty), HEADER_BYTES);
-        assertEquals(uncompress(HEADER_BYTES), empty);
+        Assert.assertEquals(compress(empty), SnappyFramed.HEADER_BYTES);
+        assertEquals(uncompress(SnappyFramed.HEADER_BYTES), empty);
     }
 
     @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block header.*")
@@ -200,10 +198,10 @@ public class SnappyStreamTest
     {
         byte[] random = getRandom(0.5, 100000);
 
-        byte[] stream = new byte[HEADER_BYTES.length + 8 + random.length];
-        System.arraycopy(HEADER_BYTES, 0, stream, 0, HEADER_BYTES.length);
+        byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + 8 + random.length];
+        System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
 
-        stream[10] = UNCOMPRESSED_DATA_FLAG;
+        stream[10] = SnappyFramed.UNCOMPRESSED_DATA_FLAG;
 
         int length = random.length + 4;
         stream[11] = (byte) length;
@@ -231,10 +229,10 @@ public class SnappyStreamTest
 
         byte[] compressed = Snappy.compress(random);
 
-        byte[] stream = new byte[HEADER_BYTES.length + 8 + compressed.length];
-        System.arraycopy(HEADER_BYTES, 0, stream, 0, HEADER_BYTES.length);
+        byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + 8 + compressed.length];
+        System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
 
-        stream[10] = COMPRESSED_DATA_FLAG;
+        stream[10] = SnappyFramed.COMPRESSED_DATA_FLAG;
 
         int length = compressed.length + 4;
         stream[11] = (byte) length;
@@ -262,10 +260,10 @@ public class SnappyStreamTest
 
         byte[] compressed = Snappy.compress(random);
 
-        byte[] stream = new byte[HEADER_BYTES.length + 8 + compressed.length];
-        System.arraycopy(HEADER_BYTES, 0, stream, 0, HEADER_BYTES.length);
+        byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + 8 + compressed.length];
+        System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
 
-        stream[10] = COMPRESSED_DATA_FLAG;
+        stream[10] = SnappyFramed.COMPRESSED_DATA_FLAG;
 
         int length = compressed.length + 4;
         stream[11] = (byte) length;
@@ -293,9 +291,9 @@ public class SnappyStreamTest
 
     private static byte[] blockToStream(byte[] block)
     {
-        byte[] stream = new byte[HEADER_BYTES.length + block.length];
-        System.arraycopy(HEADER_BYTES, 0, stream, 0, HEADER_BYTES.length);
-        System.arraycopy(block, 0, stream, HEADER_BYTES.length, block.length);
+        byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + block.length];
+        System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
+        System.arraycopy(block, 0, stream, SnappyFramed.HEADER_BYTES.length, block.length);
         return stream;
     }
 
@@ -401,7 +399,7 @@ public class SnappyStreamTest
     public void testByteForByteTestData()
             throws Exception
     {
-        for (File testFile : SnappyTest.getTestFiles()) {
+        for (File testFile : TestSnappy.getTestFiles()) {
             byte[] original = Files.toByteArray(testFile);
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
