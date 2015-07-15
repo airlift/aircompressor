@@ -16,8 +16,12 @@ package io.airlift.compress;
 import com.facebook.presto.hadoop.HadoopNative;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.snappy.HadoopSnappyCodec;
 import io.airlift.compress.snappy.Snappy;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
@@ -71,11 +75,16 @@ public class DecompressBenchmark
 
     private byte[] uncompressedBytes;
 
+    private final LZ4SafeDecompressor jpountzLz4JniDecompressor = LZ4Factory.fastestInstance().safeDecompressor();
+    private final Lz4Decompressor airliftLz4Decompressor = new Lz4Decompressor();
+
     private HadoopSnappyCodec airliftSnappyCodec;
     private SnappyCodec hadoopSnappyCodec;
+
     private byte[] blockCompressedSnappy;
     private byte[] streamCompressedAirliftSnappy;
     private byte[] streamCompressedHadoopSnappy;
+    private byte[] blockCompressedLz4;
 
     @Setup
     public void prepare()
@@ -92,6 +101,8 @@ public class DecompressBenchmark
         hadoopSnappyCodec = new SnappyCodec();
         hadoopSnappyCodec.setConf(HADOOP_CONF);
         streamCompressedHadoopSnappy = compressHadoopStream(hadoopSnappyCodec, data, 0, data.length);
+
+        blockCompressedLz4 = compressBlockLz4(data);
     }
 
     /**
@@ -106,25 +117,31 @@ public class DecompressBenchmark
         Arrays.fill(uncompressedBytes, (byte) 0);
         blockAirliftSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor");
+            throw new IllegalStateException("broken decompressor: block airlift snappy");
         }
 
         Arrays.fill(uncompressedBytes, (byte) 0);
         blockXerialSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor");
+            throw new IllegalStateException("broken decompressor: block serial snappy");
         }
 
         Arrays.fill(uncompressedBytes, (byte) 0);
         streamAirliftSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor");
+            throw new IllegalStateException("broken decompressor: stream airlift snappy");
         }
 
         Arrays.fill(uncompressedBytes, (byte) 0);
         streamHadoopSnappy(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor");
+            throw new IllegalStateException("broken decompressor: stream hadoop snappy");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        blockAirliftLz4(new BytesCounter());
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: block airlift lz4");
         }
     }
 
@@ -132,6 +149,22 @@ public class DecompressBenchmark
             throws IOException
     {
         return Files.toByteArray(new File("testdata/html"));
+    }
+
+    @Benchmark
+    public int blockAirliftLz4(BytesCounter counter)
+    {
+        int read = airliftLz4Decompressor.decompress(blockCompressedLz4, 0, blockCompressedLz4.length, uncompressedBytes, 0, uncompressedBytes.length);
+        counter.add(uncompressedBytes.length);
+        return read;
+    }
+
+    @Benchmark
+    public int blockJpountzLz4Jni(BytesCounter counter)
+    {
+        int read = jpountzLz4JniDecompressor.decompress(blockCompressedLz4, uncompressedBytes);
+        counter.add(uncompressedBytes.length);
+        return read;
     }
 
     @Benchmark
@@ -221,7 +254,7 @@ public class DecompressBenchmark
 
         for (RunResult result : results) {
             Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
-            System.out.printf("  %-14s %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+            System.out.printf("  %-19s %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
                     result.getPrimaryResult().getLabel(),
                     Util.toHumanReadableSpeed((long) stats.getMean()),
                     Util.toHumanReadableSpeed((long) stats.getMeanErrorAt(0.999)),
@@ -235,6 +268,16 @@ public class DecompressBenchmark
             throws IOException
     {
         return Snappy.compress(uncompressed);
+    }
+
+    private static byte[] compressBlockLz4(byte[] uncompressed)
+            throws IOException
+    {
+        LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+        byte[] compressedBytes = new byte[compressor.maxCompressedLength(uncompressed.length)];
+        int compressedLength = compressor.compress(uncompressed, 0, uncompressed.length, compressedBytes, 0);
+
+        return Arrays.copyOf(compressedBytes, compressedLength);
     }
 
     private static byte[] compressHadoopStream(CompressionCodec codec, byte[] uncompressed, int offset, int length)
