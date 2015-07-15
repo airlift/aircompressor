@@ -24,13 +24,13 @@ public final class Util
     public static String toHumanReadableSpeed(long bytesPerSecond)
     {
         String humanReadableSpeed;
-        if (bytesPerSecond < 1024) {
+        if (bytesPerSecond < 1024 * 10L) {
             humanReadableSpeed = format("%dB/s", bytesPerSecond);
         }
-        else if (bytesPerSecond < 1024 * 1024) {
+        else if (bytesPerSecond < 1024 * 1024 * 10L) {
             humanReadableSpeed = format("%.1fkB/s", bytesPerSecond / 1024.0f);
         }
-        else if (bytesPerSecond < 1024 * 1024 * 1024) {
+        else if (bytesPerSecond < 1024 * 1024 * 1024 * 10L) {
             humanReadableSpeed = format("%.1fMB/s", bytesPerSecond / (1024.0f * 1024.0f));
         }
         else {
@@ -38,5 +38,4 @@ public final class Util
         }
         return humanReadableSpeed;
     }
-
 }

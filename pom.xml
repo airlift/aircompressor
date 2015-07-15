@@ -16,7 +16,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>13</version>
+        <version>41</version>
     </parent>
 
     <inceptionYear>2011</inceptionYear>
@@ -54,31 +54,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-core</artifactId>
-            <version>0.20.2</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>tomcat</groupId>
-                    <artifactId>jasper-compiler</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>jsp-2.1</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>jsp-api-2.1</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>junit</groupId>
-                    <artifactId>junit</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <scope>test</scope>
@@ -92,15 +67,25 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
-            <version>0.3</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.facebook.presto.hadoop</groupId>
+            <artifactId>hadoop-facebook</artifactId>
+            <version>0.18</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -145,7 +130,6 @@
                     </execution>
                 </executions>
             </plugin>
-
         </plugins>
     </build>
 </project>
