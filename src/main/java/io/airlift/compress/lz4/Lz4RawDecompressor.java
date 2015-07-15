@@ -29,7 +29,7 @@ public class Lz4RawDecompressor
     private final static int MIN_MATCH = 4;
     private final static int LAST_LITERAL_SIZE = 5;
 
-    public static int uncompress(
+    public static int decompress(
             final Object inputBase,
             final long inputAddress,
             final long inputLimit,

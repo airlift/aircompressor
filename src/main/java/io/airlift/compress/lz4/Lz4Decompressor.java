@@ -32,7 +32,7 @@ public class Lz4Decompressor
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
-        return Lz4RawDecompressor.uncompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return Lz4RawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override
