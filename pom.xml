@@ -10,7 +10,7 @@
 
     <name>aircompressor</name>
 
-    <description>Port of Snappy to Java</description>
+    <description>Compression algorithms</description>
     <url>http://github.com/airlift/aircompressor</url>
 
     <parent>
