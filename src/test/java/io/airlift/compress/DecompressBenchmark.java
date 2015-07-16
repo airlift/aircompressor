@@ -16,6 +16,8 @@ package io.airlift.compress;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import io.airlift.compress.lz4.Lz4Decompressor;
+import io.airlift.compress.lzo.LzoCodec;
+import io.airlift.compress.lzo.LzoDecompressor;
 import io.airlift.compress.snappy.Snappy;
 import io.airlift.compress.snappy.SnappyCodec;
 import io.airlift.compress.snappy.SnappyDecompressor;
@@ -25,6 +27,8 @@ import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
+import org.apache.hadoop.io.compress.Compressor;
+import org.apache.hadoop.io.compress.Decompressor;
 import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
@@ -48,6 +52,8 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertTrue;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -77,6 +83,13 @@ public class DecompressBenchmark
     private byte[] streamCompressedHadoopSnappy;
     private byte[] blockCompressedLz4;
 
+    private final LzoDecompressor airliftLzoDecompressor = new LzoDecompressor();
+    private LzoCodec airliftLzoCodec = new LzoCodec();
+    private com.hadoop.compression.lzo.LzoCodec hadoopLzoCodec;
+    private Decompressor hadoopLzoDecompressor;
+    private byte[] blockCompressedLzo;
+    private byte[] streamCompressedLzo;
+
     @Setup
     public void prepare()
             throws IOException
@@ -94,6 +107,12 @@ public class DecompressBenchmark
         streamCompressedHadoopSnappy = compressHadoopStream(hadoopSnappyCodec, data, 0, data.length);
 
         blockCompressedLz4 = compressBlockLz4(data);
+
+        blockCompressedLzo = compressBlockLzo(data);
+        hadoopLzoCodec = new com.hadoop.compression.lzo.LzoCodec();
+        hadoopLzoCodec.setConf(HADOOP_CONF);
+        hadoopLzoDecompressor = hadoopLzoCodec.createDecompressor();
+        streamCompressedLzo = compressStreamLzo(data);
     }
 
     /**
@@ -133,6 +152,30 @@ public class DecompressBenchmark
         blockAirliftLz4(new BytesCounter());
         if (!Arrays.equals(data, uncompressedBytes)) {
             throw new IllegalStateException("broken decompressor: block airlift lz4");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        blockAirliftLzo(new BytesCounter());
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: block airlift lzo");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        blockHadoopLzo(new BytesCounter());
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: block hadoop lzo");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        streamAirliftLzo(new BytesCounter());
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: stream airlift lzo");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        streamHadoopLzo(new BytesCounter());
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: stream hadoop lzo");
         }
     }
 
@@ -187,6 +230,44 @@ public class DecompressBenchmark
             throws IOException
     {
         return streamHadoop(counter, hadoopSnappyCodec, streamCompressedHadoopSnappy);
+    }
+
+    @Benchmark
+    public int blockAirliftLzo(BytesCounter counter)
+    {
+        int read = airliftLzoDecompressor.decompress(blockCompressedLzo, 0, blockCompressedLzo.length, uncompressedBytes, 0, uncompressedBytes.length);
+        counter.add(uncompressedBytes.length);
+        return read;
+    }
+
+    @Benchmark
+    public int blockHadoopLzo(BytesCounter counter)
+            throws IOException
+    {
+        hadoopLzoDecompressor.reset();
+        hadoopLzoDecompressor.setInput(blockCompressedLzo, 0, blockCompressedLzo.length);
+
+        int decompressedOffset = 0;
+        while (!hadoopLzoDecompressor.finished() && decompressedOffset < uncompressedBytes.length) {
+            decompressedOffset += hadoopLzoDecompressor.decompress(uncompressedBytes, decompressedOffset, uncompressedBytes.length - decompressedOffset);
+        }
+
+        counter.add(uncompressedBytes.length);
+        return decompressedOffset;
+    }
+
+    @Benchmark
+    public int streamAirliftLzo(BytesCounter counter)
+            throws IOException
+    {
+        return streamHadoop(counter, airliftLzoCodec, streamCompressedLzo);
+    }
+
+    @Benchmark
+    public int streamHadoopLzo(BytesCounter counter)
+            throws IOException
+    {
+        return streamHadoop(counter, hadoopLzoCodec, streamCompressedLzo);
     }
 
     private int streamHadoop(BytesCounter counter, CompressionCodec codec, byte[] compressed)
@@ -269,6 +350,36 @@ public class DecompressBenchmark
         int compressedLength = compressor.compress(uncompressed, 0, uncompressed.length, compressedBytes, 0);
 
         return Arrays.copyOf(compressedBytes, compressedLength);
+    }
+
+    private static byte[] compressBlockLzo(byte[] uncompressed)
+            throws IOException
+    {
+        com.hadoop.compression.lzo.LzoCodec codec = new com.hadoop.compression.lzo.LzoCodec();
+        codec.setConf(HADOOP_CONF);
+        Compressor compressor = codec.createCompressor();
+        compressor.setInput(uncompressed, 0, uncompressed.length);
+        compressor.finish();
+
+        byte[] compressed = new byte[uncompressed.length * 10];
+        int compressedOffset = 0;
+        while (!compressor.finished() && compressedOffset < compressed.length) {
+            compressedOffset += compressor.compress(compressed, compressedOffset, compressed.length - compressedOffset);
+        }
+
+        if (!compressor.finished()) {
+            assertTrue(compressor.finished());
+        }
+        return Arrays.copyOf(compressed, compressedOffset);
+    }
+
+    private static byte[] compressStreamLzo(byte[] uncompressed)
+            throws IOException
+    {
+        com.hadoop.compression.lzo.LzoCodec codec = new com.hadoop.compression.lzo.LzoCodec();
+        codec.setConf(HADOOP_CONF);
+
+        return compressHadoopStream(codec, uncompressed, 0, uncompressed.length);
     }
 
     private static byte[] compressHadoopStream(CompressionCodec codec, byte[] uncompressed, int offset, int length)
