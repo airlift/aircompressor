@@ -89,7 +89,7 @@ class HadoopSnappyInputStream
 
         uncompressedChunkLength = Snappy.getUncompressedLength(compressed, 0);
         if (uncompressedChunkLength > uncompressedBlockLength) {
-            throw new CorruptionException("Chunk uncompressed size is greater than block size");
+            throw new IOException("Chunk uncompressed size is greater than block size");
         }
         if (uncompressedChunk.length < uncompressedChunkLength) {
             // over allocate buffer which makes decompression easier
@@ -98,7 +98,7 @@ class HadoopSnappyInputStream
 
         int bytes = SnappyRawDecompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunkLength);
         if (uncompressedChunkLength != bytes) {
-            throw new CorruptionException("Expected to read " + uncompressedChunkLength + " bytes, but data only contained " + bytes + " bytes");
+            throw new IOException("Expected to read " + uncompressedChunkLength + " bytes, but data only contained " + bytes + " bytes");
         }
     }
 

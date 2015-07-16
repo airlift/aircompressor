@@ -31,7 +31,6 @@ public final class SnappyRawDecompressor
     private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
-            throws CorruptionException
     {
         return readUncompressedLength(compressed, compressedOffset)[0];
     }
@@ -43,7 +42,6 @@ public final class SnappyRawDecompressor
             final byte[] output,
             final int outputOffset,
             final int maxOutputLength)
-            throws CorruptionException
     {
         // Read the uncompressed length from the front of the input
         int[] varInt = readUncompressedLength(input, inputOffset);
@@ -64,7 +62,7 @@ public final class SnappyRawDecompressor
                 ARRAY_BYTE_BASE_OFFSET + output.length);
 
         if (!(expectedLength == uncompressedSize)) {
-            throw new CorruptionException(String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
+            throw new MalformedInputException(0, String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
                     expectedLength,
                     uncompressedSize));
         }
@@ -79,7 +77,6 @@ public final class SnappyRawDecompressor
             final Object outputBase,
             final long outputAddress,
             final long outputLimit)
-            throws CorruptionException
     {
         final long fastOutputLimit = outputLimit - SIZE_OF_LONG; // maximum offset in output buffer to which it's safe to write long-at-a-time
 
@@ -277,7 +274,6 @@ public final class SnappyRawDecompressor
      * returns this length with the number of bytes read.
      */
     private static int[] readUncompressedLength(byte[] compressed, int compressedOffset)
-            throws CorruptionException
     {
         int result;
         int bytesRead = 0;
@@ -297,7 +293,7 @@ public final class SnappyRawDecompressor
                             b = compressed[compressedOffset + bytesRead++] & 0xFF;
                             result |= (b & 0x7f) << 28;
                             if ((b & 0x80) != 0) {
-                                throw new CorruptionException("last byte of compressed length int has high bit set");
+                                throw new MalformedInputException(compressedOffset + bytesRead, "last byte of compressed length int has high bit set");
                             }
                         }
                     }
