@@ -34,7 +34,7 @@ import static com.google.common.io.ByteStreams.toByteArray;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-public class TestSnappyCodec
+public class TestSnappyCodecLegacy
         extends AbstractSnappyTest
 {
     static {
@@ -44,7 +44,7 @@ public class TestSnappyCodec
     private final CompressionCodec airliftSnappyCodec = new SnappyCodec();
     private final CompressionCodec hadoopSnappyCodec;
 
-    public TestSnappyCodec()
+    public TestSnappyCodecLegacy()
     {
 
         org.apache.hadoop.io.compress.SnappyCodec hadoopSnappyCodec = new org.apache.hadoop.io.compress.SnappyCodec();

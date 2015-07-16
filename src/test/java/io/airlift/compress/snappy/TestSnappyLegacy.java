@@ -21,7 +21,7 @@ import org.testng.Assert;
 
 import java.util.Arrays;
 
-public class TestSnappy
+public class TestSnappyLegacy
         extends AbstractSnappyTest
 {
     @Override
