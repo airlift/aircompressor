@@ -29,3 +29,4 @@ public interface Compressor
      */
     int compress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength);
 }
+

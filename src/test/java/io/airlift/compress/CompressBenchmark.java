@@ -66,6 +66,7 @@ public class CompressBenchmark
 
     private byte[] uncompressedBytes;
 
+    private final SnappyCompressor snappyCompressor = new SnappyCompressor();
     private byte[] blockCompressedSnappy;
     private byte[] streamCompressSnappy;
     private SnappyCodec airliftSnappyCodec = new SnappyCodec();
@@ -170,11 +171,12 @@ public class CompressBenchmark
     @Benchmark
     public int blockAirliftSnappy(BytesCounter counter)
     {
-        int written = SnappyCompressor.compress(data,
+        int written = snappyCompressor.compress(data,
                 0,
                 data.length,
                 blockCompressedSnappy,
-                0);
+                0,
+                blockCompressedSnappy.length);
 
         counter.add(uncompressedBytes.length);
         return written;

@@ -38,12 +38,12 @@ public class TestSnappyLegacy
                 nativeCompressed,
                 0);
 
-        int javaCompressedSize = Snappy.compress(
-                input,
+        int javaCompressedSize = SnappyRawCompressor.compress(input,
                 position,
                 size,
                 javaCompressed,
-                0);
+                0,
+                javaCompressed.length);
 
         // verify outputs are exactly the same
         String failureMessage = "Invalid compressed output for input size " + size + " at offset " + position;

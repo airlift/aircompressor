@@ -67,11 +67,12 @@ public final class Snappy
             byte[] compressed,
             int compressedOffset)
     {
-        return SnappyCompressor.compress(uncompressed,
+        return SnappyRawCompressor.compress(uncompressed,
                 uncompressedOffset,
                 uncompressedLength,
                 compressed,
-                compressedOffset);
+                compressedOffset,
+                compressed.length - compressedOffset);
     }
 
     public static byte[] compress(byte[] data)

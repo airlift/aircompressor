@@ -20,8 +20,6 @@ package io.airlift.compress.snappy;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import static io.airlift.compress.snappy.Crc32C.maskedCrc32c;
-
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link OutputStream}.
  */
@@ -208,7 +206,12 @@ public final class SnappyOutputStream
         // crc is based on the user supplied input data
         int crc32c = writeChecksums ? Crc32C.maskedCrc32c(input, offset, length) : 0;
 
-        int compressed = Snappy.compress(input, offset, length, outputBuffer, 0);
+        int compressed = SnappyRawCompressor.compress(input,
+                offset,
+                length,
+                outputBuffer,
+                0,
+                outputBuffer.length);
 
         // only use the compressed data if compression ratio is <= the minCompressionRatio
         if (((double) compressed / (double) length) <= minCompressionRatio) {

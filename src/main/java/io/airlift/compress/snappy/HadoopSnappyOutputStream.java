@@ -79,7 +79,7 @@ class HadoopSnappyOutputStream
     private void writeNextChunk()
             throws IOException
     {
-        int compressedSize = SnappyCompressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0);
+        int compressedSize = SnappyRawCompressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0, outputBuffer.length);
 
         writeBigEndianInt(inputOffset);
         writeBigEndianInt(compressedSize);
