@@ -6,7 +6,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class HadoopSnappyInputStream
+class HadoopSnappyInputStream
         extends CompressionInputStream
 {
     private static final int SIZE_OF_LONG = 8;

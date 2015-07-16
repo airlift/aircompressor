@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-public class HadoopSnappyOutputStream
+class HadoopSnappyOutputStream
         extends CompressionOutputStream
 {
     public static final int DEFAULT_COMPRESSION_BLOCK = 256 * 1024;

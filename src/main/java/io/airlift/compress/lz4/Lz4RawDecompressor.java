@@ -29,6 +29,9 @@ public class Lz4RawDecompressor
     private final static int MIN_MATCH = 4;
     private final static int LAST_LITERAL_SIZE = 5;
 
+    private final static int OFFSET_SIZE = 2;
+    private final static int TOKEN_SIZE = 1;
+
     public static int decompress(
             final Object inputBase,
             final long inputAddress,
@@ -69,7 +72,7 @@ public class Lz4RawDecompressor
 
             // copy literal
             long literalOutputLimit = output + literalLength;
-            if (literalOutputLimit > (fastOutputLimit - MIN_MATCH) || input + literalLength > inputLimit - (2 + 1 + LAST_LITERAL_SIZE)) {
+            if (literalOutputLimit > (fastOutputLimit - MIN_MATCH) || input + literalLength > inputLimit - (OFFSET_SIZE + TOKEN_SIZE + LAST_LITERAL_SIZE)) {
                 // copy the last literal and finish
                 if (literalOutputLimit > outputLimit) {
                     throw new MalformedInputException(input - inputAddress, "attempt to write last literal outside of destination buffer");
