@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkPositionIndexes;
 import static org.testng.Assert.assertEquals;
 
@@ -32,6 +33,7 @@ public abstract class AbstractTestCompression
     private static final File TEST_DATA_DIR = new File("testdata");
 
     protected abstract byte[] prepareCompressedData(byte[] uncompressed);
+
     protected abstract Decompressor getDecompressor();
 
     @Test(dataProvider = "data")
@@ -62,13 +64,28 @@ public abstract class AbstractTestCompression
 
         List<Object[]> result = new ArrayList<>();
 
+        result.add(new Object[] {createTestCase("short literal", "hello world!".getBytes(UTF_8))});
+        result.add(new Object[] {createTestCase("small copy", "XXXXabcdabcdABCDABCDwxyzwzyz123".getBytes(UTF_8))});
+        result.add(new Object[] {createTestCase("long copy", "XXXXabcdefgh abcdefgh abcdefgh abcdefgh abcdefgh abcdefgh ABC".getBytes(UTF_8))});
+
+        byte[] data = new byte[256];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) i;
+        }
+        result.add(new Object[] {createTestCase("long literal", data)});
+
         for (File file : testFiles) {
             byte[] uncompressed = Files.toByteArray(file);
-            byte[] compressed = prepareCompressedData(uncompressed);
-            result.add(new Object[] { new TestCase(file.getName(), compressed, uncompressed)});
+            result.add(new Object[] {createTestCase(file.getName(), uncompressed)});
         }
 
         return result.iterator();
+    }
+
+    private TestCase createTestCase(String name, byte[] uncompressed)
+    {
+        byte[] compressed = prepareCompressedData(uncompressed);
+        return new TestCase(name, compressed, uncompressed);
     }
 
     private static void assertByteArraysEqual(byte[] left, int leftOffset, byte[] right, int rightOffset, int length)
