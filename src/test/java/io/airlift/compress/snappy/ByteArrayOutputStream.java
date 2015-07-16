@@ -22,11 +22,14 @@ import com.google.common.base.Preconditions;
 import java.io.OutputStream;
 import java.util.Arrays;
 
-final public class ByteArrayOutputStream extends OutputStream
+final public class ByteArrayOutputStream
+        extends OutputStream
 {
 
     private final byte buffer[];
-    private int size;
+    private final int initialOffset;
+    private final int bufferLimit;
+    private int offset;
 
     public ByteArrayOutputStream(int size)
     {
@@ -35,30 +38,38 @@ final public class ByteArrayOutputStream extends OutputStream
 
     public ByteArrayOutputStream(byte[] buffer)
     {
+        this(buffer, 0, buffer.length);
+    }
+
+    public ByteArrayOutputStream(byte[] buffer, int offset, int length)
+    {
         this.buffer = buffer;
+        this.initialOffset = offset;
+        this.bufferLimit = offset + length;
+        this.offset = offset;
     }
 
     public void write(int b)
     {
-        Preconditions.checkPositionIndex(size + 1, buffer.length);
-        buffer[size++] = (byte) b;
+        Preconditions.checkPositionIndex(offset + 1, bufferLimit);
+        buffer[offset++] = (byte) b;
     }
 
     public void write(byte b[], int off, int len)
     {
-        Preconditions.checkPositionIndex(size + len, buffer.length);
-        System.arraycopy(b, off, buffer, size, len);
-        size += len;
+        Preconditions.checkPositionIndex(offset + len, bufferLimit);
+        System.arraycopy(b, off, buffer, offset, len);
+        offset += len;
     }
 
     public void reset()
     {
-        size = 0;
+        offset = 0;
     }
 
     public int size()
     {
-        return size;
+        return offset - initialOffset;
     }
 
     public byte[] getBuffer()
@@ -68,6 +79,6 @@ final public class ByteArrayOutputStream extends OutputStream
 
     public byte[] toByteArray()
     {
-        return Arrays.copyOf(buffer, size);
+        return Arrays.copyOfRange(buffer, initialOffset, offset);
     }
 }
