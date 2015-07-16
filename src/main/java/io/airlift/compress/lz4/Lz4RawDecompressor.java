@@ -15,19 +15,17 @@ package io.airlift.compress.lz4;
 
 import io.airlift.compress.MalformedInputException;
 
+import static io.airlift.compress.lz4.Lz4Constants.LAST_LITERAL_SIZE;
+import static io.airlift.compress.lz4.Lz4Constants.MIN_MATCH;
+import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_INT;
+import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
 
 public class Lz4RawDecompressor
 {
-    private final static int SIZE_OF_SHORT = 2;
-    private final static int SIZE_OF_INT = 4;
-    private final static int SIZE_OF_LONG = 8;
-
     private final static int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
-
-    private final static int MIN_MATCH = 4;
-    private final static int LAST_LITERAL_SIZE = 5;
 
     private final static int OFFSET_SIZE = 2;
     private final static int TOKEN_SIZE = 1;
