@@ -17,8 +17,7 @@
  */
 package io.airlift.compress.snappy;
 
-import com.facebook.presto.hadoop.HadoopNative;
-import com.google.common.io.ByteStreams;
+import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -26,7 +25,9 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 
 import static com.google.common.io.ByteStreams.toByteArray;
@@ -37,14 +38,7 @@ public class TestSnappyCodec
         extends AbstractSnappyTest
 {
     static {
-        PrintStream err = System.err;
-        try {
-            System.setErr(new PrintStream(ByteStreams.nullOutputStream()));
-            HadoopNative.requireHadoopNative();
-        }
-        finally {
-            System.setErr(err);
-        }
+        HadoopNative.initialize();
     }
 
     private final CompressionCodec airliftSnappyCodec = new SnappyCodec();

@@ -13,7 +13,6 @@
  */
 package io.airlift.compress;
 
-import com.facebook.presto.hadoop.HadoopNative;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import io.airlift.compress.lz4.Lz4Decompressor;
@@ -46,7 +45,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -59,14 +57,7 @@ import java.util.concurrent.TimeUnit;
 public class DecompressBenchmark
 {
     static {
-        PrintStream err = System.err;
-        try {
-            System.setErr(new PrintStream(ByteStreams.nullOutputStream()));
-            HadoopNative.requireHadoopNative();
-        }
-        finally {
-            System.setErr(err);
-        }
+        HadoopNative.initialize();
     }
 
     private static final Configuration HADOOP_CONF = new Configuration();
