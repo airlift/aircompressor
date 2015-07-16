@@ -20,6 +20,9 @@ package io.airlift.compress.snappy;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
+import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+
 final class SnappyCompressor
 {
     private static final boolean NATIVE_LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
@@ -170,7 +173,7 @@ final class SnappyCompressor
         int candidateIndex = 0;
         for (ipIndex += 1; ipIndex + bytesBetweenHashLookups(skip) <= ipLimit; ipIndex += bytesBetweenHashLookups(skip++)) {
             // hash the 4 bytes starting at the input pointer
-            int currentInt = SnappyInternalUtils.loadInt(input, ipIndex);
+            int currentInt = UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + ipIndex);
             int hash = hashBytes(currentInt, shift);
 
             // get the position of a 4 bytes sequence with the same hash
@@ -185,7 +188,7 @@ final class SnappyCompressor
 
             // if the 4 byte sequence a the candidate index matches the sequence at the
             // current position, proceed to the next phase
-            if (currentInt == SnappyInternalUtils.loadInt(input, candidateIndex)) {
+            if (currentInt == UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + candidateIndex)) {
                 break;
             }
         }
@@ -236,15 +239,9 @@ final class SnappyCompressor
             // We could immediately start working at ip now, but to improve
             // compression we first update table[Hash(ip - 1, ...)].
             int prevInt;
-            if (SnappyInternalUtils.HAS_UNSAFE) {
-                long foo = SnappyInternalUtils.loadLong(input, ipIndex - 1);
-                prevInt = (int) foo;
-                inputBytes = (int) (foo >>> 8);
-            }
-            else {
-                prevInt = SnappyInternalUtils.loadInt(input, ipIndex - 1);
-                inputBytes = SnappyInternalUtils.loadInt(input, ipIndex);
-            }
+            long longValue = UNSAFE.getLong(input, (long) ARRAY_BYTE_BASE_OFFSET + ipIndex - 1);
+            prevInt = (int) longValue;
+            inputBytes = (int) (longValue >>> 8);
 
             // add hash starting with previous byte
             int prevHash = hashBytes(prevInt, shift);
@@ -256,7 +253,7 @@ final class SnappyCompressor
             candidateIndex = inputOffset + (table[curHash] & 0xFFFF);
             table[curHash] = (short) (ipIndex - inputOffset);
 
-        } while (inputBytes == SnappyInternalUtils.loadInt(input, candidateIndex));
+        } while (inputBytes == UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + candidateIndex));
         return new int[] {ipIndex, outputIndex};
     }
 
@@ -286,8 +283,8 @@ final class SnappyCompressor
             //   - The output will always have 32 spare bytes (see
             //     MaxCompressedLength).
             if (allowFastPath && length <= 16) {
-                SnappyInternalUtils.copyLong(literal, literalIndex, output, outputIndex);
-                SnappyInternalUtils.copyLong(literal, literalIndex + 8, output, outputIndex + 8);
+                UNSAFE.putLong(output, ((long) ARRAY_BYTE_BASE_OFFSET + outputIndex), UNSAFE.getLong(literal, (long) ARRAY_BYTE_BASE_OFFSET + literalIndex));
+                UNSAFE.putLong(output, ((long) ARRAY_BYTE_BASE_OFFSET + outputIndex + 8), UNSAFE.getLong(literal, (long) ARRAY_BYTE_BASE_OFFSET + literalIndex + 8));
                 outputIndex += length;
                 return outputIndex;
             }
@@ -379,34 +376,23 @@ final class SnappyCompressor
     {
         assert (s2Limit >= s2Index);
 
-        if (SnappyInternalUtils.HAS_UNSAFE) {
-            int matched = 0;
+        int matched = 0;
+        while (s2Index + matched <= s2Limit - 4 && UNSAFE.getInt(s2, (long) ARRAY_BYTE_BASE_OFFSET + s2Index + matched) == UNSAFE.getInt(s1,
+                (long) ARRAY_BYTE_BASE_OFFSET + s1Index + matched)) {
+            matched += 4;
+        }
 
-            while (s2Index + matched <= s2Limit - 4 && SnappyInternalUtils.loadInt(s2, s2Index + matched) == SnappyInternalUtils.loadInt(s1, s1Index + matched)) {
-                matched += 4;
-            }
-
-            if (NATIVE_LITTLE_ENDIAN && s2Index + matched <= s2Limit - 4) {
-                int x = SnappyInternalUtils.loadInt(s2, s2Index + matched) ^ SnappyInternalUtils.loadInt(s1, s1Index + matched);
-                int matchingBits = Integer.numberOfTrailingZeros(x);
-                matched += matchingBits >> 3;
-            }
-            else {
-                while (s2Index + matched < s2Limit && s1[s1Index + matched] == s2[s2Index + matched]) {
-                    ++matched;
-                }
-            }
-            return matched;
+        if (NATIVE_LITTLE_ENDIAN && s2Index + matched <= s2Limit - 4) {
+            int x = UNSAFE.getInt(s2, (long) ARRAY_BYTE_BASE_OFFSET + s2Index + matched) ^ UNSAFE.getInt(s1, (long) ARRAY_BYTE_BASE_OFFSET + s1Index + matched);
+            int matchingBits = Integer.numberOfTrailingZeros(x);
+            matched += matchingBits >> 3;
         }
         else {
-            int length = s2Limit - s2Index;
-            for (int matched = 0; matched < length; matched++) {
-                if (s1[s1Index + matched] != s2[s2Index + matched]) {
-                    return matched;
-                }
+            while (s2Index + matched < s2Limit && s1[s1Index + matched] == s2[s2Index + matched]) {
+                ++matched;
             }
-            return length;
         }
+        return matched;
     }
 
     private static int getHashTableSize(int inputSize)
