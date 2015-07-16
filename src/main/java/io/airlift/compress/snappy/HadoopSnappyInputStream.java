@@ -96,7 +96,7 @@ class HadoopSnappyInputStream
             uncompressedChunk = new byte[uncompressedChunkLength + SIZE_OF_LONG];
         }
 
-        int bytes = SnappyDecompressor.uncompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0);
+        int bytes = SnappyRawDecompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunkLength);
         if (uncompressedChunkLength != bytes) {
             throw new CorruptionException("Expected to read " + uncompressedChunkLength + " bytes, but data only contained " + bytes + " bytes");
         }

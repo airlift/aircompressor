@@ -80,6 +80,7 @@ public class DecompressBenchmark
     private byte[] blockCompressedLz4;
     private byte[] streamCompressedLz4;
 
+    private final SnappyDecompressor airliftSnappyDecompressor = new SnappyDecompressor();
     private SnappyCodec airliftSnappyCodec;
     private org.apache.hadoop.io.compress.SnappyCodec hadoopSnappyCodec;
 
@@ -237,7 +238,7 @@ public class DecompressBenchmark
     @Benchmark
     public int blockAirliftSnappy(BytesCounter counter)
     {
-        int read = SnappyDecompressor.uncompress(blockCompressedSnappy, 0, blockCompressedSnappy.length, uncompressedBytes, 0);
+        int read = airliftSnappyDecompressor.decompress(blockCompressedSnappy, 0, blockCompressedSnappy.length, uncompressedBytes, 0, uncompressedBytes.length);
         counter.add(uncompressedBytes.length);
         return read;
     }
