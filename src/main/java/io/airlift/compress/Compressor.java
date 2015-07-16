@@ -17,6 +17,8 @@ import java.nio.ByteBuffer;
 
 public interface Compressor
 {
+    int maxCompressedLength(int uncompressedSize);
+
     /**
      * @return number of bytes written to the output
      */
