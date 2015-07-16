@@ -59,6 +59,19 @@ public class TestLzo
     }
 
     @Override
+    public void testCompress(AbstractTestCompression.TestCase testCase)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    protected io.airlift.compress.Compressor getCompressor()
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
     protected Decompressor getDecompressor()
     {
         return new LzoDecompressor();

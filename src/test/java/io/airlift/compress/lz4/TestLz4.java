@@ -14,6 +14,7 @@
 package io.airlift.compress.lz4;
 
 import io.airlift.compress.AbstractTestCompression;
+import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import net.jpountz.lz4.LZ4Factory;
 
@@ -23,6 +24,12 @@ public class TestLz4
     protected byte[] prepareCompressedData(byte[] uncompressed)
     {
         return LZ4Factory.fastestInstance().fastCompressor().compress(uncompressed);
+    }
+
+    @Override
+    protected Compressor getCompressor()
+    {
+        return new Lz4Compressor();
     }
 
     @Override

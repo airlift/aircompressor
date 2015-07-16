@@ -34,13 +34,14 @@ public abstract class AbstractTestCompression
 
     protected abstract byte[] prepareCompressedData(byte[] uncompressed);
 
+    protected abstract Compressor getCompressor();
     protected abstract Decompressor getDecompressor();
 
     @Test(dataProvider = "data")
     public void testDecompress(TestCase testCase)
             throws Exception
     {
-        byte[] uncompressed = new byte[testCase.getUncompressed().length];
+        byte[] uncompressed = new byte[testCase.uncompressed.length];
 
         Decompressor decompressor = getDecompressor();
         int written = decompressor.decompress(
@@ -51,8 +52,30 @@ public abstract class AbstractTestCompression
                 0,
                 uncompressed.length);
 
-        assertEquals(written, uncompressed.length);
-        assertByteArraysEqual(testCase.uncompressed, 0, uncompressed, 0, written);
+        assertByteArraysEqual(testCase.uncompressed, 0, testCase.uncompressed.length, uncompressed, 0, written);
+    }
+
+    @Test(dataProvider = "data")
+    public void testCompress(TestCase testCase)
+            throws Exception
+    {
+        Compressor compressor = getCompressor();
+
+        byte[] compressed = new byte[compressor.maxCompressedLength(testCase.uncompressed.length)];
+
+        int written = compressor.compress(
+                testCase.uncompressed,
+                0,
+                testCase.uncompressed.length,
+                compressed,
+                0,
+                compressed.length);
+
+        byte[] uncompressed = new byte[testCase.uncompressed.length];
+        // TODO: validate with "control" decompressor
+        int decompressedSize = getDecompressor().decompress(compressed, 0, written, uncompressed, 0, uncompressed.length);
+
+        assertByteArraysEqual(testCase.uncompressed, 0, testCase.uncompressed.length, uncompressed, 0, decompressedSize);
     }
 
     @DataProvider(name = "data")
@@ -88,19 +111,21 @@ public abstract class AbstractTestCompression
         return new TestCase(name, compressed, uncompressed);
     }
 
-    private static void assertByteArraysEqual(byte[] left, int leftOffset, byte[] right, int rightOffset, int length)
+    private static void assertByteArraysEqual(byte[] left, int leftOffset, int leftLength, byte[] right, int rightOffset, int rightLength)
     {
-        checkPositionIndexes(leftOffset, leftOffset + length, left.length);
-        checkPositionIndexes(rightOffset, rightOffset + length, right.length);
+        checkPositionIndexes(leftOffset, leftOffset + leftLength, left.length);
+        checkPositionIndexes(rightOffset, rightOffset + rightLength, right.length);
 
-        for (int i = 0; i < length; i++) {
+        for (int i = 0; i < Math.min(leftLength, rightLength); i++) {
             if (left[leftOffset + i] != right[rightOffset + i]) {
                 Assert.fail(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[i], right[i]));
             }
         }
+
+        assertEquals(leftLength, rightLength, String.format("Array lengths differ: %s vs %s", leftLength, rightLength));
     }
 
-    private static class TestCase
+    public static class TestCase
     {
         private final String name;
         private final byte[] compressed;
@@ -111,16 +136,6 @@ public abstract class AbstractTestCompression
             this.name = name;
             this.compressed = compressed;
             this.uncompressed = uncompressed;
-        }
-
-        public byte[] getCompressed()
-        {
-            return compressed;
-        }
-
-        public byte[] getUncompressed()
-        {
-            return uncompressed;
         }
 
         @Override

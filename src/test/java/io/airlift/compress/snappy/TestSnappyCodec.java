@@ -16,6 +16,7 @@ package io.airlift.compress.snappy;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteStreams;
 import io.airlift.compress.AbstractTestCompression;
+import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
@@ -49,6 +50,19 @@ public class TestSnappyCodec
         catch (IOException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Override
+    public void testCompress(AbstractTestCompression.TestCase testCase)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    protected Compressor getCompressor()
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

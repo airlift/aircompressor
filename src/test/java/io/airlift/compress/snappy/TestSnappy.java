@@ -14,6 +14,7 @@
 package io.airlift.compress.snappy;
 
 import io.airlift.compress.AbstractTestCompression;
+import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 
 import java.io.IOException;
@@ -39,6 +40,19 @@ public class TestSnappy
         catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void testCompress(AbstractTestCompression.TestCase testCase)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    protected Compressor getCompressor()
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override
