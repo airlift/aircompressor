@@ -69,42 +69,4 @@ public class TestSnappyLegacy
             Assert.fail("Invalid uncompressed output for input size " + size + " at offset " + position);
         }
     }
-
-    @Override
-    protected void verifyUncompress(byte[] input, int position, int size)
-            throws Exception
-    {
-        byte[] compressed = new byte[Snappy.maxCompressedLength(size)];
-        int compressedSize = org.xerial.snappy.Snappy.compress(
-                input,
-                position,
-                size,
-                compressed,
-                0);
-
-        // decompress
-        byte[] javaUncompressed = new byte[size];
-        int javaUncompressedSize = Snappy.uncompress(
-                compressed,
-                0,
-                compressedSize,
-                javaUncompressed,
-                0);
-
-        // verify outputs are exactly the same
-        String failureMessage = "Invalid compressed output for input size " + size + " at offset " + position;
-        if (!SnappyInternalUtils.equals(javaUncompressed, 0, input, 0, input.length)) {
-            if (size < 100) {
-                Assert.assertEquals(
-                        Arrays.toString(Arrays.copyOf(javaUncompressed, input.length)),
-                        Arrays.toString(Arrays.copyOf(input, input.length)),
-                        failureMessage
-                );
-            }
-            else {
-                Assert.fail(failureMessage);
-            }
-        }
-        Assert.assertEquals(javaUncompressedSize, size);
-    }
 }

@@ -16,9 +16,6 @@ public abstract class AbstractSnappyTest
     protected abstract void verifyCompression(byte[] input, int position, int size)
             throws Exception;
 
-    protected abstract void verifyUncompress(byte[] input, int position, int size)
-            throws Exception;
-
     static File[] getTestFiles()
     {
         File[] testFiles = TEST_DATA_DIR.listFiles();
@@ -52,24 +49,6 @@ public abstract class AbstractSnappyTest
             catch (Throwable e) {
                 Assert.fail("Test data: " + testFile.getName(), e);
 
-            }
-        }
-    }
-
-    @Test
-    public void testDecompressTestData()
-            throws Exception
-    {
-        for (int i = 0; i < 100; i++) {
-            for (File testFile : getTestFiles()) {
-                byte[] data = Files.toByteArray(testFile);
-                try {
-                    verifyUncompress(data, 0, data.length);
-                }
-                catch (Throwable e) {
-                    Assert.fail("Test data: " + testFile.getName(), e);
-
-                }
             }
         }
     }

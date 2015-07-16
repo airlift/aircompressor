@@ -82,33 +82,6 @@ public class TestSnappyCodecLegacy
         }
     }
 
-    @Override
-    protected void verifyUncompress(byte[] input, int offset, int length)
-            throws Exception
-    {
-        // compress with hadoop
-        byte[] compressed = compress(input, offset, length, hadoopSnappyCodec);
-
-        // decompress with airlift
-        byte[] javaUncompressed = uncompress(compressed, 0, compressed.length, airliftSnappyCodec);
-
-        // verify outputs are exactly the same
-        String failureMessage = "Invalid compressed output for input length " + length + " at offset " + offset;
-        if (!SnappyInternalUtils.equals(javaUncompressed, 0, input, 0, input.length)) {
-            if (length < 100) {
-                Assert.assertEquals(
-                        Arrays.toString(Arrays.copyOf(javaUncompressed, input.length)),
-                        Arrays.toString(Arrays.copyOf(input, input.length)),
-                        failureMessage
-                );
-            }
-            else {
-                Assert.fail(failureMessage);
-            }
-        }
-        Assert.assertEquals(javaUncompressed.length, length);
-    }
-
     private static byte[] compress(byte[] original, int offset, int length, CompressionCodec codec)
             throws IOException
     {
