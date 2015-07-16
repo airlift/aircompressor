@@ -17,25 +17,28 @@
  */
 package io.airlift.compress.snappy;
 
-import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-final class SnappyCompressor
+public final class SnappyCompressor
 {
-    private static final boolean NATIVE_LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+    private final static ControlException EXCEPTION = new ControlException();
+
+    private final static int SIZE_OF_SHORT = 2;
+    private final static int SIZE_OF_INT = 4;
+    private final static int SIZE_OF_LONG = 8;
 
     // The size of a compression block. Note that many parts of the compression
-    // code assumes that kBlockSize <= 65536; in particular, the hash table
+    // code assumes that BLOCK_SIZE <= 65536; in particular, the hash table
     // can only store 16-bit offsets, and EmitCopy() also assumes the offset
     // is 65535 bytes or less. Note also that if you change this, it will
     // affect the framing format (see framing_format.txt).
     //
     // Note that there might be older data around that is compressed with larger
     // block sizes, so the decompression code should not rely on the
-    // non-existence of long backreferences.
+    // non-existence of long back-references.
     private static final int BLOCK_LOG = 16;
     private static final int BLOCK_SIZE = 1 << BLOCK_LOG;
 
@@ -51,67 +54,67 @@ final class SnappyCompressor
             final byte[] compressed,
             final int compressedOffset)
     {
-        // First write the uncompressed size to the output as a variable length int
-        int compressedIndex = writeUncompressedLength(compressed, compressedOffset, uncompressedLength);
+        return compress(
+                uncompressed,
+                ARRAY_BYTE_BASE_OFFSET + uncompressedOffset,
+                ARRAY_BYTE_BASE_OFFSET + uncompressedOffset + uncompressedLength,
+                compressed,
+                ARRAY_BYTE_BASE_OFFSET + compressedOffset,
+                ARRAY_BYTE_BASE_OFFSET + compressed.length);
+    }
 
-        int hashTableSize = getHashTableSize(uncompressedLength);
+    public static int compress(
+            final Object inputBase,
+            final long inputAddress,
+            final long inputLimit,
+            final Object outputBase,
+            final long outputAddress,
+            final long outputLimit)
+    {
+        // The compression code assumes output is larger than the max compression size (with 32 bytes of
+        // extra padding), and does not check bounds for writing to output.
+        int maxCompressedLength = Snappy.maxCompressedLength((int) (inputLimit - inputAddress));
+        if (outputLimit - outputAddress < maxCompressedLength) {
+            throw new IllegalArgumentException("Output buffer must be at least " + maxCompressedLength + " bytes");
+        }
+
+        // First write the uncompressed size to the output as a variable length int
+        long output = writeUncompressedLength(outputBase, outputAddress, (int) (inputLimit - inputAddress));
+
+        int hashTableSize = getHashTableSize((int) (inputLimit - inputAddress));
         BufferRecycler recycler = BufferRecycler.instance();
         short[] table = recycler.allocEncodingHash(hashTableSize);
 
-        for (int read = 0; read < uncompressedLength; read += BLOCK_SIZE) {
+        for (long blockAddress = inputAddress; blockAddress < inputLimit; blockAddress += BLOCK_SIZE) {
             // Get encoding table for compression
             Arrays.fill(table, (short) 0);
 
-            compressedIndex = compressFragment(
-                    uncompressed,
-                    uncompressedOffset + read,
-                    Math.min(uncompressedLength - read, BLOCK_SIZE),
-                    compressed,
-                    compressedIndex,
-                    table);
-        }
+            final long blockLimit = Math.min(inputLimit, blockAddress + BLOCK_SIZE);
+            long input = blockAddress;
+            assert blockLimit - blockAddress <= BLOCK_SIZE;
 
-        recycler.releaseEncodingHash(table);
+            int blockHashTableSize = getHashTableSize((int) (blockLimit - blockAddress));
+            // todo given that hashTableSize is required to be a power of 2, this is overly complex
+            final int shift = 32 - log2Floor(blockHashTableSize);
+            assert (blockHashTableSize & (blockHashTableSize - 1)) == 0 : "table must be power of two";
+            assert 0xFFFFFFFF >>> shift == blockHashTableSize - 1;
 
-        return compressedIndex - compressedOffset;
-    }
+            // Bytes in [nextEmitAddress, input) will be emitted as literal bytes.  Or
+            // [nextEmitAddress, inputLimit) after the main loop.
+            long nextEmitAddress = input;
 
-    private static int compressFragment(
-            final byte[] input,
-            final int inputOffset,
-            final int inputSize,
-            final byte[] output,
-            int outputIndex,
-            final short[] table)
-    {
-        int ipIndex = inputOffset;
-        assert inputSize <= BLOCK_SIZE;
-        final int ipEndIndex = inputOffset + inputSize;
+            final long fastInputLimit = blockLimit - INPUT_MARGIN_BYTES;
+            while (input <= fastInputLimit) {
+                assert nextEmitAddress <= input;
 
-        int hashTableSize = getHashTableSize(inputSize);
-        // todo given that hashTableSize is required to be a power of 2, this is overly complex
-        final int shift = 32 - log2Floor(hashTableSize);
-        assert (hashTableSize & (hashTableSize - 1)) == 0 : "table must be power of two";
-        assert 0xFFFFFFFF >>> shift == hashTableSize - 1;
-
-        // Bytes in [nextEmitIndex, ipIndex) will be emitted as literal bytes.  Or
-        // [nextEmitIndex, ipEndIndex) after the main loop.
-        int nextEmitIndex = ipIndex;
-
-        if (inputSize >= INPUT_MARGIN_BYTES) {
-            final int ipLimit = inputOffset + inputSize - INPUT_MARGIN_BYTES;
-            while (ipIndex <= ipLimit) {
-                assert nextEmitIndex <= ipIndex;
-
-                // The body of this loop calls EmitLiteral once and then EmitCopy one or
-                // more times.  (The exception is that when we're close to exhausting
+                // The body of this loop emits a literal once and then emits a copy one
+                // or more times.  (The exception is that when we're close to exhausting
                 // the input we exit and emit a literal.)
                 //
                 // In the first iteration of this loop we're just starting, so
-                // there's nothing to copy, so calling EmitLiteral once is
-                // necessary.  And we only start a new iteration when the
-                // current iteration has determined that a call to EmitLiteral will
-                // precede the next call to EmitCopy (if any).
+                // there's nothing to copy, so we must emit a literal once.  And we
+                // only start a new iteration when the current iteration has determined
+                // that a literal will precede the next copy (if any).
                 //
                 // Step 1: Scan forward in the input looking for a 4-byte-long match.
                 // If we get close to exhausting the input exit and emit a final literal.
@@ -130,19 +133,42 @@ final class SnappyCompressor
                 // number of bytes to move ahead for each iteration.
                 int skip = 32;
 
-                int[] candidateResult = findCandidate(input, ipIndex, ipLimit, inputOffset, shift, table, skip);
-                ipIndex = candidateResult[0];
-                int candidateIndex = candidateResult[1];
-                skip = candidateResult[2];
-                if (ipIndex + bytesBetweenHashLookups(skip) > ipLimit) {
+                long candidateIndex = 0;
+                for (input += 1; input + (skip >>> 5) <= fastInputLimit; input += ((skip++) >>> 5)) {
+                    // hash the 4 bytes starting at the input pointer
+                    int currentInt = UNSAFE.getInt(inputBase, input);
+                    int hash = hashBytes(currentInt, shift);
+
+                    // get the position of a 4 bytes sequence with the same hash
+                    candidateIndex = blockAddress + (table[hash] & 0xFFFF);
+                    assert candidateIndex >= 0;
+                    assert candidateIndex < input;
+
+                    // update the hash to point to the current position
+                    table[hash] = (short) (input - blockAddress);
+
+                    // if the 4 byte sequence a the candidate index matches the sequence at the
+                    // current position, proceed to the next phase
+                    if (currentInt == UNSAFE.getInt(inputBase, candidateIndex)) {
+                        break;
+                    }
+                }
+                if (input + (skip >>> 5) > fastInputLimit) {
                     break;
                 }
 
                 // Step 2: A 4-byte match has been found.  We'll later see if more
                 // than 4 bytes match.  But, prior to the match, input
                 // bytes [nextEmit, ip) are unmatched.  Emit them as "literal bytes."
-                assert nextEmitIndex + 16 <= ipEndIndex;
-                outputIndex = emitLiteral(output, outputIndex, input, nextEmitIndex, ipIndex - nextEmitIndex, true);
+                assert nextEmitAddress + 16 <= blockLimit;
+
+                int literalLength = (int) (input - nextEmitAddress);
+                output = emitLiteralLength(outputBase, output, literalLength);
+
+                // Fast copy can use 8 extra bytes of input and output, which is safe because:
+                //   - The input will always have INPUT_MARGIN_BYTES = 15 extra available bytes
+                //   - The output will always have 32 spare bytes (see MaxCompressedLength).
+                output = fastCopy(inputBase, nextEmitAddress, outputBase, output, literalLength);
 
                 // Step 3: Call EmitCopy, and then see if another EmitCopy could
                 // be our next move.  Repeat until we find no match for the
@@ -152,247 +178,173 @@ final class SnappyCompressor
                 // though we don't yet know how big the literal will be.  We handle that
                 // by proceeding to the next iteration of the main loop.  We also can exit
                 // this loop via goto if we get close to exhausting the input.
-                int[] indexes = emitCopies(input, inputOffset, inputSize, ipIndex, output, outputIndex, table, shift, candidateIndex);
-                ipIndex = indexes[0];
-                outputIndex = indexes[1];
-                nextEmitIndex = ipIndex;
-            }
-        }
+                int inputBytes;
+                do {
+                    // We have a 4-byte match at input, and no need to emit any
+                    // "literal bytes" prior to input.
+                    assert (blockLimit >= input + SIZE_OF_INT);
 
-        // goto emitRemainder hack
-        if (nextEmitIndex < ipEndIndex) {
+                    // determine match length
+                    int matched = count(inputBase, input + SIZE_OF_INT, candidateIndex + SIZE_OF_INT, blockLimit);
+                    matched += SIZE_OF_INT;
+
+                    // Emit the copy operation for this chunk
+                    output = emitCopy(outputBase, output, input, candidateIndex, matched);
+                    input += matched;
+
+                    // are we done?
+                    if (input >= fastInputLimit) {
+                        break;
+                    }
+
+                    // We could immediately start working at input now, but to improve
+                    // compression we first update table[Hash(ip - 1, ...)].
+                    long longValue = UNSAFE.getLong(inputBase, input - 1);
+                    int prevInt = (int) longValue;
+                    inputBytes = (int) (longValue >>> 8);
+
+                    // add hash starting with previous byte
+                    int prevHash = hashBytes(prevInt, shift);
+                    table[prevHash] = (short) (input - blockAddress - 1);
+
+                    // update hash of current byte
+                    int curHash = hashBytes(inputBytes, shift);
+
+                    candidateIndex = blockAddress + (table[curHash] & 0xFFFF);
+                    table[curHash] = (short) (input - blockAddress);
+
+                } while (inputBytes == UNSAFE.getInt(inputBase, candidateIndex));
+                nextEmitAddress = input;
+            }
+
             // Emit the remaining bytes as a literal
-            outputIndex = emitLiteral(output, outputIndex, input, nextEmitIndex, ipEndIndex - nextEmitIndex, false);
-        }
-        return outputIndex;
-    }
-
-    private static int[] findCandidate(byte[] input, int ipIndex, int ipLimit, int inputOffset, int shift, short[] table, int skip)
-    {
-
-        int candidateIndex = 0;
-        for (ipIndex += 1; ipIndex + bytesBetweenHashLookups(skip) <= ipLimit; ipIndex += bytesBetweenHashLookups(skip++)) {
-            // hash the 4 bytes starting at the input pointer
-            int currentInt = UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + ipIndex);
-            int hash = hashBytes(currentInt, shift);
-
-            // get the position of a 4 bytes sequence with the same hash
-            candidateIndex = inputOffset + (table[hash] & 0xFFFF);
-            if (candidateIndex < 0) {
-                throw new AssertionError();
-            }
-            assert candidateIndex < ipIndex;
-
-            // update the hash to point to the current position
-            table[hash] = (short) (ipIndex - inputOffset);
-
-            // if the 4 byte sequence a the candidate index matches the sequence at the
-            // current position, proceed to the next phase
-            if (currentInt == UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + candidateIndex)) {
-                break;
+            if (nextEmitAddress < blockLimit) {
+                int literalLength = (int) (blockLimit - nextEmitAddress);
+                output = emitLiteralLength(outputBase, output, literalLength);
+                UNSAFE.copyMemory(inputBase, nextEmitAddress, outputBase, output, literalLength);
+                output += literalLength;
             }
         }
-        return new int[] {ipIndex, candidateIndex, skip};
+
+        recycler.releaseEncodingHash(table);
+
+        return (int) (output - outputAddress);
     }
 
-    private static int bytesBetweenHashLookups(int skip)
+    private static int count(Object inputBase, final long start, long matchStart, long matchLimit)
     {
-        return (skip >>> 5);
-    }
+        long current = start;
 
-    private static int[] emitCopies(
-            byte[] input,
-            final int inputOffset,
-            final int inputSize,
-            int ipIndex,
-            byte[] output,
-            int outputIndex,
-            short[] table,
-            int shift,
-            int candidateIndex)
-    {
-        // Step 3: Call EmitCopy, and then see if another EmitCopy could
-        // be our next move.  Repeat until we find no match for the
-        // input immediately after what was consumed by the last EmitCopy call.
-        //
-        // If we exit this loop normally then we need to call EmitLiteral next,
-        // though we don't yet know how big the literal will be.  We handle that
-        // by proceeding to the next iteration of the main loop.  We also can exit
-        // this loop via goto if we get close to exhausting the input.
-        int inputBytes;
-        do {
-            // We have a 4-byte match at ip, and no need to emit any
-            // "literal bytes" prior to ip.
-            int matched = 4 + findMatchLength(input, candidateIndex + 4, input, ipIndex + 4, inputOffset + inputSize);
-            int offset = ipIndex - candidateIndex;
-            assert SnappyInternalUtils.equals(input, ipIndex, input, candidateIndex, matched);
-            ipIndex += matched;
+        try {
+            // first, compare long at a time
+            while (current < matchLimit - (SIZE_OF_LONG - 1)) {
+                long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
+                if (diff != 0) {
+                    current += Long.numberOfTrailingZeros(diff) >> 3;
+                    throw EXCEPTION;
+                }
 
-            // emit the copy operation for this chunk
-            outputIndex = emitCopy(output, outputIndex, offset, matched);
-
-            // are we done?
-            if (ipIndex >= inputOffset + inputSize - INPUT_MARGIN_BYTES) {
-                return new int[] {ipIndex, outputIndex};
+                current += SIZE_OF_LONG;
+                matchStart += SIZE_OF_LONG;
             }
 
-            // We could immediately start working at ip now, but to improve
-            // compression we first update table[Hash(ip - 1, ...)].
-            int prevInt;
-            long longValue = UNSAFE.getLong(input, (long) ARRAY_BYTE_BASE_OFFSET + ipIndex - 1);
-            prevInt = (int) longValue;
-            inputBytes = (int) (longValue >>> 8);
+            if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
+                current += SIZE_OF_INT;
+                matchStart += SIZE_OF_INT;
+            }
 
-            // add hash starting with previous byte
-            int prevHash = hashBytes(prevInt, shift);
-            table[prevHash] = (short) (ipIndex - inputOffset - 1);
+            if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
+                current += SIZE_OF_SHORT;
+                matchStart += SIZE_OF_SHORT;
+            }
 
-            // update hash of current byte
-            int curHash = hashBytes(inputBytes, shift);
+            if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
+                ++current;
+            }
+        }
+        catch (ControlException e) {
+        }
 
-            candidateIndex = inputOffset + (table[curHash] & 0xFFFF);
-            table[curHash] = (short) (ipIndex - inputOffset);
-
-        } while (inputBytes == UNSAFE.getInt(input, (long) ARRAY_BYTE_BASE_OFFSET + candidateIndex));
-        return new int[] {ipIndex, outputIndex};
+        return (int) (current - start);
     }
 
-    private static int emitLiteral(
-            byte[] output,
-            int outputIndex,
-            byte[] literal,
-            final int literalIndex,
-            final int length,
-            final boolean allowFastPath)
+    private static long emitLiteralLength(Object outputBase, long output, int literalLength)
     {
-        SnappyInternalUtils.checkPositionIndexes(literalIndex, literalIndex + length, literal.length);
-
-        int n = length - 1;      // Zero-length literals are disallowed
+        int n = literalLength - 1;      // Zero-length literals are disallowed
         if (n < 60) {
             // Size fits in tag byte
-            output[outputIndex++] = (byte) (Snappy.LITERAL | n << 2);
-
-            // The vast majority of copies are below 16 bytes, for which a
-            // call to memcpy is overkill. This fast path can sometimes
-            // copy up to 15 bytes too much, but that is okay in the
-            // main loop, since we have a bit to go on for both sides:
-            //
-            //   - The input will always have kInputMarginBytes = 15 extra
-            //     available bytes, as long as we're in the main loop, and
-            //     if not, allowFastPath = false.
-            //   - The output will always have 32 spare bytes (see
-            //     MaxCompressedLength).
-            if (allowFastPath && length <= 16) {
-                UNSAFE.putLong(output, ((long) ARRAY_BYTE_BASE_OFFSET + outputIndex), UNSAFE.getLong(literal, (long) ARRAY_BYTE_BASE_OFFSET + literalIndex));
-                UNSAFE.putLong(output, ((long) ARRAY_BYTE_BASE_OFFSET + outputIndex + 8), UNSAFE.getLong(literal, (long) ARRAY_BYTE_BASE_OFFSET + literalIndex + 8));
-                outputIndex += length;
-                return outputIndex;
+            UNSAFE.putByte(outputBase, output++, (byte) (n << 2));
+        }
+        else {
+            int bytes;
+            if (n < (1 << 8)) {
+                UNSAFE.putByte(outputBase, output++, (byte) (59 + 1 << 2));
+                bytes = 1;
             }
+            else if (n < (1 << 16)) {
+                UNSAFE.putByte(outputBase, output++, (byte) (59 + 2 << 2));
+                bytes = 2;
+            }
+            else if (n < (1 << 24)) {
+                UNSAFE.putByte(outputBase, output++, (byte) (59 + 3 << 2));
+                bytes = 3;
+            }
+            else {
+                UNSAFE.putByte(outputBase, output++, (byte) (59 + 4 << 2));
+                bytes = 4;
+            }
+            // System is assumed to be little endian, so low bytes will be zero for the smaller numbers
+            UNSAFE.putInt(outputBase, output, n);
+            output += bytes;
         }
-        else if (n < (1 << 8)) {
-            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 1 << 2);
-            output[outputIndex++] = (byte) (n);
-        }
-        else if (n < (1 << 16)) {
-            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 2 << 2);
-            output[outputIndex++] = (byte) (n);
-            output[outputIndex++] = (byte) (n >>> 8);
-        }
-        else if (n < (1 << 24)) {
-            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 3 << 2);
-            output[outputIndex++] = (byte) (n);
-            output[outputIndex++] = (byte) (n >>> 8);
-            output[outputIndex++] = (byte) (n >>> 16);
-        }
-        else {
-            output[outputIndex++] = (byte) (Snappy.LITERAL | 59 + 4 << 2);
-            output[outputIndex++] = (byte) (n);
-            output[outputIndex++] = (byte) (n >>> 8);
-            output[outputIndex++] = (byte) (n >>> 16);
-            output[outputIndex++] = (byte) (n >>> 24);
-        }
-
-        SnappyInternalUtils.checkPositionIndexes(literalIndex, literalIndex + length, literal.length);
-
-        System.arraycopy(literal, literalIndex, output, outputIndex, length);
-        outputIndex += length;
-        return outputIndex;
+        return output;
     }
 
-    private static int emitCopyLessThan64(
-            byte[] output,
-            int outputIndex,
-            int offset,
-            int length)
+    private static long fastCopy(final Object inputBase, long input, final Object outputBase, long output, final int literalLength)
     {
-        assert offset >= 0;
-        assert length <= 64;
-        assert length >= 4;
-        assert offset < 65536;
-
-        if ((length < 12) && (offset < 2048)) {
-            int lenMinus4 = length - 4;
-            assert (lenMinus4 < 8);            // Must fit in 3 bits
-            output[outputIndex++] = (byte) (Snappy.COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5));
-            output[outputIndex++] = (byte) (offset);
+        final long outputLimit = output + literalLength;
+        do {
+            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
+            input += SIZE_OF_LONG;
+            output += SIZE_OF_LONG;
         }
-        else {
-            output[outputIndex++] = (byte) (Snappy.COPY_2_BYTE_OFFSET + ((length - 1) << 2));
-            output[outputIndex++] = (byte) (offset);
-            output[outputIndex++] = (byte) (offset >>> 8);
-        }
-        return outputIndex;
+        while (output < outputLimit);
+        return outputLimit;
     }
 
-    private static int emitCopy(
-            byte[] output,
-            int outputIndex,
-            int offset,
-            int length)
+    private static long emitCopy(Object outputBase, long output, long input, long matchIndex, int matchLength)
     {
+        long offset = input - matchIndex;
+
         // Emit 64 byte copies but make sure to keep at least four bytes reserved
-        while (length >= 68) {
-            outputIndex = emitCopyLessThan64(output, outputIndex, offset, 64);
-            length -= 64;
+        while (matchLength >= 68) {
+            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((64 - 1) << 2)));
+            UNSAFE.putShort(outputBase, output, (short) offset);
+            output += SIZE_OF_SHORT;
+            matchLength -= 64;
         }
 
         // Emit an extra 60 byte copy if have too much data to fit in one copy
-        if (length > 64) {
-            outputIndex = emitCopyLessThan64(output, outputIndex, offset, 60);
-            length -= 60;
+        // length < 68
+        if (matchLength > 64) {
+            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((60 - 1) << 2)));
+            UNSAFE.putShort(outputBase, output, (short) offset);
+            output += SIZE_OF_SHORT;
+            matchLength -= 60;
         }
 
         // Emit remainder
-        outputIndex = emitCopyLessThan64(output, outputIndex, offset, length);
-        return outputIndex;
-    }
-
-    private static int findMatchLength(
-            byte[] s1,
-            int s1Index,
-            byte[] s2,
-            final int s2Index,
-            int s2Limit)
-    {
-        assert (s2Limit >= s2Index);
-
-        int matched = 0;
-        while (s2Index + matched <= s2Limit - 4 && UNSAFE.getInt(s2, (long) ARRAY_BYTE_BASE_OFFSET + s2Index + matched) == UNSAFE.getInt(s1,
-                (long) ARRAY_BYTE_BASE_OFFSET + s1Index + matched)) {
-            matched += 4;
-        }
-
-        if (NATIVE_LITTLE_ENDIAN && s2Index + matched <= s2Limit - 4) {
-            int x = UNSAFE.getInt(s2, (long) ARRAY_BYTE_BASE_OFFSET + s2Index + matched) ^ UNSAFE.getInt(s1, (long) ARRAY_BYTE_BASE_OFFSET + s1Index + matched);
-            int matchingBits = Integer.numberOfTrailingZeros(x);
-            matched += matchingBits >> 3;
+        if ((matchLength < 12) && (offset < 2048)) {
+            int lenMinus4 = matchLength - 4;
+            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5)));
+            UNSAFE.putByte(outputBase, output++, (byte) (offset));
         }
         else {
-            while (s2Index + matched < s2Limit && s1[s1Index + matched] == s2[s2Index + matched]) {
-                ++matched;
-            }
+            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((matchLength - 1) << 2)));
+            UNSAFE.putShort(outputBase, output, (short) offset);
+            output += SIZE_OF_SHORT;
         }
-        return matched;
+        return output;
     }
 
     private static int getHashTableSize(int inputSize)
@@ -427,15 +379,14 @@ final class SnappyCompressor
 //        return newHashTableSize;
     }
 
-    // Any hash function will produce a valid compressed bitstream, but a good
+    // Any hash function will produce a valid compressed stream, but a good
     // hash function reduces the number of collisions and thus yields better
     // compression for compressible input, and more speed for incompressible
     // input. Of course, it doesn't hurt if the hash function is reasonably fast
     // either, as it gets called a lot.
-    private static int hashBytes(int bytes, int shift)
+    private static int hashBytes(int value, int shift)
     {
-        int kMul = 0x1e35a7bd;
-        return (bytes * kMul) >>> shift;
+        return (value * 0x1e35a7bd) >>> shift;
     }
 
     private static int log2Floor(int n)
@@ -443,37 +394,40 @@ final class SnappyCompressor
         return n == 0 ? -1 : 31 ^ Integer.numberOfLeadingZeros(n);
     }
 
+    private static final int HIGH_BIT_MASK = 0x80;
     /**
      * Writes the uncompressed length as variable length integer.
      */
-    private static int writeUncompressedLength(byte[] compressed, int compressedOffset, int uncompressedLength)
+    private static long writeUncompressedLength(Object outputBase, long outputAddress, int uncompressedLength)
     {
-        int highBitMask = 0x80;
         if (uncompressedLength < (1 << 7) && uncompressedLength >= 0) {
-            compressed[compressedOffset++] = (byte) (uncompressedLength);
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength));
         }
         else if (uncompressedLength < (1 << 14) && uncompressedLength > 0) {
-            compressed[compressedOffset++] = (byte) (uncompressedLength | highBitMask);
-            compressed[compressedOffset++] = (byte) (uncompressedLength >>> 7);
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength >>> 7));
         }
         else if (uncompressedLength < (1 << 21) && uncompressedLength > 0) {
-            compressed[compressedOffset++] = (byte) (uncompressedLength | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 7) | highBitMask);
-            compressed[compressedOffset++] = (byte) (uncompressedLength >>> 14);
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 7) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength >>> 14));
         }
         else if (uncompressedLength < (1 << 28) && uncompressedLength > 0) {
-            compressed[compressedOffset++] = (byte) (uncompressedLength | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 7) | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 14) | highBitMask);
-            compressed[compressedOffset++] = (byte) (uncompressedLength >>> 21);
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 7) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 14) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength >>> 21));
         }
         else {
-            compressed[compressedOffset++] = (byte) (uncompressedLength | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 7) | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 14) | highBitMask);
-            compressed[compressedOffset++] = (byte) ((uncompressedLength >>> 21) | highBitMask);
-            compressed[compressedOffset++] = (byte) (uncompressedLength >>> 28);
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 7) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 14) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) ((uncompressedLength >>> 21) | HIGH_BIT_MASK));
+            UNSAFE.putByte(outputBase, outputAddress++, (byte) (uncompressedLength >>> 28));
         }
-        return compressedOffset;
+        return outputAddress;
     }
+
+    private final static class ControlException
+            extends Exception {}
 }

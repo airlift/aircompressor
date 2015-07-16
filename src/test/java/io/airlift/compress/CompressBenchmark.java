@@ -19,6 +19,7 @@ import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.snappy.ByteArrayOutputStream;
 import io.airlift.compress.snappy.Snappy;
 import io.airlift.compress.snappy.SnappyCodec;
+import io.airlift.compress.snappy.SnappyCompressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import org.apache.hadoop.conf.Configuration;
@@ -169,7 +170,12 @@ public class CompressBenchmark
     @Benchmark
     public int blockAirliftSnappy(BytesCounter counter)
     {
-        int written = Snappy.compress(data, 0, data.length, blockCompressedSnappy, 0);
+        int written = SnappyCompressor.compress(data,
+                0,
+                data.length,
+                blockCompressedSnappy,
+                0);
+
         counter.add(uncompressedBytes.length);
         return written;
     }
