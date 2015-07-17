@@ -4,19 +4,26 @@ import io.airlift.compress.Compressor;
 
 import java.nio.ByteBuffer;
 
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+
 public class SnappyCompressor
         implements Compressor
 {
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
-        return Snappy.maxCompressedLength(uncompressedSize);
+        return SnappyRawCompressor.maxCompressedLength(uncompressedSize);
     }
 
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
-        return SnappyRawCompressor.compress(input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
+        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputLimit = inputAddress + inputLength;
+        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputLimit = outputAddress + maxOutputLength;
+
+        return SnappyRawCompressor.compress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override

@@ -6,12 +6,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+
 class HadoopSnappyOutputStream
         extends CompressionOutputStream
 {
     public static final int DEFAULT_COMPRESSION_BLOCK = 256 * 1024;
 
-    private static final int SIZE_OF_LONG = 8;
+    private final SnappyCompressor compressor = new SnappyCompressor();
 
     private final byte[] inputBuffer;
     private final int inputMaxSize;
@@ -30,7 +32,7 @@ class HadoopSnappyOutputStream
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster
         inputMaxSize = inputBuffer.length - SIZE_OF_LONG;
-        outputBuffer = new byte[Snappy.maxCompressedLength(inputMaxSize) + SIZE_OF_LONG];
+        outputBuffer = new byte[compressor.maxCompressedLength(inputMaxSize) + SIZE_OF_LONG];
     }
 
     @Override
@@ -79,7 +81,7 @@ class HadoopSnappyOutputStream
     private void writeNextChunk()
             throws IOException
     {
-        int compressedSize = SnappyRawCompressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0, outputBuffer.length);
+        int compressedSize = compressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0, outputBuffer.length);
 
         writeBigEndianInt(inputOffset);
         writeBigEndianInt(compressedSize);

@@ -230,7 +230,7 @@ public class TestSnappyStream
     {
         byte[] random = getRandom(0.5, 500000);
 
-        byte[] compressed = Snappy.compress(random);
+        byte[] compressed = blockCompress(random);
 
         byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + 8 + compressed.length];
         System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
@@ -261,7 +261,7 @@ public class TestSnappyStream
     {
         byte[] random = getRandom(0.5, 100000);
 
-        byte[] compressed = Snappy.compress(random);
+        byte[] compressed = blockCompress(random);
 
         byte[] stream = new byte[SnappyFramed.HEADER_BYTES.length + 8 + compressed.length];
         System.arraycopy(SnappyFramed.HEADER_BYTES, 0, stream, 0, SnappyFramed.HEADER_BYTES.length);
@@ -486,6 +486,15 @@ public class TestSnappyStream
         byte[] uncompressed = uncompress(compressed);
 
         assertEquals(random, uncompressed);
+    }
+
+    public static byte[] blockCompress(byte[] data)
+    {
+        SnappyCompressor compressor = new SnappyCompressor();
+        byte[] compressedOut = new byte[compressor.maxCompressedLength(data.length)];
+        int compressedSize = compressor.compress(data, 0, data.length, compressedOut, 0, compressedOut.length);
+        byte[] trimmedBuffer = Arrays.copyOf(compressedOut, compressedSize);
+        return trimmedBuffer;
     }
 
     private static byte[] compress(byte[] original)

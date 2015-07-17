@@ -26,19 +26,6 @@ final class SnappyInternalUtils
     {
     }
 
-    static boolean equals(byte[] left, int leftIndex, byte[] right, int rightIndex, int length)
-    {
-        checkPositionIndexes(leftIndex, leftIndex + length, left.length);
-        checkPositionIndexes(rightIndex, rightIndex + length, right.length);
-
-        for (int i = 0; i < length; i++) {
-            if (left[leftIndex + i] != right[rightIndex + i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     //
     // Copied from Guava Preconditions
     static <T> T checkNotNull(T reference, String errorMessageTemplate, Object... errorMessageArgs)

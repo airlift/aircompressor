@@ -36,6 +36,7 @@ public final class SnappyOutputStream
     public static final int DEFAULT_BLOCK_SIZE = MAX_BLOCK_SIZE;
 
     public static final double DEFAULT_MIN_COMPRESSION_RATIO = 0.85d;
+    private final SnappyCompressor compressor = new SnappyCompressor();
     private final BufferRecycler recycler;
     private final int blockSize;
     private final byte[] buffer;
@@ -86,7 +87,7 @@ public final class SnappyOutputStream
         this.recycler = BufferRecycler.instance();
         this.blockSize = blockSize;
         this.buffer = recycler.allocOutputBuffer(blockSize);
-        this.outputBuffer = recycler.allocEncodingBuffer(Snappy.maxCompressedLength(blockSize));
+        this.outputBuffer = recycler.allocEncodingBuffer(compressor.maxCompressedLength(blockSize));
 
         out.write(SnappyFramed.HEADER_BYTES);
         SnappyInternalUtils.checkArgument(blockSize > 0 && blockSize <= MAX_BLOCK_SIZE, "blockSize must be in (0, 65536]", blockSize);
@@ -206,7 +207,7 @@ public final class SnappyOutputStream
         // crc is based on the user supplied input data
         int crc32c = writeChecksums ? Crc32C.maskedCrc32c(input, offset, length) : 0;
 
-        int compressed = SnappyRawCompressor.compress(input,
+        int compressed = compressor.compress(input,
                 offset,
                 length,
                 outputBuffer,

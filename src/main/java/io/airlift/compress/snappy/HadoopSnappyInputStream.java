@@ -6,11 +6,12 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+
 class HadoopSnappyInputStream
         extends CompressionInputStream
 {
-    private static final int SIZE_OF_LONG = 8;
-
+    private final SnappyDecompressor decompressor = new SnappyDecompressor();
     private final InputStream in;
 
     private int uncompressedBlockLength;
@@ -88,7 +89,7 @@ class HadoopSnappyInputStream
         }
         readInput(compressedChunkLength, compressed);
 
-        uncompressedChunkLength = Snappy.getUncompressedLength(compressed, 0);
+        uncompressedChunkLength = SnappyDecompressor.getUncompressedLength(compressed, 0);
         if (uncompressedChunkLength > uncompressedBlockLength) {
             throw new IOException("Chunk uncompressed size is greater than block size");
         }
@@ -97,7 +98,7 @@ class HadoopSnappyInputStream
             uncompressedChunk = new byte[uncompressedChunkLength + SIZE_OF_LONG];
         }
 
-        int bytes = SnappyRawDecompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunkLength);
+        int bytes = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunkLength);
         if (uncompressedChunkLength != bytes) {
             throw new IOException("Expected to read " + uncompressedChunkLength + " bytes, but data only contained " + bytes + " bytes");
         }

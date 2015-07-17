@@ -19,47 +19,46 @@ package io.airlift.compress.snappy;
 
 import io.airlift.compress.MalformedInputException;
 
+import static io.airlift.compress.snappy.SnappyConstants.LITERAL;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public final class SnappyRawDecompressor
 {
-    private final static int SIZE_OF_INT = 4;
-    private final static int SIZE_OF_LONG = 8;
-
     private final static int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
-    public static int getUncompressedLength(byte[] compressed, int compressedOffset)
+    public static int getUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
     {
-        return readUncompressedLength(compressed, compressedOffset)[0];
+        return readUncompressedLength(compressed, compressedAddress, compressedLimit)[0];
     }
 
     public static int decompress(
-            final byte[] input,
-            int inputOffset,
-            int inputLength,
-            final byte[] output,
-            final int outputOffset,
-            final int maxOutputLength)
+            final Object inputBase,
+            final long inputAddress,
+            final long inputLimit,
+            final Object outputBase,
+            final long outputAddress,
+            final long outputLimit)
     {
         // Read the uncompressed length from the front of the input
-        int[] varInt = readUncompressedLength(input, inputOffset);
+        long input = inputAddress;
+        int[] varInt = readUncompressedLength(inputBase, input, inputLimit);
         int expectedLength = varInt[0];
-        inputOffset += varInt[1];
-        inputLength -= varInt[1];
+        input += varInt[1];
 
-        SnappyInternalUtils.checkArgument(expectedLength <= maxOutputLength,
-                "Uncompressed length %s must be less than %s", expectedLength, maxOutputLength);
+        SnappyInternalUtils.checkArgument(expectedLength <= (outputLimit - outputAddress),
+                "Uncompressed length %s must be less than %s", expectedLength, (outputLimit - outputAddress));
 
         // Process the entire input
         int uncompressedSize = uncompressAll(
+                inputBase,
                 input,
-                ARRAY_BYTE_BASE_OFFSET + inputOffset,
-                ARRAY_BYTE_BASE_OFFSET + inputOffset + inputLength,
-                output,
-                ARRAY_BYTE_BASE_OFFSET + outputOffset,
-                ARRAY_BYTE_BASE_OFFSET + output.length);
+                inputLimit,
+                outputBase,
+                outputAddress,
+                outputLimit);
 
         if (!(expectedLength == uncompressedSize)) {
             throw new MalformedInputException(0, String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
@@ -117,7 +116,7 @@ public final class SnappyRawDecompressor
                 continue;
             }
 
-            if ((opCode & 0x3) == Snappy.LITERAL) {
+            if ((opCode & 0x3) == LITERAL) {
                 int literalLength = length + trailer;
 
                 // copy literal
@@ -273,27 +272,32 @@ public final class SnappyRawDecompressor
      * Reads the variable length integer encoded a the specified offset, and
      * returns this length with the number of bytes read.
      */
-    private static int[] readUncompressedLength(byte[] compressed, int compressedOffset)
+    static int[] readUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
     {
         int result;
         int bytesRead = 0;
         {
-            int b = compressed[compressedOffset + bytesRead++] & 0xFF;
+            int b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
+            bytesRead++;
             result = b & 0x7f;
             if ((b & 0x80) != 0) {
-                b = compressed[compressedOffset + bytesRead++] & 0xFF;
+                b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
+                bytesRead++;
                 result |= (b & 0x7f) << 7;
                 if ((b & 0x80) != 0) {
-                    b = compressed[compressedOffset + bytesRead++] & 0xFF;
+                    b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
+                    bytesRead++;
                     result |= (b & 0x7f) << 14;
                     if ((b & 0x80) != 0) {
-                        b = compressed[compressedOffset + bytesRead++] & 0xFF;
+                        b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
+                        bytesRead++;
                         result |= (b & 0x7f) << 21;
                         if ((b & 0x80) != 0) {
-                            b = compressed[compressedOffset + bytesRead++] & 0xFF;
+                            b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
+                            bytesRead++;
                             result |= (b & 0x7f) << 28;
                             if ((b & 0x80) != 0) {
-                                throw new MalformedInputException(compressedOffset + bytesRead, "last byte of compressed length int has high bit set");
+                                throw new MalformedInputException(compressedAddress + bytesRead, "last byte of compressed length int has high bit set");
                             }
                         }
                     }
@@ -301,5 +305,13 @@ public final class SnappyRawDecompressor
             }
         }
         return new int[] {result, bytesRead};
+    }
+
+    private static int getUnsignedByteSafe(Object base, long address, long limit)
+    {
+        if (address >= limit) {
+            throw new MalformedInputException(limit - address, "Input is truncated");
+        }
+        return UNSAFE.getByte(base, address) & 0xFF;
     }
 }

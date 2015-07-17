@@ -19,16 +19,16 @@ package io.airlift.compress.snappy;
 
 import java.util.Arrays;
 
+import static io.airlift.compress.snappy.SnappyConstants.COPY_1_BYTE_OFFSET;
+import static io.airlift.compress.snappy.SnappyConstants.COPY_2_BYTE_OFFSET;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public final class SnappyRawCompressor
 {
     private final static ControlException EXCEPTION = new ControlException();
-
-    private final static int SIZE_OF_SHORT = 2;
-    private final static int SIZE_OF_INT = 4;
-    private final static int SIZE_OF_LONG = 8;
 
     // The size of a compression block. Note that many parts of the compression
     // code assumes that BLOCK_SIZE <= 65536; in particular, the hash table
@@ -47,24 +47,32 @@ public final class SnappyRawCompressor
     private static final int MAX_HASH_TABLE_BITS = 14;
     private static final int MAX_HASH_TABLE_SIZE = 1 << MAX_HASH_TABLE_BITS;
 
-    public static int compress(
-            final byte[] uncompressed,
-            final int uncompressedOffset,
-            final int uncompressedLength,
-            final byte[] compressed,
-            final int compressedOffset,
-            final int compressedLength)
+    public static int maxCompressedLength(int sourceLength)
     {
-        return compress(
-                (Object) uncompressed,
-                ARRAY_BYTE_BASE_OFFSET + uncompressedOffset,
-                ARRAY_BYTE_BASE_OFFSET + uncompressedOffset + uncompressedLength,
-                compressed,
-                ARRAY_BYTE_BASE_OFFSET + compressedOffset,
-                ARRAY_BYTE_BASE_OFFSET + compressedOffset + compressedLength);
+        // Compressed data can be defined as:
+        //    compressed := item* literal*
+        //    item       := literal* copy
+        //
+        // The trailing literal sequence has a space blowup of at most 62/60
+        // since a literal of length 60 needs one tag byte + one extra byte
+        // for length information.
+        //
+        // Item blowup is trickier to measure.  Suppose the "copy" op copies
+        // 4 bytes of data.  Because of a special check in the encoding code,
+        // we produce a 4-byte copy only if the offset is < 65536.  Therefore
+        // the copy op takes 3 bytes to encode, and this type of item leads
+        // to at most the 62/60 blowup for representing literals.
+        //
+        // Suppose the "copy" op copies 5 bytes of data.  If the offset is big
+        // enough, it will take 5 bytes to encode the copy op.  Therefore the
+        // worst case here is a one-byte literal followed by a five-byte copy.
+        // I.e., 6 bytes of input turn into 7 bytes of "compressed" data.
+        //
+        // This last factor dominates the blowup, so the final estimate is:
+        return 32 + sourceLength + sourceLength / 6;
     }
 
-    private static int compress(
+    public static int compress(
             final Object inputBase,
             final long inputAddress,
             final long inputLimit,
@@ -74,7 +82,7 @@ public final class SnappyRawCompressor
     {
         // The compression code assumes output is larger than the max compression size (with 32 bytes of
         // extra padding), and does not check bounds for writing to output.
-        int maxCompressedLength = Snappy.maxCompressedLength((int) (inputLimit - inputAddress));
+        int maxCompressedLength = maxCompressedLength((int) (inputLimit - inputAddress));
         if (outputLimit - outputAddress < maxCompressedLength) {
             throw new IllegalArgumentException("Output buffer must be at least " + maxCompressedLength + " bytes");
         }
@@ -319,7 +327,7 @@ public final class SnappyRawCompressor
 
         // Emit 64 byte copies but make sure to keep at least four bytes reserved
         while (matchLength >= 68) {
-            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((64 - 1) << 2)));
+            UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((64 - 1) << 2)));
             UNSAFE.putShort(outputBase, output, (short) offset);
             output += SIZE_OF_SHORT;
             matchLength -= 64;
@@ -328,7 +336,7 @@ public final class SnappyRawCompressor
         // Emit an extra 60 byte copy if have too much data to fit in one copy
         // length < 68
         if (matchLength > 64) {
-            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((60 - 1) << 2)));
+            UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((60 - 1) << 2)));
             UNSAFE.putShort(outputBase, output, (short) offset);
             output += SIZE_OF_SHORT;
             matchLength -= 60;
@@ -337,11 +345,11 @@ public final class SnappyRawCompressor
         // Emit remainder
         if ((matchLength < 12) && (offset < 2048)) {
             int lenMinus4 = matchLength - 4;
-            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5)));
+            UNSAFE.putByte(outputBase, output++, (byte) (COPY_1_BYTE_OFFSET + ((lenMinus4) << 2) + ((offset >>> 8) << 5)));
             UNSAFE.putByte(outputBase, output++, (byte) (offset));
         }
         else {
-            UNSAFE.putByte(outputBase, output++, (byte) (Snappy.COPY_2_BYTE_OFFSET + ((matchLength - 1) << 2)));
+            UNSAFE.putByte(outputBase, output++, (byte) (COPY_2_BYTE_OFFSET + ((matchLength - 1) << 2)));
             UNSAFE.putShort(outputBase, output, (short) offset);
             output += SIZE_OF_SHORT;
         }

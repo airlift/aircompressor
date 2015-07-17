@@ -18,14 +18,29 @@ import io.airlift.compress.MalformedInputException;
 
 import java.nio.ByteBuffer;
 
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+
 public class SnappyDecompressor
-    implements Decompressor
+        implements Decompressor
 {
+    public static int getUncompressedLength(byte[] compressed, int compressedOffset)
+    {
+        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
+        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
+
+        return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
+    }
+
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
-        return SnappyRawDecompressor.decompress(input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
+        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputLimit = inputAddress + inputLength;
+        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputLimit = outputAddress + maxOutputLength;
+
+        return SnappyRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override
