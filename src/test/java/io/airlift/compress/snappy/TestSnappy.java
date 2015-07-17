@@ -43,16 +43,9 @@ public class TestSnappy
     }
 
     @Override
-    public void testCompress(AbstractTestCompression.TestCase testCase)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
     protected Compressor getCompressor()
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        return new SnappyCompressor();
     }
 
     @Override
