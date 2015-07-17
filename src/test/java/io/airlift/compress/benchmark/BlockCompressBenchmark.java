@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.benchmark;
 
-import com.google.common.io.Files;
 import io.airlift.compress.Algorithm;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Util;
@@ -33,7 +32,6 @@ import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.util.Statistics;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -53,38 +51,16 @@ public class BlockCompressBenchmark
     })
     private Algorithm algorithm;
 
-    @Param({
-            "alice29.txt",
-            "asyoulik.txt",
-            "cp.html",
-            "fields.c",
-            "geo.protodata",
-            "grammar.lsp",
-            "house.jpg",
-            "html",
-            "html_x_4",
-            "kennedy.xls",
-            "kppkn.gtb",
-            "lcet10.txt",
-            "mapreduce-osdi-1.pdf",
-            "plrabn12.txt",
-            "ptt5",
-            "sum",
-            "urls.10K",
-            "xargs.1"
-    })
-    private String data;
-
     private Compressor compressor;
 
     private byte[] compressed;
     private byte[] uncompressed;
 
     @Setup
-    public void setup()
+    public void setup(DataSet data)
             throws IOException
     {
-        uncompressed = Files.toByteArray(new File("testdata", data));
+        uncompressed = data.getUncompressed();
         compressor = algorithm.getCompressor();
         compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
     }
@@ -110,7 +86,7 @@ public class BlockCompressBenchmark
             Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
             System.out.printf("  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
                     result.getParams().getParam("algorithm"),
-                    result.getParams().getParam("data"),
+                    result.getParams().getParam("name"),
                     Util.toHumanReadableSpeed((long) stats.getMean()),
                     Util.toHumanReadableSpeed((long) stats.getMeanErrorAt(0.999)),
                     stats.getMeanErrorAt(0.999) * 100 / stats.getMean(),

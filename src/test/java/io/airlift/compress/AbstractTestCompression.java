@@ -82,8 +82,14 @@ public abstract class AbstractTestCompression
     public Iterator<Object[]> getTestCases()
             throws IOException
     {
-        File[] testFiles = TEST_DATA_DIR.listFiles();
-        Assert.assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
+        List<File> testFiles = new ArrayList<>();
+        for (File file : Files.fileTreeTraverser().preOrderTraversal(TEST_DATA_DIR)) {
+            if (file.isFile()) {
+                testFiles.add(file);
+            }
+        }
+
+        Assert.assertTrue(!testFiles.isEmpty(), "No test files at " + TEST_DATA_DIR.getAbsolutePath());
 
         List<Object[]> result = new ArrayList<>();
 
@@ -99,7 +105,7 @@ public abstract class AbstractTestCompression
 
         for (File file : testFiles) {
             byte[] uncompressed = Files.toByteArray(file);
-            result.add(new Object[] {createTestCase(file.getName(), uncompressed)});
+            result.add(new Object[] {createTestCase(TEST_DATA_DIR.toPath().relativize(file.toPath()).toString(), uncompressed)});
         }
 
         return result.iterator();

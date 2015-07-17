@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.benchmark;
 
-import com.google.common.io.Files;
 import io.airlift.compress.Algorithm;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
@@ -34,7 +33,6 @@ import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.util.Statistics;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -56,38 +54,16 @@ public class BlockDecompressBenchmark
     })
     private Algorithm algorithm;
 
-    @Param({
-            "alice29.txt",
-            "asyoulik.txt",
-            "cp.html",
-            "fields.c",
-            "geo.protodata",
-            "grammar.lsp",
-            "house.jpg",
-            "html",
-            "html_x_4",
-            "kennedy.xls",
-            "kppkn.gtb",
-            "lcet10.txt",
-            "mapreduce-osdi-1.pdf",
-            "plrabn12.txt",
-            "ptt5",
-            "sum",
-            "urls.10K",
-            "xargs.1"
-    })
-    private String data;
-
     private Decompressor decompressor;
 
     private byte[] compressed;
     private byte[] uncompressed;
 
     @Setup
-    public void setup()
+    public void setup(DataSet data)
             throws IOException
     {
-        uncompressed = Files.toByteArray(new File("testdata", data));
+        uncompressed = data.getUncompressed();
         decompressor = algorithm.getDecompressor();
 
         Compressor compressor = algorithm.getCompressor();
@@ -115,9 +91,10 @@ public class BlockDecompressBenchmark
 
         for (RunResult result : results) {
             Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
-            System.out.printf("  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+            System.out.printf("  %-10s  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+                    result.getPrimaryResult().getLabel(),
                     result.getParams().getParam("algorithm"),
-                    result.getParams().getParam("data"),
+                    result.getParams().getParam("name"),
                     Util.toHumanReadableSpeed((long) stats.getMean()),
                     Util.toHumanReadableSpeed((long) stats.getMeanErrorAt(0.999)),
                     stats.getMeanErrorAt(0.999) * 100 / stats.getMean(),
