@@ -44,6 +44,8 @@ public class Lz4RawCompressor
     public static final int STREAM_SIZE = 2 * ((1 << (MEMORY_USAGE - 3)) + 4);
 
     private static final int HASHLOG = MEMORY_USAGE - 2;
+    private static final int HASH_SHIFT = 40 - HASHLOG;
+    private static final int HASH_MASK = (1 << HASHLOG) - 1;
 
     private static final int COPY_LENGTH = 8;
     private static final int MATCH_FIND_LIMIT = COPY_LENGTH + MIN_MATCH;
@@ -61,8 +63,7 @@ public class Lz4RawCompressor
 
     private static int hash(long value)
     {
-        int mask = (1 << HASHLOG) - 1;
-        return (int) ((value * 889523592379L >>> (40 - HASHLOG)) & mask);
+        return (int) ((value * 889523592379L >>> HASH_SHIFT) & HASH_MASK);
     }
 
     public static int maxCompressedLength(int sourceLength)
