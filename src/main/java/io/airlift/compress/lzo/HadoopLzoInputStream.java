@@ -19,6 +19,7 @@ class HadoopLzoInputStream
     private byte[] compressed = new byte[0];
 
     public HadoopLzoInputStream(InputStream in)
+            throws IOException
     {
         super(in);
         this.in = in;

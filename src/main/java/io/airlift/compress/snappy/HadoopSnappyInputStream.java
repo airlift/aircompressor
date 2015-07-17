@@ -21,6 +21,7 @@ class HadoopSnappyInputStream
     private byte[] compressed = new byte[0];
 
     public HadoopSnappyInputStream(InputStream in)
+            throws IOException
     {
         super(in);
         this.in = in;

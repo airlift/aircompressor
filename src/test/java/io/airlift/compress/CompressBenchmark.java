@@ -58,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 public class CompressBenchmark
 {
     static {
-        HadoopNative.initialize();
+        HadoopNative.requireHadoopNative();
     }
 
     private static final Configuration HADOOP_CONF = new Configuration();

@@ -30,7 +30,7 @@ public class TestLzo
     extends AbstractTestCompression
 {
     static {
-        HadoopNative.initialize();
+        HadoopNative.requireHadoopNative();
     }
 
     protected byte[] prepareCompressedData(byte[] uncompressed)

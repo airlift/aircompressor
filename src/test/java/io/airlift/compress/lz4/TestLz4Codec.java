@@ -31,7 +31,7 @@ public class TestLz4Codec
     extends AbstractTestCompression
 {
     static {
-        HadoopNative.initialize();
+        HadoopNative.requireHadoopNative();
     }
 
     private static final Configuration HADOOP_CONF = new Configuration();

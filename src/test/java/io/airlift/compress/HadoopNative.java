@@ -1,27 +1,125 @@
 package io.airlift.compress;
 
-import com.google.common.io.ByteStreams;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.apache.hadoop.io.compress.GzipCodec;
+import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
+import org.apache.hadoop.io.compress.zlib.ZlibFactory;
+import org.apache.hadoop.util.NativeCodeLoader;
 
-import java.io.PrintStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
-public class HadoopNative
+import static org.apache.hadoop.io.compress.CompressionCodecFactory.getCodecClasses;
+
+public final class HadoopNative
 {
-    private static boolean initialized;
+    private static boolean loaded = false;
+    private static Throwable error = null;
 
-    public static synchronized void initialize()
+    private HadoopNative() {}
+
+
+    public static synchronized void requireHadoopNative()
     {
-        if (initialized) {
+        if (loaded) {
             return;
         }
-
-        PrintStream err = System.err;
+        if (error != null) {
+            throw new RuntimeException("failed to load Hadoop native library", error);
+        }
         try {
-            System.setErr(new PrintStream(ByteStreams.nullOutputStream()));
-            com.facebook.presto.hadoop.HadoopNative.requireHadoopNative();
-            initialized = true;
+            loadLibrary("hadoop");
+            setStatic(NativeCodeLoader.class.getDeclaredField("nativeCodeLoaded"), true);
+
+            loadLibrary("gplcompression");
+            loadLibrary("lzo2");
+            loadLibrary("snappy");
+
+            // verify that all configured codec classes can be loaded
+            loadAllCodecs();
+
+            requireNativeZlib();
+
+            loaded = true;
         }
-        finally {
-            System.setErr(err);
+        catch (Throwable t) {
+            error = t;
+            throw new RuntimeException("failed to load Hadoop native library", error);
         }
+    }
+
+    private static void loadAllCodecs()
+    {
+        Configuration conf = new Configuration();
+        CompressionCodecFactory factory = new CompressionCodecFactory(conf);
+        for (Class<? extends CompressionCodec> clazz : getCodecClasses(conf)) {
+            CompressionCodec codec = factory.getCodecByClassName(clazz.getName());
+            if (codec == null) {
+                throw new RuntimeException("failed to load codec: " + clazz.getName());
+            }
+            codec.getDecompressorType();
+        }
+    }
+
+    private static void requireNativeZlib()
+    {
+        Configuration conf = new Configuration();
+        if (!ZlibFactory.isNativeZlibLoaded(conf)) {
+            throw new RuntimeException("native zlib is not loaded");
+        }
+
+        CompressionCodecFactory factory = new CompressionCodecFactory(conf);
+        CompressionCodec codec = factory.getCodecByClassName(GzipCodec.class.getName());
+        if (codec == null) {
+            throw new RuntimeException("failed to load GzipCodec");
+        }
+        org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
+        if (!(decompressor instanceof ZlibDecompressor)) {
+            throw new RuntimeException("wrong gzip decompressor: " + decompressor.getClass().getName());
+        }
+    }
+
+    private static void setStatic(Field field, Object value)
+            throws IllegalAccessException
+    {
+        field.setAccessible(true);
+        field.set(null, value);
+    }
+
+    private static void loadLibrary(String name)
+            throws IOException
+    {
+        String libraryPath = getLibraryPath(name);
+        URL url = HadoopNative.class.getResource(libraryPath);
+        if (url == null) {
+            throw new RuntimeException("library not found: " + libraryPath);
+        }
+
+        File file = File.createTempFile(name, null);
+        file.deleteOnExit();
+        try (InputStream in = url.openStream()) {
+            Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        System.load(file.getAbsolutePath());
+    }
+
+    private static String getLibraryPath(String name)
+    {
+        return "/nativelib/" + getPlatform() + "/" + System.mapLibraryName(name);
+    }
+
+    private static String getPlatform()
+    {
+        String name = System.getProperty("os.name");
+        String arch = System.getProperty("os.arch");
+        return (name + "-" + arch).replace(' ', '_');
     }
 }

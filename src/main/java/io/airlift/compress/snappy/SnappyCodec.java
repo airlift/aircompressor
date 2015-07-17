@@ -17,6 +17,7 @@
  */
 package io.airlift.compress.snappy;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
@@ -161,6 +162,11 @@ public class SnappyCodec
         {
             throw new UnsupportedOperationException("Snappy block compressor is not supported");
         }
+
+        @Override
+        public void reinit(Configuration conf)
+        {
+        }
     }
 
     /**
@@ -209,6 +215,12 @@ public class SnappyCodec
 
         @Override
         public void reset()
+        {
+            throw new UnsupportedOperationException("Snappy block decompressor is not supported");
+        }
+
+        @Override
+        public int getRemaining()
         {
             throw new UnsupportedOperationException("Snappy block decompressor is not supported");
         }

@@ -19,6 +19,7 @@ class HadoopLz4InputStream
     private byte[] compressed = new byte[0];
 
     public HadoopLz4InputStream(InputStream in)
+            throws IOException
     {
         super(in);
         this.in = in;
