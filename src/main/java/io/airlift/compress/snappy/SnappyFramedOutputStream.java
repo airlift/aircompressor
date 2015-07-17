@@ -23,7 +23,7 @@ import java.io.OutputStream;
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link OutputStream}.
  */
-public final class SnappyOutputStream
+public final class SnappyFramedOutputStream
         extends OutputStream
 {
     /**
@@ -52,7 +52,7 @@ public final class SnappyOutputStream
      *
      * @param out the underlying output stream
      */
-    public SnappyOutputStream(OutputStream out)
+    public SnappyFramedOutputStream(OutputStream out)
             throws IOException
     {
         this(out, true);
@@ -64,19 +64,19 @@ public final class SnappyOutputStream
      *
      * @param out the underlying output stream
      */
-    public static SnappyOutputStream newChecksumFreeBenchmarkOutputStream(OutputStream out)
+    public static SnappyFramedOutputStream newChecksumFreeBenchmarkOutputStream(OutputStream out)
             throws IOException
     {
-        return new SnappyOutputStream(out, false);
+        return new SnappyFramedOutputStream(out, false);
     }
 
-    private SnappyOutputStream(OutputStream out, boolean writeChecksums)
+    private SnappyFramedOutputStream(OutputStream out, boolean writeChecksums)
             throws IOException
     {
         this(out, writeChecksums, DEFAULT_BLOCK_SIZE, DEFAULT_MIN_COMPRESSION_RATIO);
     }
 
-    public SnappyOutputStream(OutputStream out, boolean writeChecksums, int blockSize, double minCompressionRatio)
+    public SnappyFramedOutputStream(OutputStream out, boolean writeChecksums, int blockSize, double minCompressionRatio)
             throws IOException
     {
         this.out = SnappyInternalUtils.checkNotNull(out, "out is null");

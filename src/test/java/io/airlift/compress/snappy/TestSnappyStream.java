@@ -188,7 +188,7 @@ public class TestSnappyStream
         // flag = 0, size = 4, crc32c = 0, block data = [a]
         byte[] block = {1, 5, 0, 0, 0, 0, 0, 0, 'a'};
         ByteArrayInputStream inputData = new ByteArrayInputStream(blockToStream(block));
-        assertEquals(toByteArray(new SnappyInputStream(inputData, false)), new byte[] {'a'});
+        assertEquals(toByteArray(new SnappyFramedInputStream(inputData, false)), new byte[] {'a'});
     }
 
     @Test
@@ -303,7 +303,7 @@ public class TestSnappyStream
         byte[] random = getRandom(0.5, 500000);
 
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-        OutputStream snappyOut = new SnappyOutputStream(out);
+        OutputStream snappyOut = new SnappyFramedOutputStream(out);
 
         // partially fill buffer
         int small = 1000;
@@ -322,7 +322,7 @@ public class TestSnappyStream
         assertEquals(uncompressed, random);
 
         // decompress byte at a time
-        InputStream in = new SnappyInputStream(new ByteArrayInputStream(compressed), true);
+        InputStream in = new SnappyFramedInputStream(new ByteArrayInputStream(compressed), true);
         int i = 0;
         int c;
         while ((c = in.read()) != -1) {
@@ -339,7 +339,7 @@ public class TestSnappyStream
         byte[] random = getRandom(0.5, 500000);
 
         java.io.ByteArrayOutputStream out = new ByteArrayOutputStream();
-        OutputStream snappyOut = new SnappyOutputStream(out);
+        OutputStream snappyOut = new SnappyFramedOutputStream(out);
 
         for (byte b : random) {
             snappyOut.write(b);
@@ -360,7 +360,7 @@ public class TestSnappyStream
         byte[] random = getRandom(0.5, 500000);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        OutputStream snappyOut = new SnappyOutputStream(out);
+        OutputStream snappyOut = new SnappyFramedOutputStream(out);
 
         snappyOut.write(random);
 
@@ -428,7 +428,7 @@ public class TestSnappyStream
         byte[] random = getRandom(0.5, 500000);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        OutputStream snappyOut = new SnappyOutputStream(out);
+        OutputStream snappyOut = new SnappyFramedOutputStream(out);
 
         snappyOut.write(random);
 
@@ -437,7 +437,7 @@ public class TestSnappyStream
 
         byte[] compressed = out.toByteArray();
 
-        InputStream snappyIn = new SnappyInputStream(new ByteArrayInputStream(compressed), true);
+        InputStream snappyIn = new SnappyFramedInputStream(new ByteArrayInputStream(compressed), true);
         byte[] uncompressed = toByteArray(snappyIn);
         assertEquals(uncompressed, random);
 
@@ -457,7 +457,7 @@ public class TestSnappyStream
         byte[] random = getRandom(0.5, size);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        OutputStream os = new SnappyOutputStream(out);
+        OutputStream os = new SnappyFramedOutputStream(out);
 
         byte[] markerFrame = getMarkerFrame();
 
@@ -497,7 +497,7 @@ public class TestSnappyStream
             throws IOException
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        OutputStream snappyOut = new SnappyOutputStream(out);
+        OutputStream snappyOut = new SnappyFramedOutputStream(out);
         snappyOut.write(original);
         snappyOut.close();
         return out.toByteArray();
@@ -506,7 +506,7 @@ public class TestSnappyStream
     private static byte[] uncompress(byte[] compressed)
             throws IOException
     {
-        return toByteArray(new SnappyInputStream(new ByteArrayInputStream(compressed)));
+        return toByteArray(new SnappyFramedInputStream(new ByteArrayInputStream(compressed)));
     }
 
     static File[] getTestFiles()

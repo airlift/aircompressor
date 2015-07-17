@@ -22,13 +22,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-import static io.airlift.compress.snappy.SnappyOutputStream.MAX_BLOCK_SIZE;
+import static io.airlift.compress.snappy.SnappyFramedOutputStream.MAX_BLOCK_SIZE;
 import static java.lang.Math.min;
 
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link InputStream}.
  */
-public final class SnappyInputStream
+public final class SnappyFramedInputStream
         extends InputStream
 {
     private final SnappyDecompressor decompressor = new SnappyDecompressor();
@@ -68,13 +68,13 @@ public final class SnappyInputStream
      */
     private byte[] buffer;
 
-    public SnappyInputStream(InputStream in)
+    public SnappyFramedInputStream(InputStream in)
             throws IOException
     {
         this(in, true);
     }
 
-    public SnappyInputStream(InputStream in, boolean verifyChecksums)
+    public SnappyFramedInputStream(InputStream in, boolean verifyChecksums)
             throws IOException
     {
         this.in = in;
