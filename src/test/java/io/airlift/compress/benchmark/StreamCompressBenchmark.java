@@ -11,24 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.benchmark;
 
 import com.google.common.io.Files;
+import io.airlift.compress.HadoopNative;
+import io.airlift.compress.Util;
 import io.airlift.compress.lz4.Lz4Codec;
-import io.airlift.compress.lz4.Lz4Compressor;
-import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.snappy.ByteArrayOutputStream;
 import io.airlift.compress.snappy.SnappyCodec;
-import io.airlift.compress.snappy.SnappyCompressor;
-import io.airlift.compress.snappy.SnappyDecompressor;
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.openjdk.jmh.annotations.AuxCounters;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
@@ -55,7 +49,7 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 10)
 @Warmup(iterations = 5)
 @Fork(3)
-public class CompressBenchmark
+public class StreamCompressBenchmark
 {
     static {
         HadoopNative.requireHadoopNative();
@@ -67,15 +61,10 @@ public class CompressBenchmark
 
     private byte[] uncompressedBytes;
 
-    private final SnappyCompressor snappyCompressor = new SnappyCompressor();
-    private byte[] blockCompressedSnappy;
     private byte[] streamCompressSnappy;
     private final SnappyCodec airliftSnappyCodec = new SnappyCodec();
     private org.apache.hadoop.io.compress.SnappyCodec hadoopSnappyCodec;
 
-    private final LZ4Compressor jpountzLz4Compressor = LZ4Factory.fastestInstance().fastCompressor();
-    private final Lz4Compressor airliftLz4Compressor = new Lz4Compressor();
-    private byte[] blockCompressedLz4;
     private byte[] streamCompressLz4;
     private final Lz4Codec airliftLz4Codec = new Lz4Codec();
     private org.apache.hadoop.io.compress.Lz4Codec hadoopLz4Codec;
@@ -87,15 +76,13 @@ public class CompressBenchmark
         data = getUncompressedData();
         uncompressedBytes = new byte[data.length];
 
-        blockCompressedSnappy = new byte[snappyCompressor.maxCompressedLength(data.length)];
         // assume stream code will not add more that 10% overhead
-        streamCompressSnappy = new byte[(int) (blockCompressedSnappy.length * 1.1) + 8];
+        streamCompressSnappy = new byte[(int) (data.length * 1.1) + 8];
         hadoopSnappyCodec = new org.apache.hadoop.io.compress.SnappyCodec();
         hadoopSnappyCodec.setConf(HADOOP_CONF);
 
-        blockCompressedLz4 = new byte[airliftLz4Compressor.maxCompressedLength(data.length)];
         // assume stream code will not add more that 10% overhead
-        streamCompressLz4 = new byte[(int) (blockCompressedLz4.length * 1.1) + 8];
+        streamCompressLz4 = new byte[(int) (data.length * 1.1) + 8];
         hadoopLz4Codec = new org.apache.hadoop.io.compress.Lz4Codec();
         hadoopLz4Codec.setConf(HADOOP_CONF);
     }
@@ -112,20 +99,6 @@ public class CompressBenchmark
         int written;
 
         Arrays.fill(uncompressedBytes, (byte) 0);
-        written = blockAirliftSnappy(new BytesCounter());
-        new SnappyDecompressor().decompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
-        if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor: block airlift snappy");
-        }
-
-        Arrays.fill(uncompressedBytes, (byte) 0);
-        written = blockXerialSnappy(new BytesCounter());
-        new SnappyDecompressor().decompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
-        if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor: block serial snappy");
-        }
-
-        Arrays.fill(uncompressedBytes, (byte) 0);
         written = streamAirliftSnappy(new BytesCounter());
         hadoopDecompress(airliftSnappyCodec, streamCompressSnappy, 0, written);
         if (!Arrays.equals(data, uncompressedBytes)) {
@@ -139,20 +112,6 @@ public class CompressBenchmark
             throw new IllegalStateException("broken decompressor: stream hadoop snappy");
         }
 
-        Arrays.fill(uncompressedBytes, (byte) 0);
-        written = blockAirliftLz4(new BytesCounter());
-        new Lz4Decompressor().decompress(blockCompressedLz4, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
-        if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor: block serial snappy");
-        }
-
-        Arrays.fill(uncompressedBytes, (byte) 0);
-        written = blockJpountzLz4Jni(new BytesCounter());
-        new Lz4Decompressor().decompress(blockCompressedLz4, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
-        if (!Arrays.equals(data, uncompressedBytes)) {
-            throw new IllegalStateException("broken decompressor: block serial snappy");
-        }
-  
         Arrays.fill(uncompressedBytes, (byte) 0);
         written = streamAirliftLz4(new BytesCounter());
         hadoopDecompress(airliftLz4Codec, streamCompressLz4, 0, written);
@@ -175,22 +134,6 @@ public class CompressBenchmark
     }
 
     @Benchmark
-    public int blockAirliftLz4(BytesCounter counter)
-    {
-        int written = airliftLz4Compressor.compress(data, 0, data.length, blockCompressedLz4, 0, blockCompressedLz4.length);
-        counter.add(uncompressedBytes.length);
-        return written;
-    }
-
-    @Benchmark
-    public int blockJpountzLz4Jni(BytesCounter counter)
-    {
-        int written = jpountzLz4Compressor.compress(data, 0, data.length, blockCompressedLz4, 0, blockCompressedLz4.length);
-        counter.add(uncompressedBytes.length);
-        return written;
-    }
-
-    @Benchmark
     public int streamAirliftLz4(BytesCounter counter)
             throws IOException
     {
@@ -202,29 +145,6 @@ public class CompressBenchmark
             throws IOException
     {
         return streamHadoop(counter, hadoopLz4Codec, streamCompressLz4);
-    }
-
-    @Benchmark
-    public int blockAirliftSnappy(BytesCounter counter)
-    {
-        int written = snappyCompressor.compress(data,
-                0,
-                data.length,
-                blockCompressedSnappy,
-                0,
-                blockCompressedSnappy.length);
-
-        counter.add(uncompressedBytes.length);
-        return written;
-    }
-
-    @Benchmark
-    public int blockXerialSnappy(BytesCounter counter)
-            throws IOException
-    {
-        int written = org.xerial.snappy.Snappy.compress(data, 0, data.length, blockCompressedSnappy, 0);
-        counter.add(uncompressedBytes.length);
-        return written;
     }
 
     @Benchmark
@@ -254,39 +174,16 @@ public class CompressBenchmark
         return byteArrayOutputStream.size();
     }
 
-    @AuxCounters
-    @State(Scope.Thread)
-    public static class BytesCounter
-    {
-        private long bytes;
-
-        @Setup(Level.Iteration)
-        public void reset()
-        {
-            bytes = 0;
-        }
-
-        public void add(long bytes)
-        {
-            this.bytes += bytes;
-        }
-
-        public long getBytes()
-        {
-            return bytes;
-        }
-    }
-
     public static void main(String[] args)
             throws Exception
     {
-        CompressBenchmark verifyDecompressor = new CompressBenchmark();
+        StreamCompressBenchmark verifyDecompressor = new StreamCompressBenchmark();
         verifyDecompressor.prepare();
         verifyDecompressor.verify();
 
         Options opt = new OptionsBuilder()
 //                .outputFormat(OutputFormatType.Silent)
-                .include(".*" + CompressBenchmark.class.getSimpleName() + ".*")
+                .include(".*\\." + StreamCompressBenchmark.class.getSimpleName() + ".*")
 //                .forks(1)
 //                .warmupIterations(5)
 //                .measurementIterations(10)
