@@ -83,7 +83,7 @@ public class Lz4RawCompressor
             throw new IllegalArgumentException("Max input length exceeded");
         }
 
-        if (maxOutputLength > maxCompressedLength(inputLength)) {
+        if (maxOutputLength < maxCompressedLength(inputLength)) {
             throw new IllegalArgumentException("Max output length must be larger than " + maxCompressedLength(inputLength));
         }
 
