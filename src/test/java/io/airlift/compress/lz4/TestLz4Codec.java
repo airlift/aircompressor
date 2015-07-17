@@ -18,6 +18,7 @@ import com.google.common.io.ByteStreams;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
+import io.airlift.compress.HadoopCodecCompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
@@ -53,16 +54,9 @@ public class TestLz4Codec
     }
 
     @Override
-    public void testCompress(AbstractTestCompression.TestCase testCase)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
     protected Compressor getCompressor()
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        return new HadoopCodecCompressor(new Lz4Codec(), new Lz4Compressor());
     }
 
     @Override

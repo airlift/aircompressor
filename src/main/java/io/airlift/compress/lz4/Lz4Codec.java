@@ -17,14 +17,17 @@ public class Lz4Codec
     public CompressionOutputStream createOutputStream(OutputStream out)
             throws IOException
     {
-        throw new UnsupportedOperationException("LZ4 compression not supported");
+        return new HadoopLz4OutputStream(out);
     }
 
     @Override
     public CompressionOutputStream createOutputStream(OutputStream out, Compressor compressor)
             throws IOException
     {
-        throw new UnsupportedOperationException("LZ4 compression not supported");
+        if (!(compressor instanceof HadoopLz4Compressor)) {
+            throw new IllegalArgumentException("Compressor is not the LZ4 compressor");
+        }
+        return new HadoopLz4OutputStream(out);
     }
 
     @Override
@@ -72,6 +75,75 @@ public class Lz4Codec
     public String getDefaultExtension()
     {
         return ".lz4";
+    }
+
+    /**
+     * No Hadoop code seems to actually use the compressor, so just return a dummy one so the createOutputStream method
+     * with a compressor can function.  This interface can be implemented if needed.
+     */
+    private static class HadoopLz4Compressor
+            implements Compressor
+    {
+        @Override
+        public void setInput(byte[] b, int off, int len)
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public boolean needsInput()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public void setDictionary(byte[] b, int off, int len)
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public long getBytesRead()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public long getBytesWritten()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public void finish()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public boolean finished()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public int compress(byte[] b, int off, int len)
+                throws IOException
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public void reset()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
+
+        @Override
+        public void end()
+        {
+            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
+        }
     }
 
     /**
