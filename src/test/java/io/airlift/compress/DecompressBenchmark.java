@@ -19,8 +19,8 @@ import io.airlift.compress.lz4.Lz4Codec;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.lzo.LzoCodec;
 import io.airlift.compress.lzo.LzoDecompressor;
-import io.airlift.compress.snappy.Snappy;
 import io.airlift.compress.snappy.SnappyCodec;
+import io.airlift.compress.snappy.SnappyCompressor;
 import io.airlift.compress.snappy.SnappyDecompressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -373,7 +373,10 @@ public class DecompressBenchmark
     private static byte[] compressBlockSnappy(byte[] uncompressed)
             throws IOException
     {
-        return Snappy.compress(uncompressed);
+        SnappyCompressor compressor = new SnappyCompressor();
+        byte[] result = new byte[compressor.maxCompressedLength(uncompressed.length)];
+        int written = compressor.compress(uncompressed, 0, uncompressed.length, result, 0, result.length);
+        return Arrays.copyOf(result, written);
     }
 
     private static byte[] compressBlockLz4(byte[] uncompressed)

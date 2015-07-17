@@ -19,7 +19,7 @@ package io.airlift.compress.snappy;
 
 import java.util.Arrays;
 
-public final class Snappy
+final class Snappy
 {
     private Snappy()
     {

@@ -17,9 +17,9 @@ import com.google.common.io.Files;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.snappy.ByteArrayOutputStream;
-import io.airlift.compress.snappy.Snappy;
 import io.airlift.compress.snappy.SnappyCodec;
 import io.airlift.compress.snappy.SnappyCompressor;
+import io.airlift.compress.snappy.SnappyDecompressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import org.apache.hadoop.conf.Configuration;
@@ -83,7 +83,7 @@ public class CompressBenchmark
         data = getUncompressedData();
         uncompressedBytes = new byte[data.length];
 
-        blockCompressedSnappy = new byte[Snappy.maxCompressedLength(data.length)];
+        blockCompressedSnappy = new byte[snappyCompressor.maxCompressedLength(data.length)];
         // assume stream code will not add more that 10% overhead
         streamCompressSnappy = new byte[(int) (blockCompressedSnappy.length * 1.1) + 8];
         hadoopSnappyCodec = new org.apache.hadoop.io.compress.SnappyCodec();
@@ -105,14 +105,14 @@ public class CompressBenchmark
 
         Arrays.fill(uncompressedBytes, (byte) 0);
         written = blockAirliftSnappy(new BytesCounter());
-        Snappy.uncompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0);
+        new SnappyDecompressor().decompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
         if (!Arrays.equals(data, uncompressedBytes)) {
             throw new IllegalStateException("broken decompressor: block airlift snappy");
         }
 
         Arrays.fill(uncompressedBytes, (byte) 0);
         written = blockXerialSnappy(new BytesCounter());
-        Snappy.uncompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0);
+        new SnappyDecompressor().decompress(blockCompressedSnappy, 0, written, uncompressedBytes, 0, uncompressedBytes.length);
         if (!Arrays.equals(data, uncompressedBytes)) {
             throw new IllegalStateException("broken decompressor: block serial snappy");
         }
