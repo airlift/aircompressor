@@ -18,6 +18,7 @@ import com.google.common.io.ByteStreams;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
+import io.airlift.compress.HadoopCodecCompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
@@ -27,7 +28,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 public class TestSnappyCodec
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     static {
         HadoopNative.initialize();
@@ -52,17 +53,9 @@ public class TestSnappyCodec
         }
     }
 
-    @Override
-    public void testCompress(AbstractTestCompression.TestCase testCase)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
     protected Compressor getCompressor()
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        return new HadoopCodecCompressor(new SnappyCodec(), new SnappyCompressor());
     }
 
     @Override
