@@ -36,16 +36,15 @@ public final class SnappyInputStream
     private final InputStream in;
     private final byte[] frameHeader;
     private final boolean verifyChecksums;
-    private final BufferRecycler recycler;
 
     /**
      * A single frame read from the underlying {@link InputStream}.
      */
-    private byte[] input;
+    private byte[] input = new byte[0];
     /**
      * The decompressed data from {@link #input}.
      */
-    private byte[] uncompressed;
+    private byte[] uncompressed = new byte[0];
     /**
      * Indicates if this instance has been closed.
      */
@@ -80,7 +79,6 @@ public final class SnappyInputStream
     {
         this.in = in;
         this.verifyChecksums = verifyChecksums;
-        this.recycler = BufferRecycler.instance();
         allocateBuffersBasedOnSize(MAX_BLOCK_SIZE + 5);
         this.frameHeader = new byte[4];
 
@@ -152,8 +150,6 @@ public final class SnappyInputStream
         finally {
             if (!closed) {
                 closed = true;
-                recycler.releaseInputBuffer(input);
-                recycler.releaseDecodeBuffer(uncompressed);
             }
         }
     }
@@ -196,7 +192,7 @@ public final class SnappyInputStream
             int uncompressedLength = SnappyDecompressor.getUncompressedLength(input, frameData.offset);
 
             if (uncompressedLength > uncompressed.length) {
-                uncompressed = recycler.allocDecodeBuffer(uncompressedLength);
+                uncompressed = new byte[uncompressedLength];
             }
 
             this.valid = decompressor.decompress(input, frameData.offset, actualRead - frameData.offset, uncompressed, 0, uncompressed.length);
@@ -224,8 +220,12 @@ public final class SnappyInputStream
 
     private void allocateBuffersBasedOnSize(int size)
     {
-        input = recycler.allocInputBuffer(size);
-        uncompressed = recycler.allocDecodeBuffer(size);
+        if (input.length < size) {
+            input = new byte[size];
+        }
+        if (uncompressed.length < size) {
+            uncompressed = new byte[size];
+        }
     }
 
     /**

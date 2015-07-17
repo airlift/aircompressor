@@ -45,7 +45,7 @@ public final class SnappyRawCompressor
     private static final int INPUT_MARGIN_BYTES = 15;
 
     private static final int MAX_HASH_TABLE_BITS = 14;
-    private static final int MAX_HASH_TABLE_SIZE = 1 << MAX_HASH_TABLE_BITS;
+    public static final int MAX_HASH_TABLE_SIZE = 1 << MAX_HASH_TABLE_BITS;
 
     public static int maxCompressedLength(int sourceLength)
     {
@@ -78,7 +78,8 @@ public final class SnappyRawCompressor
             final long inputLimit,
             final Object outputBase,
             final long outputAddress,
-            final long outputLimit)
+            final long outputLimit,
+            final short[] table)
     {
         // The compression code assumes output is larger than the max compression size (with 32 bytes of
         // extra padding), and does not check bounds for writing to output.
@@ -89,10 +90,6 @@ public final class SnappyRawCompressor
 
         // First write the uncompressed size to the output as a variable length int
         long output = writeUncompressedLength(outputBase, outputAddress, (int) (inputLimit - inputAddress));
-
-        int hashTableSize = getHashTableSize((int) (inputLimit - inputAddress));
-        BufferRecycler recycler = BufferRecycler.instance();
-        short[] table = recycler.allocEncodingHash(hashTableSize);
 
         for (long blockAddress = inputAddress; blockAddress < inputLimit; blockAddress += BLOCK_SIZE) {
             // Get encoding table for compression
@@ -234,8 +231,6 @@ public final class SnappyRawCompressor
                 output += literalLength;
             }
         }
-
-        recycler.releaseEncodingHash(table);
 
         return (int) (output - outputAddress);
     }

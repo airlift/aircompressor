@@ -9,6 +9,8 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 public class SnappyCompressor
         implements Compressor
 {
+    private final short[] table = new short[SnappyRawCompressor.MAX_HASH_TABLE_SIZE];
+
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
@@ -23,7 +25,7 @@ public class SnappyCompressor
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
-        return SnappyRawCompressor.compress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return SnappyRawCompressor.compress(input, inputAddress, inputLimit, output, outputAddress, outputLimit, table);
     }
 
     @Override

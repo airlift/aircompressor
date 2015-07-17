@@ -37,7 +37,6 @@ public final class SnappyOutputStream
 
     public static final double DEFAULT_MIN_COMPRESSION_RATIO = 0.85d;
     private final SnappyCompressor compressor = new SnappyCompressor();
-    private final BufferRecycler recycler;
     private final int blockSize;
     private final byte[] buffer;
     private final byte[] outputBuffer;
@@ -84,10 +83,9 @@ public final class SnappyOutputStream
         this.writeChecksums = writeChecksums;
         SnappyInternalUtils.checkArgument(minCompressionRatio > 0 && minCompressionRatio <= 1.0, "minCompressionRatio %1s must be between (0,1.0].", minCompressionRatio);
         this.minCompressionRatio = minCompressionRatio;
-        this.recycler = BufferRecycler.instance();
         this.blockSize = blockSize;
-        this.buffer = recycler.allocOutputBuffer(blockSize);
-        this.outputBuffer = recycler.allocEncodingBuffer(compressor.maxCompressedLength(blockSize));
+        this.buffer = new byte[blockSize];
+        this.outputBuffer = new byte[compressor.maxCompressedLength(blockSize)];
 
         out.write(SnappyFramed.HEADER_BYTES);
         SnappyInternalUtils.checkArgument(blockSize > 0 && blockSize <= MAX_BLOCK_SIZE, "blockSize must be in (0, 65536]", blockSize);
@@ -167,8 +165,6 @@ public final class SnappyOutputStream
         }
         finally {
             closed = true;
-            recycler.releaseOutputBuffer(outputBuffer);
-            recycler.releaseEncodeBuffer(buffer);
         }
     }
 

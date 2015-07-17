@@ -22,12 +22,15 @@ import com.google.common.io.Files;
 import io.airlift.compress.TestingModule;
 import io.airlift.compress.benchmark.DataSet;
 import org.testng.Assert;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 
@@ -50,13 +53,6 @@ public class TestSnappyStream
         byte[] random = Arrays.copyOf(gen.data, length);
         assertEquals(random.length, length);
         return random;
-    }
-
-    @BeforeTest
-    @AfterTest
-    public void resetBufferRecycler()
-    {
-        BufferRecycler.instance().clear();
     }
 
     protected byte[] getMarkerFrame()
