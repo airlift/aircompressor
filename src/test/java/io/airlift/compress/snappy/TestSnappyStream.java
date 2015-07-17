@@ -42,7 +42,7 @@ public class TestSnappyStream
 {
     protected static byte[] getRandom(double compressionRatio, int length)
     {
-        AbstractSnappyTest.RandomGenerator gen = new AbstractSnappyTest.RandomGenerator(compressionRatio);
+        RandomGenerator gen = new RandomGenerator(compressionRatio);
         gen.getNextPosition(length);
         byte[] random = Arrays.copyOf(gen.data, length);
         assertEquals(random.length, length);
@@ -399,7 +399,7 @@ public class TestSnappyStream
     public void testByteForByteTestData()
             throws Exception
     {
-        for (File testFile : AbstractSnappyTest.getTestFiles()) {
+        for (File testFile : getTestFiles()) {
             byte[] original = Files.toByteArray(testFile);
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
@@ -499,4 +499,13 @@ public class TestSnappyStream
     {
         return toByteArray(new SnappyInputStream(new ByteArrayInputStream(compressed)));
     }
+
+    static File[] getTestFiles()
+    {
+        File[] testFiles = TEST_DATA_DIR.listFiles();
+        Assert.assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
+        return testFiles;
+    }
+
+    private static final File TEST_DATA_DIR = new File("testdata");
 }
