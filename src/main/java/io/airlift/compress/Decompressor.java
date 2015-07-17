@@ -23,9 +23,6 @@ public interface Decompressor
     int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException;
 
-    /**
-     * @return number of bytes written to the output
-     */
-    int decompress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength)
+    void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException;
 }

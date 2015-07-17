@@ -35,6 +35,12 @@ public class TestLzoCodec
 
     private static final Configuration HADOOP_CONF = new Configuration();
 
+    @Override
+    protected boolean isByteBufferSupported()
+    {
+        return false;
+    }
+
     protected byte[] prepareCompressedData(byte[] uncompressed)
     {
         com.hadoop.compression.lzo.LzoCodec codec = new com.hadoop.compression.lzo.LzoCodec();

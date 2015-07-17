@@ -22,6 +22,7 @@ import org.testng.annotations.Test;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +39,10 @@ public abstract class AbstractTestCompression
 
     protected abstract Compressor getCompressor();
     protected abstract Decompressor getDecompressor();
+
+    protected boolean isByteBufferSupported() {
+        return true;
+    }
 
     @Inject
     public void setup(List<DataSet> dataSets)
@@ -76,6 +81,70 @@ public abstract class AbstractTestCompression
                 uncompressed.length);
 
         assertByteArraysEqual(testCase.uncompressed, 0, testCase.uncompressed.length, uncompressed, 0, written);
+    }
+
+    @Test(dataProvider = "data")
+    public void testDecompressByteBufferHeapToHeap(TestCase testCase)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        ByteBuffer uncompressed = ByteBuffer.allocate(testCase.uncompressed.length);
+
+        getDecompressor().decompress(testCase.compressedHeap, uncompressed);
+        uncompressed.flip();
+
+        assertByteBufferEqual(ByteBuffer.wrap(testCase.uncompressed), uncompressed);
+    }
+
+    @Test(dataProvider = "data")
+    public void testDecompressByteBufferHeapToDirect(TestCase testCase)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        ByteBuffer uncompressed = ByteBuffer.allocateDirect(testCase.uncompressed.length);
+
+        getDecompressor().decompress(testCase.compressedHeap, uncompressed);
+        uncompressed.flip();
+
+        assertByteBufferEqual(ByteBuffer.wrap(testCase.uncompressed), uncompressed);
+    }
+
+    @Test(dataProvider = "data")
+    public void testDecompressByteBufferDirectToHeap(TestCase testCase)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        ByteBuffer uncompressed = ByteBuffer.allocate(testCase.uncompressed.length);
+
+        getDecompressor().decompress(testCase.compressedDirect, uncompressed);
+        uncompressed.flip();
+
+        assertByteBufferEqual(ByteBuffer.wrap(testCase.uncompressed), uncompressed);
+    }
+
+    @Test(dataProvider = "data")
+    public void testDecompressByteBufferDirectToDirect(TestCase testCase)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        ByteBuffer uncompressed = ByteBuffer.allocateDirect(testCase.uncompressed.length);
+
+        getDecompressor().decompress(testCase.compressedDirect, uncompressed);
+        uncompressed.flip();
+
+        assertByteBufferEqual(ByteBuffer.wrap(testCase.uncompressed), uncompressed);
     }
 
     @Test(dataProvider = "data")
@@ -127,17 +196,32 @@ public abstract class AbstractTestCompression
 
         for (int i = 0; i < Math.min(leftLength, rightLength); i++) {
             if (left[leftOffset + i] != right[rightOffset + i]) {
-                Assert.fail(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[i], right[i]));
+                Assert.fail(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[leftOffset + i], right[rightOffset + i]));
             }
         }
 
         assertEquals(leftLength, rightLength, String.format("Array lengths differ: %s vs %s", leftLength, rightLength));
     }
 
+    private static void assertByteBufferEqual(ByteBuffer left, ByteBuffer right)
+    {
+        int leftPosition = left.position();
+        int rightPosition = right.position();
+        for (int i = 0; i < Math.min(left.remaining(), right.remaining()); i++) {
+            if (left.get(leftPosition + i) != right.get(rightPosition + i)) {
+                Assert.fail(String.format("Byte buffers differ at position %s: 0x%02X vs 0x%02X", i, left.get(leftPosition + i), right.get(rightPosition + i)));
+            }
+        }
+
+        assertEquals(left.remaining(), right.remaining(), String.format("Buffer lengths differ: %s vs %s", left.remaining(), left.remaining()));
+    }
+
     public static class TestCase
     {
         private final String name;
         private final byte[] compressed;
+        private final ByteBuffer compressedHeap;
+        private final ByteBuffer compressedDirect;
         private final byte[] uncompressed;
 
         private TestCase(String name, byte[] compressed, byte[] uncompressed)
@@ -145,6 +229,10 @@ public abstract class AbstractTestCompression
             this.name = name;
             this.compressed = compressed;
             this.uncompressed = uncompressed;
+
+            compressedHeap = ByteBuffer.wrap(compressed);
+            compressedDirect = ByteBuffer.allocateDirect(compressed.length);
+            compressedDirect.put(compressed).flip();
         }
 
         @Override

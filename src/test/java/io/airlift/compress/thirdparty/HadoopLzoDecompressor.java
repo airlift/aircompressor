@@ -62,7 +62,7 @@ public class HadoopLzoDecompressor
     }
 
     @Override
-    public int decompress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength)
+    public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
         throw new UnsupportedOperationException("not yet implemented");
