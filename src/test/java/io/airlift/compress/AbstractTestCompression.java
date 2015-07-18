@@ -13,29 +13,52 @@
  */
 package io.airlift.compress;
 
-import com.google.common.io.Files;
+import io.airlift.compress.benchmark.DataSet;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
 
-import java.io.File;
+import javax.inject.Inject;
+
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkPositionIndexes;
 import static org.testng.Assert.assertEquals;
 
+@Guice(modules = TestingModule.class)
 public abstract class AbstractTestCompression
 {
-    private static final File TEST_DATA_DIR = new File("testdata");
+    private List<TestCase> testCases;
 
     protected abstract byte[] prepareCompressedData(byte[] uncompressed);
 
     protected abstract Compressor getCompressor();
     protected abstract Decompressor getDecompressor();
+
+    @Inject
+    public void setup(List<DataSet> dataSets)
+    {
+        testCases = new ArrayList<>();
+
+        testCases.add(createTestCase("short literal", "hello world!".getBytes(UTF_8)));
+        testCases.add(createTestCase("small copy", "XXXXabcdabcdABCDABCDwxyzwzyz123".getBytes(UTF_8)));
+        testCases.add(createTestCase("long copy", "XXXXabcdefgh abcdefgh abcdefgh abcdefgh abcdefgh abcdefgh ABC".getBytes(UTF_8)));
+
+        byte[] data = new byte[256];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) i;
+        }
+        testCases.add(createTestCase("long literal", data));
+
+        for (DataSet dataSet : dataSets) {
+            byte[] uncompressed = dataSet.getUncompressed();
+            testCases.add(createTestCase(dataSet.getName(), uncompressed));
+        }
+    }
 
     @Test(dataProvider = "data")
     public void testDecompress(TestCase testCase)
@@ -79,36 +102,16 @@ public abstract class AbstractTestCompression
     }
 
     @DataProvider(name = "data")
-    public Iterator<Object[]> getTestCases()
+    public Object[][] getTestCases()
             throws IOException
     {
-        List<File> testFiles = new ArrayList<>();
-        for (File file : Files.fileTreeTraverser().preOrderTraversal(TEST_DATA_DIR)) {
-            if (file.isFile()) {
-                testFiles.add(file);
-            }
+        Object[][] result = new Object[testCases.size()][];
+
+        for (int i = 0; i < testCases.size(); i++) {
+            result[i] = new Object[] {testCases.get(i)};
         }
 
-        Assert.assertTrue(!testFiles.isEmpty(), "No test files at " + TEST_DATA_DIR.getAbsolutePath());
-
-        List<Object[]> result = new ArrayList<>();
-
-        result.add(new Object[] {createTestCase("short literal", "hello world!".getBytes(UTF_8))});
-        result.add(new Object[] {createTestCase("small copy", "XXXXabcdabcdABCDABCDwxyzwzyz123".getBytes(UTF_8))});
-        result.add(new Object[] {createTestCase("long copy", "XXXXabcdefgh abcdefgh abcdefgh abcdefgh abcdefgh abcdefgh ABC".getBytes(UTF_8))});
-
-        byte[] data = new byte[256];
-        for (int i = 0; i < data.length; i++) {
-            data[i] = (byte) i;
-        }
-        result.add(new Object[] {createTestCase("long literal", data)});
-
-        for (File file : testFiles) {
-            byte[] uncompressed = Files.toByteArray(file);
-            result.add(new Object[] {createTestCase(TEST_DATA_DIR.toPath().relativize(file.toPath()).toString(), uncompressed)});
-        }
-
-        return result.iterator();
+        return result;
     }
 
     private TestCase createTestCase(String name, byte[] uncompressed)

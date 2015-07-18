@@ -87,8 +87,16 @@ public class DataSet
             "urls.10K",
     })
     private String name;
-
     private byte[] uncompressed;
+
+    public DataSet()
+    {
+    }
+
+    public DataSet(String name)
+    {
+        this.name = name;
+    }
 
     @Setup
     public void setup()
@@ -100,5 +108,10 @@ public class DataSet
     public byte[] getUncompressed()
     {
         return uncompressed;
+    }
+
+    public String getName()
+    {
+        return name;
     }
 }
