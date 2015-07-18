@@ -146,31 +146,19 @@ public class LzoRawCompressor
             int literalLength = (int) (input - anchor);
             long tokenAddress = output++;
 
-            output = encodeRunLength(outputBase, tokenAddress, output, literalLength);
-
-            // TODO
-//            if ((outputLimited) && (unlikely(op + litLength + (2 + 1 + LASTLITERALS) + (litLength/255) > olimit)))
-//                return 0;   /* Check output limit */
-
-            // emitLiteral copies in chunks of 8 bytes. We are guaranteed to have at least 8 bytes available in output (how?)
-            output = emitLiteral(outputBase, output, inputBase, anchor, literalLength);
+            output = emitLiteral(inputBase, anchor, outputBase, output, tokenAddress, literalLength);
 
             // next match
             while (true) {
-                output = encodeOffset(outputBase, output, (short) (input - matchIndex));
+                int offset = (int) (input - matchIndex);
 
                 // find match length
                 input += MIN_MATCH;
                 int matchLength = count(inputBase, input, matchIndex + MIN_MATCH, matchLimit);
                 input += matchLength;
 
-                // TODO
-//                if ((outputLimited) && (unlikely(op + (1 + LASTLITERALS) + (matchLength>>8) > olimit))) {
-//                    return 0;    // Check output limit
-//                }
-
-                // Encode MatchLength
-                output = encodeMatchLength(outputBase, tokenAddress, output, matchLength);
+                // write copy command
+                output = emitCopy(outputBase, tokenAddress, output, offset, matchLength);
                 anchor = input;
 
                 // are we done?
@@ -252,16 +240,31 @@ public class LzoRawCompressor
         return output + length;
     }
 
+    private static long emitLiteral(Object inputBase, long inputAddress, Object outputBase, long outputAddress, long tokenAddress, int literalLength)
+    {
+        outputAddress = encodeRunLength(outputBase, tokenAddress, outputAddress, literalLength);
+
+        // System.out.println("Literal length=" + length);
+        final long outputLimit = outputAddress + (long) literalLength;
+
+        long output = outputAddress;
+        long input = inputAddress;
+        do {
+            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
+            input += SIZE_OF_LONG;
+            output += SIZE_OF_LONG;
+        }
+        while (output < outputLimit);
+
+        return outputLimit;
+    }
+
     private static long encodeRunLength(
             final Object base,
             final long tokenAddress,
             final long continuationAddress,
             final long length)
     {
-//        if ((outputLimited) && (unlikely(op + litLength + (2 + 1 + LASTLITERALS) + (litLength/255) > olimit))) {
-//            return 0;   *//* Check output limit *//*
-//        }
-
         long output = continuationAddress;
         if (length >= RUN_MASK) {
             UNSAFE.putByte(base, tokenAddress, (byte) (RUN_MASK << ML_BITS));
@@ -280,30 +283,16 @@ public class LzoRawCompressor
         return output;
     }
 
-    private static long emitLiteral(
-            final Object outputBase,
-            final long outputAddress,
-            final Object inputBase,
-            final long inputAddress,
-            final long length)
+    private static long emitCopy(Object outputBase, long tokenAddress, long output, int offset, int matchLength)
     {
-        final long outputLimit = outputAddress + length;
-
-        long output = outputAddress;
-        long input = inputAddress;
-        do {
-            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
-            input += SIZE_OF_LONG;
-            output += SIZE_OF_LONG;
-        }
-        while (output < outputLimit);
-
-        return outputLimit;
+        output = encodeOffset(outputBase, output, offset);
+        output = encodeMatchLength(outputBase, tokenAddress, output, matchLength);
+        return output;
     }
 
-    private static long encodeOffset(final Object outputBase, final long outputAddress, final short offset)
+    private static long encodeOffset(final Object outputBase, final long outputAddress, final int offset)
     {
-        UNSAFE.putShort(outputBase, outputAddress, offset);
+        UNSAFE.putShort(outputBase, outputAddress, (short) offset);
         return outputAddress + 2;
     }
 
