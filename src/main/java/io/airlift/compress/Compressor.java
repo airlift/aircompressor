@@ -24,9 +24,6 @@ public interface Compressor
      */
     int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength);
 
-    /**
-     * @return number of bytes written to the output
-     */
-    int compress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength);
+    void compress(ByteBuffer input, ByteBuffer output);
 }
 

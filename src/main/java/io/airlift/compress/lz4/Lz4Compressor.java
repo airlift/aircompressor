@@ -14,6 +14,7 @@
 package io.airlift.compress.lz4;
 
 import io.airlift.compress.Compressor;
+import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -24,7 +25,7 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
  * This class is not thread-safe
  */
 public class Lz4Compressor
-    implements Compressor
+        implements Compressor
 {
     private final int[] table = new int[Lz4RawCompressor.STREAM_SIZE];
 
@@ -46,8 +47,52 @@ public class Lz4Compressor
     }
 
     @Override
-    public int compress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength)
+    public void compress(ByteBuffer input, ByteBuffer output)
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        Object inputBase;
+        long inputAddress;
+        long inputLimit;
+        if (input instanceof DirectBuffer) {
+            DirectBuffer direct = (DirectBuffer) input;
+            inputBase = null;
+            inputAddress = direct.address() + input.position();
+            inputLimit = direct.address() + input.limit();
+        }
+        else if (input.hasArray()) {
+            inputBase = input.array();
+            inputAddress = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.position();
+            inputLimit = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.limit();
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported input ByteBuffer implementation " + input.getClass().getName());
+        }
+
+        Object outputBase;
+        long outputAddress;
+        long outputLimit;
+        if (output instanceof DirectBuffer) {
+            DirectBuffer direct = (DirectBuffer) output;
+            outputBase = null;
+            outputAddress = direct.address() + output.position();
+            outputLimit = direct.address() + output.limit();
+        }
+        else if (output.hasArray()) {
+            outputBase = output.array();
+            outputAddress = ARRAY_BYTE_BASE_OFFSET + output.arrayOffset() + output.position();
+            outputLimit = ARRAY_BYTE_BASE_OFFSET + output.arrayOffset() + output.limit();
+        }
+        else {
+            throw new IllegalArgumentException("Unsupported output ByteBuffer implementation " + output.getClass().getName());
+        }
+
+        int written = Lz4RawCompressor.compress(
+                inputBase,
+                inputAddress,
+                (int) (inputLimit - inputAddress),
+                outputBase,
+                outputAddress,
+                outputLimit - outputAddress,
+                table);
+        output.position(output.position() + written);
     }
 }

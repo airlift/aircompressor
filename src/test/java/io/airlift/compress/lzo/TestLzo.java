@@ -67,6 +67,34 @@ public class TestLzo
     }
 
     @Override
+    public void testCompressByteBufferHeapToHeap(DataSet dataSet)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    public void testCompressByteBufferHeapToDirect(DataSet dataSet)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    public void testCompressByteBufferDirectToHeap(DataSet dataSet)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
+    public void testCompressByteBufferDirectToDirect(DataSet dataSet)
+            throws Exception
+    {
+        // not yet supported
+    }
+
+    @Override
     protected io.airlift.compress.Compressor getCompressor()
     {
         throw new UnsupportedOperationException("not yet implemented");

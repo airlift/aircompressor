@@ -183,6 +183,92 @@ public abstract class AbstractTestCompression
         assertByteArraysEqual(uncompressed, 0, uncompresseSize, originalUncompressed, 0, originalUncompressed.length);
     }
 
+    @Test(dataProvider = "data")
+    public void testCompressByteBufferHeapToHeap(DataSet dataSet)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+
+        Compressor compressor = getCompressor();
+
+        verifyCompressByteBuffer(
+                compressor,
+                ByteBuffer.wrap(uncompressedOriginal),
+                ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+    }
+
+    @Test(dataProvider = "data")
+    public void testCompressByteBufferHeapToDirect(DataSet dataSet)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+
+        Compressor compressor = getCompressor();
+
+        verifyCompressByteBuffer(
+                compressor,
+                ByteBuffer.wrap(uncompressedOriginal),
+                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
+    }
+
+    @Test(dataProvider = "data")
+    public void testCompressByteBufferDirectToHeap(DataSet dataSet)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+
+        Compressor compressor = getCompressor();
+
+        verifyCompressByteBuffer(
+                compressor,
+                toDirectBuffer(uncompressedOriginal),
+                ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+    }
+
+    @Test(dataProvider = "data")
+    public void testCompressByteBufferDirectToDirect(DataSet dataSet)
+            throws Exception
+    {
+        if (!isByteBufferSupported()) {
+            return;
+        }
+
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+
+        Compressor compressor = getCompressor();
+
+        verifyCompressByteBuffer(
+                compressor,
+                toDirectBuffer(uncompressedOriginal),
+                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
+    }
+
+    private void verifyCompressByteBuffer(Compressor compressor, ByteBuffer expected, ByteBuffer compressed)
+    {
+        compressor.compress(expected.duplicate(), compressed);
+        compressed.flip();
+
+        ByteBuffer uncompressed = ByteBuffer.allocate(expected.remaining());
+
+        // TODO: validate with "control" decompressor
+        getDecompressor().decompress(compressed, uncompressed);
+        uncompressed.flip();
+
+        assertByteBufferEqual(expected.duplicate(), uncompressed);
+    }
+
     @DataProvider(name = "data")
     public Object[][] getTestCases()
             throws IOException

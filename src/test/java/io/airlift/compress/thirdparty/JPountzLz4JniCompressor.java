@@ -37,7 +37,7 @@ public class JPountzLz4JniCompressor
     }
 
     @Override
-    public int compress(ByteBuffer input, int inputOffset, int inputLength, ByteBuffer output, int outputOffset, int maxOutputLength)
+    public void compress(ByteBuffer input, ByteBuffer output)
     {
         throw new UnsupportedOperationException("not yet implemented");
     }
