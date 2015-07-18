@@ -46,7 +46,7 @@ public class TestingModule
         List<DataSet> result = new ArrayList<>();
         for (String testName : testNames) {
             DataSet entry = new DataSet(testName);
-            entry.setup();
+            entry.loadFile();
             result.add(entry);
         }
 
