@@ -28,8 +28,6 @@ import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
 
 public final class SnappyRawCompressor
 {
-    private final static ControlException EXCEPTION = new ControlException();
-
     // The size of a compression block. Note that many parts of the compression
     // code assumes that BLOCK_SIZE <= 65536; in particular, the hash table
     // can only store 16-bit offsets, and EmitCopy() also assumes the offset
@@ -239,34 +237,30 @@ public final class SnappyRawCompressor
     {
         long current = start;
 
-        try {
-            // first, compare long at a time
-            while (current < matchLimit - (SIZE_OF_LONG - 1)) {
-                long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
-                if (diff != 0) {
-                    current += Long.numberOfTrailingZeros(diff) >> 3;
-                    throw EXCEPTION;
-                }
-
-                current += SIZE_OF_LONG;
-                matchStart += SIZE_OF_LONG;
+        // first, compare long at a time
+        while (current < matchLimit - (SIZE_OF_LONG - 1)) {
+            long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
+            if (diff != 0) {
+                current += Long.numberOfTrailingZeros(diff) >> 3;
+                return (int) (current - start);
             }
 
-            if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
-                current += SIZE_OF_INT;
-                matchStart += SIZE_OF_INT;
-            }
-
-            if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
-                current += SIZE_OF_SHORT;
-                matchStart += SIZE_OF_SHORT;
-            }
-
-            if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
-                ++current;
-            }
+            current += SIZE_OF_LONG;
+            matchStart += SIZE_OF_LONG;
         }
-        catch (ControlException e) {
+
+        if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
+            current += SIZE_OF_INT;
+            matchStart += SIZE_OF_INT;
+        }
+
+        if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
+            current += SIZE_OF_SHORT;
+            matchStart += SIZE_OF_SHORT;
+        }
+
+        if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
+            ++current;
         }
 
         return (int) (current - start);
@@ -431,7 +425,4 @@ public final class SnappyRawCompressor
         }
         return outputAddress;
     }
-
-    private final static class ControlException
-            extends Exception {}
 }

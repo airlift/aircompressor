@@ -36,8 +36,6 @@ import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
 
 public class Lz4RawCompressor
 {
-    private final static ControlException EXCEPTION = new ControlException();
-
     private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 
     private static final int MEMORY_USAGE = 14;
@@ -210,34 +208,30 @@ public class Lz4RawCompressor
     {
         long current = start;
 
-        try {
-            // first, compare long at a time
-            while (current < matchLimit - (SIZE_OF_LONG - 1)) {
-                long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
-                if (diff != 0) {
-                    current += Long.numberOfTrailingZeros(diff) >> 3;
-                    throw EXCEPTION;
-                }
-
-                current += SIZE_OF_LONG;
-                matchStart += SIZE_OF_LONG;
+        // first, compare long at a time
+        while (current < matchLimit - (SIZE_OF_LONG - 1)) {
+            long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
+            if (diff != 0) {
+                current += Long.numberOfTrailingZeros(diff) >> 3;
+                return (int) (current - start);
             }
 
-            if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
-                current += SIZE_OF_INT;
-                matchStart += SIZE_OF_INT;
-            }
-
-            if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
-                current += SIZE_OF_SHORT;
-                matchStart += SIZE_OF_SHORT;
-            }
-
-            if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
-                ++current;
-            }
+            current += SIZE_OF_LONG;
+            matchStart += SIZE_OF_LONG;
         }
-        catch (ControlException e) {
+
+        if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
+            current += SIZE_OF_INT;
+            matchStart += SIZE_OF_INT;
+        }
+
+        if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
+            current += SIZE_OF_SHORT;
+            matchStart += SIZE_OF_SHORT;
+        }
+
+        if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
+            ++current;
         }
 
         return (int) (current - start);
@@ -338,7 +332,4 @@ public class Lz4RawCompressor
 
         return output;
     }
-
-    private final static class ControlException
-            extends Exception {}
 }
