@@ -39,6 +39,7 @@
 
     <properties>
         <air.check.skip-extended>true</air.check.skip-extended>
+        <air.test.jvmsize>2G</air.test.jvmsize>
     </properties>
 
     <distributionManagement>
