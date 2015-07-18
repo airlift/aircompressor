@@ -19,6 +19,8 @@ package io.airlift.compress.snappy;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
+import io.airlift.compress.TestingModule;
+import io.airlift.compress.benchmark.DataSet;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
@@ -27,6 +29,7 @@ import org.testng.annotations.Test;
 import java.io.*;
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.primitives.UnsignedBytes.toInt;
@@ -399,8 +402,9 @@ public class TestSnappyStream
     public void testByteForByteTestData()
             throws Exception
     {
-        for (File testFile : getTestFiles()) {
-            byte[] original = Files.toByteArray(testFile);
+        List<DataSet> dataSets = new TestingModule().dataSets();
+        for (DataSet dataSet : dataSets) {
+            byte[] original = dataSet.getUncompressed();
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
             assertEquals(uncompressed, original);
