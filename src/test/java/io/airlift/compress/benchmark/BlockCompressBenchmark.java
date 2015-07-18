@@ -45,6 +45,7 @@ public class BlockCompressBenchmark
 {
     @Param({
             "airlift_lz4",
+            "airlift_lzo",
             "airlift_snappy",
             "xerial_snappy",
             "jpountz_lz4_jni"

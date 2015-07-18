@@ -15,6 +15,7 @@ package io.airlift.compress;
 
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
+import io.airlift.compress.lzo.LzoCompressor;
 import io.airlift.compress.lzo.LzoDecompressor;
 import io.airlift.compress.snappy.SnappyCompressor;
 import io.airlift.compress.snappy.SnappyDecompressor;
@@ -29,7 +30,7 @@ public enum Algorithm
 {
     airlift_lz4(new Lz4Decompressor(), new Lz4Compressor()),
     airlift_snappy(new SnappyDecompressor(), new SnappyCompressor()),
-    airlift_lzo(new LzoDecompressor(), new HadoopLzoCompressor()),
+    airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
     jpountz_lz4_jni(new JPountzLz4JniDecompressor(), new JPountzLz4JniCompressor()),
     xerial_snappy(new XerialSnappyDecompressor(), new XerialSnappyCompressor()),
     hadoop_lzo(new HadoopLzoDecompressor(), new HadoopLzoCompressor());

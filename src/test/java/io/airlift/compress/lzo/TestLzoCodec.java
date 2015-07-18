@@ -19,13 +19,12 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopCodecCompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
-import io.airlift.compress.benchmark.DataSet;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
 public class TestLzoCodec
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     static {
         HadoopNative.requireHadoopNative();
@@ -47,16 +46,9 @@ public class TestLzoCodec
     }
 
     @Override
-    public void testCompress(DataSet testCase)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
     protected Compressor getCompressor()
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        return new HadoopCodecCompressor(new LzoCodec(), new LzoCompressor());
     }
 
     @Override

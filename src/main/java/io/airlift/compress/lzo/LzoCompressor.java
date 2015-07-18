@@ -13,32 +13,41 @@
  */
 package io.airlift.compress.lzo;
 
-import io.airlift.compress.Decompressor;
-import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.Compressor;
 import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class LzoDecompressor
-        implements Decompressor
+/**
+ * This class is not thread-safe
+ */
+public class LzoCompressor
+    implements Compressor
 {
-    @Override
-    public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
-            throws MalformedInputException
-    {
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
-        long outputLimit = outputAddress + maxOutputLength;
+    private final int[] table = new int[LzoRawCompressor.STREAM_SIZE];
 
-        return LzoRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+    @Override
+    public int maxCompressedLength(int uncompressedSize)
+    {
+        return LzoRawCompressor.maxCompressedLength(uncompressedSize);
     }
 
     @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
+    public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+    {
+        Arrays.fill(table, 0);
+
+        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+
+        return LzoRawCompressor.compress(input, inputAddress, inputLength, output, outputAddress, maxOutputLength, table);
+    }
+
+    @Override
+    public void compress(ByteBuffer input, ByteBuffer output)
     {
         Object inputBase;
         long inputAddress;
@@ -76,13 +85,20 @@ public class LzoDecompressor
             throw new IllegalArgumentException("Unsupported output ByteBuffer implementation " + output.getClass().getName());
         }
 
-        // HACK: Assure JVM does not collect Slice wrappers while decompressing, since the
+        // HACK: Assure JVM does not collect Slice wrappers while compressing, since the
         // collection may trigger freeing of the underlying memory resulting in a segfault
         // There is no other known way to signal to the JVM that an object should not be
         // collected in a block, and technically, the JVM is allowed to eliminate these locks.
         synchronized (input) {
             synchronized (output) {
-                int written = LzoRawDecompressor.decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
+                int written = LzoRawCompressor.compress(
+                        inputBase,
+                        inputAddress,
+                        (int) (inputLimit - inputAddress),
+                        outputBase,
+                        outputAddress,
+                        outputLimit - outputAddress,
+                        table);
                 output.position(output.position() + written);
             }
         }

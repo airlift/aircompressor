@@ -14,58 +14,22 @@
 package io.airlift.compress.lzo;
 
 import io.airlift.compress.AbstractTestCompression;
+import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopNative;
-import io.airlift.compress.benchmark.DataSet;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
-import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
 
 public class TestLzo
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     static {
         HadoopNative.requireHadoopNative();
     }
 
     @Override
-    public void testCompress(DataSet testCase)
-            throws Exception
+    protected Compressor getCompressor()
     {
-        // not yet supported
-    }
-
-    @Override
-    public void testCompressByteBufferHeapToHeap(DataSet dataSet)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
-    public void testCompressByteBufferHeapToDirect(DataSet dataSet)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
-    public void testCompressByteBufferDirectToHeap(DataSet dataSet)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
-    public void testCompressByteBufferDirectToDirect(DataSet dataSet)
-            throws Exception
-    {
-        // not yet supported
-    }
-
-    @Override
-    protected io.airlift.compress.Compressor getCompressor()
-    {
-        throw new UnsupportedOperationException("not yet implemented");
+        return new LzoCompressor();
     }
 
     @Override
@@ -75,7 +39,7 @@ public class TestLzo
     }
 
     @Override
-    protected io.airlift.compress.Compressor getVerifyCompressor()
+    protected Compressor getVerifyCompressor()
     {
         return new HadoopLzoCompressor();
     }
@@ -83,6 +47,8 @@ public class TestLzo
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new HadoopLzoDecompressor();
+        // The hadoop decompressor can not deal with multiple compressed blocks
+        // todo write a verify decompressor that handles the consecutive blocks, but uses the native code
+        return new LzoDecompressor();
     }
 }

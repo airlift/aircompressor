@@ -27,16 +27,15 @@ package io.airlift.compress.lzo;
 * limitations under the License.
 */
 
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_INT;
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
 
 public class LzoRawCompressor
 {
     public static final int LAST_LITERAL_SIZE = 5;
     public static final int MIN_MATCH = 4;
-
-    public static final int SIZE_OF_SHORT = 2;
-    public static final int SIZE_OF_INT = 4;
-    public static final int SIZE_OF_LONG = 8;
 
     private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 
@@ -53,11 +52,10 @@ public class LzoRawCompressor
     private static final int MIN_LENGTH = MATCH_FIND_LIMIT + 1;
 
     private static final int ML_BITS = 4;
-    private static final int ML_MASK = (1 << ML_BITS) - 1;
     private static final int RUN_BITS = 8 - ML_BITS;
     private static final int RUN_MASK = (1 << RUN_BITS) - 1;
 
-    private static final int MAX_DISTANCE = ((1 << 16) - 1);
+    private static final int MAX_DISTANCE = 0b1100_0000_0000_0000 - 1;
 
     private static final int SKIP_TRIGGER = 6;  /* Increase this value ==> compression run slower on incompressible data */
 
@@ -88,6 +86,11 @@ public class LzoRawCompressor
             throw new IllegalArgumentException("Max output length must be larger than " + maxCompressedLength(inputLength));
         }
 
+        // nothing compresses to nothing
+        if (inputLength == 0) {
+            return 0;
+        }
+
         long input = inputAddress;
         long output = outputAddress;
 
@@ -96,7 +99,7 @@ public class LzoRawCompressor
         final long matchLimit = inputLimit - LAST_LITERAL_SIZE;
 
         if (inputLength < MIN_LENGTH) {
-            output = emitLastLiteral(outputBase, output, inputBase, input, inputLimit - input);
+            output = emitLastLiteral(true, outputBase, output, inputBase, input, inputLimit - input);
             return (int) (output - outputAddress);
         }
 
@@ -110,6 +113,7 @@ public class LzoRawCompressor
         int nextHash = hash(UNSAFE.getLong(inputBase, input));
 
         boolean done = false;
+        boolean firstLiteral = true;
         do {
             long nextInputIndex = input;
             int findMatchAttempts = 1 << SKIP_TRIGGER;
@@ -125,7 +129,8 @@ public class LzoRawCompressor
                 step = (findMatchAttempts++) >>> SKIP_TRIGGER;
 
                 if (nextInputIndex > matchFindLimit) {
-                    return (int) (emitLastLiteral(outputBase, output, inputBase, anchor, inputLimit - anchor) - outputAddress);
+                    output = emitLastLiteral(firstLiteral, outputBase, output, inputBase, anchor, inputLimit - anchor);
+                    return (int) (output - outputAddress);
                 }
 
                 // get position on hash
@@ -144,9 +149,9 @@ public class LzoRawCompressor
             }
 
             int literalLength = (int) (input - anchor);
-            long tokenAddress = output++;
 
-            output = emitLiteral(inputBase, anchor, outputBase, output, tokenAddress, literalLength);
+            output = emitLiteral(firstLiteral, inputBase, anchor, outputBase, output, literalLength);
+            firstLiteral = false;
 
             // next match
             while (true) {
@@ -158,7 +163,7 @@ public class LzoRawCompressor
                 input += matchLength;
 
                 // write copy command
-                output = emitCopy(outputBase, tokenAddress, output, offset, matchLength);
+                output = emitCopy(outputBase, output, offset, matchLength + MIN_MATCH);
                 anchor = input;
 
                 // are we done?
@@ -182,14 +187,12 @@ public class LzoRawCompressor
                 }
 
                 // go for another match
-                tokenAddress = output++;
-                UNSAFE.putByte(outputBase, tokenAddress, (byte) 0);
             }
         }
         while (!done);
 
         // Encode Last Literals
-        output = emitLastLiteral(outputBase, output, inputBase, anchor, inputLimit - anchor);
+        output = emitLastLiteral(false, outputBase, output, inputBase, anchor, inputLimit - anchor);
 
         return (int) (output - outputAddress);
     }
@@ -228,27 +231,37 @@ public class LzoRawCompressor
     }
 
     private static long emitLastLiteral(
+            boolean firstLiteral,
             final Object outputBase,
-            final long outputAddress,
+            long output,
             final Object inputBase,
             final long inputAddress,
-            final long length)
+            final long literalLength)
     {
-        long output = encodeRunLength(outputBase, outputAddress, outputAddress + 1, length);
-        UNSAFE.copyMemory(inputBase, inputAddress, outputBase, output, length);
+        output = encodeLiteralLength(firstLiteral, outputBase, output, literalLength);
+        UNSAFE.copyMemory(inputBase, inputAddress, outputBase, output, literalLength);
+        output += literalLength;
 
-        return output + length;
+        // write stop command
+        UNSAFE.putByte(outputBase, output++, (byte) 0b0001_0001);
+
+        // write 2 zeros
+        UNSAFE.putShort(outputBase, output, (byte) 0);
+        output += SIZE_OF_SHORT;
+        return output;
     }
 
-    private static long emitLiteral(Object inputBase, long inputAddress, Object outputBase, long outputAddress, long tokenAddress, int literalLength)
+    private static long emitLiteral(
+            boolean firstLiteral,
+            Object inputBase,
+            long input,
+            Object outputBase,
+            long output,
+            int literalLength)
     {
-        outputAddress = encodeRunLength(outputBase, tokenAddress, outputAddress, literalLength);
+        output = encodeLiteralLength(firstLiteral, outputBase, output, literalLength);
 
-        // System.out.println("Literal length=" + length);
-        final long outputLimit = outputAddress + (long) literalLength;
-
-        long output = outputAddress;
-        long input = inputAddress;
+        final long outputLimit = output + literalLength;
         do {
             UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
             input += SIZE_OF_LONG;
@@ -259,68 +272,93 @@ public class LzoRawCompressor
         return outputLimit;
     }
 
-    private static long encodeRunLength(
-            final Object base,
-            final long tokenAddress,
-            final long continuationAddress,
-            final long length)
+    private static long encodeLiteralLength(
+            boolean firstLiteral,
+            final Object outBase,
+            long output,
+            long length)
     {
-        long output = continuationAddress;
-        if (length >= RUN_MASK) {
-            UNSAFE.putByte(base, tokenAddress, (byte) (RUN_MASK << ML_BITS));
-
-            long remaining = length - RUN_MASK;
-            while (remaining >= 255) {
-                UNSAFE.putByte(base, output++, (byte) 255);
-                remaining -= 255;
-            }
-            UNSAFE.putByte(base, output++, (byte) remaining);
+        if (firstLiteral && length < (0xFF - 17)) {
+            UNSAFE.putByte(outBase, output++, (byte) (length + 17));
+        }
+        else if (length < 4) {
+            // Small literals are encoded in the low two bits trailer of the previous command.  The
+            // trailer is a little endian short, so we need to adjust the byte 2 back in the output.
+            UNSAFE.putByte(outBase, output - 2, (byte) (UNSAFE.getByte(outBase, output - 2) | length));
         }
         else {
-            UNSAFE.putByte(base, tokenAddress, (byte) (length << ML_BITS));
-        }
+            length -= 3;
+            if (length > RUN_MASK) {
+                UNSAFE.putByte(outBase, output++, (byte) 0);
 
+                long remaining = length - RUN_MASK;
+                while (remaining > 255) {
+                    UNSAFE.putByte(outBase, output++, (byte) 0);
+                    remaining -= 255;
+                }
+                UNSAFE.putByte(outBase, output++, (byte) remaining);
+            }
+            else {
+                UNSAFE.putByte(outBase, output++, (byte) length);
+            }
+        }
         return output;
     }
 
-    private static long emitCopy(Object outputBase, long tokenAddress, long output, int offset, int matchLength)
+    private static long emitCopy(Object outputBase, long output, int matchOffset, int matchLength)
     {
-        output = encodeOffset(outputBase, output, offset);
-        output = encodeMatchLength(outputBase, tokenAddress, output, matchLength);
+        if (matchOffset > MAX_DISTANCE || matchOffset < 1) {
+            throw new IllegalArgumentException("Unsupported copy offset: " + matchOffset);
+        }
+
+        // lzo encodes matchLength - 2
+        matchLength -= 2;
+
+        if (matchOffset >= (1 << 15)) {
+            // 0b0001_1MMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+            output = encodeMatchLength(outputBase, output, matchLength, 0b0000_0111, 0b0001_1000);
+        }
+        else if (matchOffset > (1 << 14)) {
+            // 0b0001_0MMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+            output = encodeMatchLength(outputBase, output, matchLength, 0b0000_0111, 0b0001_0000);
+        }
+        else {
+            // 0b001M_MMMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+            output = encodeMatchLength(outputBase, output, matchLength, 0b0001_1111, 0b0010_0000);
+
+            // this command encodes matchOffset - 1
+            matchOffset--;
+        }
+
+        output = encodeOffset(outputBase, output, matchOffset);
         return output;
     }
 
     private static long encodeOffset(final Object outputBase, final long outputAddress, final int offset)
     {
-        UNSAFE.putShort(outputBase, outputAddress, (short) offset);
+        UNSAFE.putShort(outputBase, outputAddress, (short) (offset << 2));
         return outputAddress + 2;
     }
 
-    private static long encodeMatchLength(
-            final Object outputBase,
-            final long tokenAddress,
-            final long continuationAddress,
-            final long length)
+    private static long encodeMatchLength(Object outputBase, long output, int matchLength, int baseMatchLength, int command)
     {
-        long output = continuationAddress;
-        if (length >= ML_MASK) {
-            UNSAFE.putByte(outputBase, tokenAddress, (byte) (UNSAFE.getByte(outputBase, tokenAddress) | ML_MASK));
-            long remaining = length - ML_MASK;
-            while (remaining > 509) {
-                UNSAFE.putShort(outputBase, output, (short) 0xFFFF);
+        if (matchLength <= baseMatchLength) {
+            UNSAFE.putByte(outputBase, output++, (byte) (command | matchLength));
+        }
+        else {
+            UNSAFE.putByte(outputBase, output++, (byte) command);
+            long remaining = matchLength - baseMatchLength;
+            while (remaining > 510) {
+                UNSAFE.putShort(outputBase, output, (short) 0);
                 output += SIZE_OF_SHORT;
                 remaining -= 510;
             }
-            if (remaining > 254) {
-                UNSAFE.putByte(outputBase, output++, (byte) 255);
+            if (remaining > 255) {
+                UNSAFE.putByte(outputBase, output++, (byte) 0);
                 remaining -= 255;
             }
             UNSAFE.putByte(outputBase, output++, (byte) remaining);
         }
-        else {
-            UNSAFE.putByte(outputBase, tokenAddress, (byte) (UNSAFE.getByte(outputBase, tokenAddress) | length));
-        }
-
         return output;
     }
 }

@@ -27,8 +27,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.base.Preconditions.checkPositionIndexes;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
 @Guice(modules = TestingModule.class)
@@ -51,6 +51,7 @@ public abstract class AbstractTestCompression
     {
         testCases = new ArrayList<>();
 
+        testCases.add(new DataSet("nothing", new byte[0]));
         testCases.add(new DataSet("short literal", "hello world!".getBytes(UTF_8)));
         testCases.add(new DataSet("small copy", "XXXXabcdabcdABCDABCDwxyzwzyz123".getBytes(UTF_8)));
         testCases.add(new DataSet("long copy", "XXXXabcdefgh abcdefgh abcdefgh abcdefgh abcdefgh abcdefgh ABC".getBytes(UTF_8)));
@@ -273,6 +274,40 @@ public abstract class AbstractTestCompression
         int uncompressedSize = getVerifyDecompressor().decompress(compressed, 0, compressedLength, uncompressed, 0, uncompressed.length);
 
         assertByteArraysEqual(uncompressed, 0, uncompressedSize, originalUncompressed, 0, originalUncompressed.length);
+    }
+
+    @Test
+    public void testRoundTripSmallLiteral()
+            throws Exception
+    {
+        byte[] data = new byte[256];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) i;
+        }
+
+        Compressor compressor = getCompressor();
+        byte[] compressed = new byte[compressor.maxCompressedLength(data.length)];
+        byte[] uncompressed = new byte[data.length];
+
+        for (int i = 1; i < data.length; i++) {
+            try {
+                int written = compressor.compress(
+                        data,
+                        0,
+                        i,
+                        compressed,
+                        0,
+                        compressed.length);
+
+                int decompressedSize = getDecompressor().decompress(compressed, 0, written, uncompressed, 0, uncompressed.length);
+
+                assertByteArraysEqual(data, 0, i, uncompressed, 0, decompressedSize);
+                assertEquals(decompressedSize, i);
+            }
+            catch (MalformedInputException e) {
+                throw new RuntimeException("Failed with " + i + " bytes of input", e);
+            }
+        }
     }
 
     @DataProvider(name = "data")

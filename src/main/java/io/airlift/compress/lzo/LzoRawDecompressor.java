@@ -1,16 +1,28 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.airlift.compress.lzo;
 
 import io.airlift.compress.MalformedInputException;
 
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_INT;
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
+import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
 import static java.lang.Integer.toBinaryString;
 
 public class LzoRawDecompressor
 {
-    private final static int SIZE_OF_SHORT = 2;
-    private final static int SIZE_OF_INT = 4;
-    private final static int SIZE_OF_LONG = 8;
-
     private final static int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
@@ -23,8 +35,9 @@ public class LzoRawDecompressor
             final long outputLimit)
             throws MalformedInputException
     {
+        // nothing compresses to nothing
         if (inputAddress == inputLimit) {
-            throw new MalformedInputException(0, "Input is empty");
+            return 0;
         }
 
         // maximum offset in buffers to which it's safe to write long-at-a-time
@@ -166,8 +179,7 @@ public class LzoRawDecompressor
                     //   [0..13] from trailer [2..15]
                     //   [14] if command bit [3] unset
                     //   [15] if command bit [3] set
-                    // todo mask not needed
-                    matchOffset = (trailer & 0b1111_1111_1111_1100) >> 2;
+                    matchOffset = trailer >> 2;
                     if ((command & 0b1000) == 0) {
                         matchOffset |= 0b0100_0000_0000_0000;
                     }
