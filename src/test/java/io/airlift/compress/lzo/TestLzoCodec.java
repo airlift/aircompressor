@@ -20,6 +20,7 @@ import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
+import io.airlift.compress.benchmark.DataSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 
@@ -59,7 +60,7 @@ public class TestLzoCodec
     }
 
     @Override
-    public void testCompress(AbstractTestCompression.TestCase testCase)
+    public void testCompress(DataSet testCase)
             throws Exception
     {
         // not yet supported

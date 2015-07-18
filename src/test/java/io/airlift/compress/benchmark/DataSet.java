@@ -98,8 +98,14 @@ public class DataSet
         this.name = name;
     }
 
+    public DataSet(String name, byte[] uncompressed)
+    {
+        this.name = name;
+        this.uncompressed = uncompressed;
+    }
+
     @Setup
-    public void setup()
+    public void loadFile()
             throws IOException
     {
         uncompressed = Files.toByteArray(new File("testdata", name));
@@ -111,6 +117,11 @@ public class DataSet
     }
 
     public String getName()
+    {
+        return name;
+    }
+
+    public String toString()
     {
         return name;
     }
