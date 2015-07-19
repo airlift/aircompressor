@@ -6,6 +6,7 @@ import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
+import org.apache.hadoop.io.compress.DoNotPool;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,6 +83,7 @@ public class Lz4Codec
      * No Hadoop code seems to actually use the compressor, so just return a dummy one so the createOutputStream method
      * with a compressor can function.  This interface can be implemented if needed.
      */
+    @DoNotPool
     private static class HadoopLz4Compressor
             implements Compressor
     {
@@ -158,6 +160,7 @@ public class Lz4Codec
      * LZ4 decompress method to resize the output buffer, since the Hadoop block decompressor does not get the uncompressed
      * size.
      */
+    @DoNotPool
     private static class HadoopLz4Decompressor
             implements Decompressor
     {

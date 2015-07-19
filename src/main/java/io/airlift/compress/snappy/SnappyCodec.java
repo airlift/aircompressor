@@ -23,6 +23,7 @@ import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
+import org.apache.hadoop.io.compress.DoNotPool;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -99,6 +100,7 @@ public class SnappyCodec
      * No Hadoop code seems to actually use the compressor, so just return a dummy one so the createOutputStream method
      * with a compressor can function.  This interface can be implemented if needed.
      */
+    @DoNotPool
     private static class HadoopSnappyCompressor
             implements Compressor
     {
@@ -173,6 +175,7 @@ public class SnappyCodec
      * No Hadoop code seems to actually use the decompressor, so just return a dummy one so the createInputStream method
      * with a decompressor can function.  This interface can be implemented if needed.
      */
+    @DoNotPool
     private static class HadoopSnappyDecompressor
             implements Decompressor
     {
