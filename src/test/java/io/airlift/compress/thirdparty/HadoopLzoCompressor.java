@@ -42,7 +42,7 @@ public class HadoopLzoCompressor
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
-        return (int) (uncompressedSize * 1.1);
+        return uncompressedSize + (uncompressedSize / 16) + 64 + 3;
     }
 
     @Override

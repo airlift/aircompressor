@@ -13,50 +13,18 @@
  */
 package io.airlift.compress.lzo;
 
-import com.google.common.base.Throwables;
-import com.hadoop.compression.lzo.LzoCodec;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopNative;
 import io.airlift.compress.benchmark.DataSet;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.compress.Compressor;
-
-import java.io.IOException;
-import java.util.Arrays;
-
-import static org.testng.Assert.assertTrue;
+import io.airlift.compress.thirdparty.HadoopLzoCompressor;
+import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
 
 public class TestLzo
     extends AbstractTestCompression
 {
     static {
         HadoopNative.requireHadoopNative();
-    }
-
-    protected byte[] prepareCompressedData(byte[] uncompressed)
-    {
-        LzoCodec codec = new LzoCodec();
-        codec.setConf(new Configuration());
-        Compressor compressor = codec.createCompressor();
-        compressor.setInput(uncompressed, 0, uncompressed.length);
-        compressor.finish();
-
-        byte[] compressed = new byte[uncompressed.length * 10];
-        int compressedOffset = 0;
-        while (!compressor.finished() && compressedOffset < compressed.length) {
-            try {
-                compressedOffset += compressor.compress(compressed, compressedOffset, compressed.length - compressedOffset);
-            }
-            catch (IOException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-
-        if (!compressor.finished()) {
-            assertTrue(compressor.finished());
-        }
-        return Arrays.copyOf(compressed, compressedOffset);
     }
 
     @Override
@@ -104,5 +72,17 @@ public class TestLzo
     protected Decompressor getDecompressor()
     {
         return new LzoDecompressor();
+    }
+
+    @Override
+    protected io.airlift.compress.Compressor getVerifyCompressor()
+    {
+        return new HadoopLzoCompressor();
+    }
+
+    @Override
+    protected Decompressor getVerifyDecompressor()
+    {
+        return new HadoopLzoDecompressor();
     }
 }

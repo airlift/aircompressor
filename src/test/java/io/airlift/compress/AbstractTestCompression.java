@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Charsets.UTF_8;
@@ -35,10 +36,11 @@ public abstract class AbstractTestCompression
 {
     private List<DataSet> testCases;
 
-    protected abstract byte[] prepareCompressedData(byte[] uncompressed);
-
     protected abstract Compressor getCompressor();
     protected abstract Decompressor getDecompressor();
+
+    protected abstract Compressor getVerifyCompressor();
+    protected abstract Decompressor getVerifyDecompressor();
 
     protected boolean isByteBufferSupported() {
         return true;
@@ -176,11 +178,7 @@ public abstract class AbstractTestCompression
                 0,
                 compressed.length);
 
-        // TODO: validate with "control" decompressor
-        byte[] uncompressed = new byte[originalUncompressed.length];
-        int uncompresseSize = getDecompressor().decompress(compressed, 0, compressedLength, uncompressed, 0, uncompressed.length);
-
-        assertByteArraysEqual(uncompressed, 0, uncompresseSize, originalUncompressed, 0, originalUncompressed.length);
+        verifyCompressedData(originalUncompressed, compressed, compressedLength);
     }
 
     @Test(dataProvider = "data")
@@ -269,6 +267,14 @@ public abstract class AbstractTestCompression
         assertByteBufferEqual(expected.duplicate(), uncompressed);
     }
 
+    private void verifyCompressedData(byte[] originalUncompressed, byte[] compressed, int compressedLength)
+    {
+        byte[] uncompressed = new byte[originalUncompressed.length];
+        int uncompressedSize = getVerifyDecompressor().decompress(compressed, 0, compressedLength, uncompressed, 0, uncompressed.length);
+
+        assertByteArraysEqual(uncompressed, 0, uncompressedSize, originalUncompressed, 0, originalUncompressed.length);
+    }
+
     @DataProvider(name = "data")
     public Object[][] getTestCases()
             throws IOException
@@ -282,7 +288,7 @@ public abstract class AbstractTestCompression
         return result;
     }
 
-    private static void assertByteArraysEqual(byte[] left, int leftOffset, int leftLength, byte[] right, int rightOffset, int rightLength)
+    public static void assertByteArraysEqual(byte[] left, int leftOffset, int leftLength, byte[] right, int rightOffset, int rightLength)
     {
         checkPositionIndexes(leftOffset, leftOffset + leftLength, left.length);
         checkPositionIndexes(rightOffset, rightOffset + rightLength, right.length);
@@ -314,5 +320,22 @@ public abstract class AbstractTestCompression
         ByteBuffer direct = ByteBuffer.allocateDirect(data.length);
         direct.put(data).flip();
         return direct;
+    }
+
+    private byte[] prepareCompressedData(byte[] uncompressed)
+    {
+        Compressor compressor = getVerifyCompressor();
+
+        byte[] compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
+
+        int compressedLength = compressor.compress(
+                uncompressed,
+                0,
+                uncompressed.length,
+                compressed,
+                0,
+                compressed.length);
+
+        return Arrays.copyOf(compressed, compressedLength);
     }
 }

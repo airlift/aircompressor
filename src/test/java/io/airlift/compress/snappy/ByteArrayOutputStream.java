@@ -20,21 +20,14 @@ package io.airlift.compress.snappy;
 import com.google.common.base.Preconditions;
 
 import java.io.OutputStream;
-import java.util.Arrays;
 
 final public class ByteArrayOutputStream
         extends OutputStream
 {
-
     private final byte buffer[];
     private final int initialOffset;
     private final int bufferLimit;
     private int offset;
-
-    public ByteArrayOutputStream(int size)
-    {
-        this(new byte[size]);
-    }
 
     public ByteArrayOutputStream(byte[] buffer)
     {
@@ -49,22 +42,19 @@ final public class ByteArrayOutputStream
         this.offset = offset;
     }
 
+    @Override
     public void write(int b)
     {
         Preconditions.checkPositionIndex(offset + 1, bufferLimit);
         buffer[offset++] = (byte) b;
     }
 
+    @Override
     public void write(byte b[], int off, int len)
     {
         Preconditions.checkPositionIndex(offset + len, bufferLimit);
         System.arraycopy(b, off, buffer, offset, len);
         offset += len;
-    }
-
-    public void reset()
-    {
-        offset = 0;
     }
 
     public int size()
@@ -75,10 +65,5 @@ final public class ByteArrayOutputStream
     public byte[] getBuffer()
     {
         return buffer;
-    }
-
-    public byte[] toByteArray()
-    {
-        return Arrays.copyOfRange(buffer, initialOffset, offset);
     }
 }

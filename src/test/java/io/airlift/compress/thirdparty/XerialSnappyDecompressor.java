@@ -27,7 +27,7 @@ public class XerialSnappyDecompressor
             throws MalformedInputException
     {
         try {
-            return org.xerial.snappy.Snappy.uncompress(input, 0, input.length, output, 0);
+            return org.xerial.snappy.Snappy.uncompress(input, inputOffset, inputLength, output, outputOffset);
         }
         catch (IOException e) {
             throw new RuntimeException(e);

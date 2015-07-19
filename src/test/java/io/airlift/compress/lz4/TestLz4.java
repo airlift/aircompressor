@@ -16,16 +16,12 @@ package io.airlift.compress.lz4;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
-import net.jpountz.lz4.LZ4Factory;
+import io.airlift.compress.thirdparty.JPountzLz4JniCompressor;
+import io.airlift.compress.thirdparty.JPountzLz4JniDecompressor;
 
 public class TestLz4
     extends AbstractTestCompression
 {
-    protected byte[] prepareCompressedData(byte[] uncompressed)
-    {
-        return LZ4Factory.fastestInstance().fastCompressor().compress(uncompressed);
-    }
-
     @Override
     protected Compressor getCompressor()
     {
@@ -36,5 +32,17 @@ public class TestLz4
     protected Decompressor getDecompressor()
     {
         return new Lz4Decompressor();
+    }
+
+    @Override
+    protected Compressor getVerifyCompressor()
+    {
+        return new JPountzLz4JniCompressor();
+    }
+
+    @Override
+    protected Decompressor getVerifyDecompressor()
+    {
+        return new JPountzLz4JniDecompressor();
     }
 }

@@ -32,7 +32,7 @@ public class XerialSnappyCompressor
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
         try {
-            return org.xerial.snappy.Snappy.compress(input, 0, input.length, output, 0);
+            return org.xerial.snappy.Snappy.compress(input, inputOffset, inputLength, output, outputOffset);
         }
         catch (IOException e) {
             throw new RuntimeException(e);

@@ -16,32 +16,12 @@ package io.airlift.compress.snappy;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
-
-import java.io.IOException;
-import java.util.Arrays;
+import io.airlift.compress.thirdparty.XerialSnappyCompressor;
+import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 
 public class TestSnappy
     extends AbstractTestCompression
 {
-    @Override
-    protected byte[] prepareCompressedData(byte[] uncompressed)
-    {
-        try {
-            byte[] compressed = new byte[org.xerial.snappy.Snappy.maxCompressedLength(uncompressed.length)];
-            int compressedSize = org.xerial.snappy.Snappy.compress(
-                    uncompressed,
-                    0,
-                    uncompressed.length,
-                    compressed,
-                    0);
-
-            return Arrays.copyOf(compressed, compressedSize);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @Override
     protected Compressor getCompressor()
     {
@@ -52,5 +32,17 @@ public class TestSnappy
     protected Decompressor getDecompressor()
     {
         return new SnappyDecompressor();
+    }
+
+    @Override
+    protected Compressor getVerifyCompressor()
+    {
+        return new XerialSnappyCompressor();
+    }
+
+    @Override
+    protected Decompressor getVerifyDecompressor()
+    {
+        return new XerialSnappyDecompressor();
     }
 }
