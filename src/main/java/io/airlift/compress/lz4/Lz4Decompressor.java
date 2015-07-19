@@ -76,7 +76,15 @@ public class Lz4Decompressor
             throw new IllegalArgumentException("Unsupported output ByteBuffer implementation " + output.getClass().getName());
         }
 
-        int written = Lz4RawDecompressor.decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
-        output.position(output.position() + written);
+        // HACK: Assure JVM does not collect Slice wrappers while decompressing, since the
+        // collection may trigger freeing of the underlying memory resulting in a segfault
+        // There is no other known way to signal to the JVM that an object should not be
+        // collected in a block, and technically, the JVM is allowed to eliminate these locks.
+        synchronized (input) {
+            synchronized (output) {
+                int written = Lz4RawDecompressor.decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
+                output.position(output.position() + written);
+            }
+        }
     }
 }
