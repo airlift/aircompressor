@@ -1,5 +1,6 @@
 package io.airlift.compress.lz4;
 
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
@@ -12,14 +13,31 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_KEY;
+
 public class Lz4Codec
-        implements CompressionCodec
+        implements Configurable, CompressionCodec
 {
+    private Configuration conf;
+
+    @Override
+    public Configuration getConf()
+    {
+        return conf;
+    }
+
+    @Override
+    public void setConf(Configuration conf)
+    {
+        this.conf = conf;
+    }
+
     @Override
     public CompressionOutputStream createOutputStream(OutputStream out)
             throws IOException
     {
-        return new HadoopLz4OutputStream(out);
+        return new HadoopLz4OutputStream(out, getBufferSize());
     }
 
     @Override
@@ -29,7 +47,7 @@ public class Lz4Codec
         if (!(compressor instanceof HadoopLz4Compressor)) {
             throw new IllegalArgumentException("Compressor is not the LZ4 compressor");
         }
-        return new HadoopLz4OutputStream(out);
+        return new HadoopLz4OutputStream(out, getBufferSize());
     }
 
     @Override
@@ -48,7 +66,7 @@ public class Lz4Codec
     public CompressionInputStream createInputStream(InputStream in)
             throws IOException
     {
-        return new HadoopLz4InputStream(in);
+        return new HadoopLz4InputStream(in, getBufferSize());
     }
 
     @Override
@@ -58,7 +76,7 @@ public class Lz4Codec
         if (!(decompressor instanceof HadoopLz4Decompressor)) {
             throw new IllegalArgumentException("Decompressor is not the LZ4 decompressor");
         }
-        return new HadoopLz4InputStream(in);
+        return new HadoopLz4InputStream(in, getBufferSize());
     }
 
     @Override
@@ -71,6 +89,25 @@ public class Lz4Codec
     public Decompressor createDecompressor()
     {
         return new HadoopLz4Decompressor();
+    }
+
+    private int getBufferSize()
+    {
+        //
+        // To decode a LZ4 block we must preallocate an output buffer, but
+        // the Hadoop block stream format does not include the uncompressed
+        // size of chunks.  Instead, we must rely on the "configured"
+        // maximum buffer size used by the writer of the file.
+        //
+
+        int maxUncompressedLength;
+        if (conf != null) {
+            maxUncompressedLength = conf.getInt(IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_KEY, IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT);
+        }
+        else {
+            maxUncompressedLength = IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT;
+        }
+        return maxUncompressedLength;
     }
 
     @Override

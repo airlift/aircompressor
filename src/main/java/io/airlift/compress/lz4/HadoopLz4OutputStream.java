@@ -9,8 +9,6 @@ import java.util.Arrays;
 class HadoopLz4OutputStream
         extends CompressionOutputStream
 {
-    public static final int DEFAULT_COMPRESSION_BLOCK = 256 * 1024;
-
     private final Lz4Compressor compressor = new Lz4Compressor();
 
     private static final int SIZE_OF_LONG = 8;
@@ -21,17 +19,12 @@ class HadoopLz4OutputStream
 
     private final byte[] outputBuffer;
 
-    public HadoopLz4OutputStream(OutputStream out)
-    {
-        this(out, DEFAULT_COMPRESSION_BLOCK);
-    }
-
     public HadoopLz4OutputStream(OutputStream out, int bufferSize)
     {
         super(out);
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster
-        inputMaxSize = inputBuffer.length - SIZE_OF_LONG;
+        inputMaxSize = inputBuffer.length - compressionOverhead(bufferSize);
         outputBuffer = new byte[compressor.maxCompressedLength(inputMaxSize) + SIZE_OF_LONG];
     }
 
@@ -99,5 +92,10 @@ class HadoopLz4OutputStream
         out.write(value >>> 16);
         out.write(value >>> 8);
         out.write(value);
+    }
+
+    private static int compressionOverhead(int size)
+    {
+        return Math.max((int) (size * 0.01), 10);
     }
 }

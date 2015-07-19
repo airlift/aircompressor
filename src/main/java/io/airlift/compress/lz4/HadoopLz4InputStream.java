@@ -6,51 +6,56 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+
 class HadoopLz4InputStream
         extends CompressionInputStream
 {
     private final Lz4Decompressor decompressor = new Lz4Decompressor();
     private final InputStream in;
+    private final byte[] uncompressedChunk;
 
-    private byte[] uncompressed = new byte[0];
-    private int uncompressedOffset;
-    private int uncompressedLength;
+    private int uncompressedBlockLength;
+    private int uncompressedChunkOffset;
+    private int uncompressedChunkLength;
 
     private byte[] compressed = new byte[0];
 
-    public HadoopLz4InputStream(InputStream in)
+    public HadoopLz4InputStream(InputStream in, int maxUncompressedLength)
             throws IOException
     {
         super(in);
         this.in = in;
+        // over allocate buffer which makes decompression easier
+        uncompressedChunk = new byte[maxUncompressedLength + SIZE_OF_LONG];
     }
 
     @Override
     public int read()
             throws IOException
     {
-        if (uncompressedOffset >= uncompressedLength) {
+        if (uncompressedChunkOffset >= uncompressedChunkLength) {
             readNextChunk();
-            if (uncompressedLength == 0) {
+            if (uncompressedChunkLength == 0) {
                 return -1;
             }
         }
-        return uncompressed[uncompressedOffset--] & 0xFF;
+        return uncompressedChunk[uncompressedChunkOffset--] & 0xFF;
     }
 
     @Override
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
-        if (uncompressedOffset >= uncompressedLength) {
+        if (uncompressedChunkOffset >= uncompressedChunkLength) {
             readNextChunk();
-            if (uncompressedLength == 0) {
+            if (uncompressedChunkLength == 0) {
                 return -1;
             }
         }
-        int size = Math.min(length, uncompressedLength - uncompressedOffset);
-        System.arraycopy(uncompressed, uncompressedOffset, output, offset, size);
-        uncompressedOffset += size;
+        int size = Math.min(length, uncompressedChunkLength - uncompressedChunkOffset);
+        System.arraycopy(uncompressedChunk, uncompressedChunkOffset, output, offset, size);
+        uncompressedChunkOffset += size;
         return size;
     }
 
@@ -58,40 +63,35 @@ class HadoopLz4InputStream
     public void resetState()
             throws IOException
     {
-        throw new UnsupportedOperationException("resetState not supported for LZ4");
+        throw new UnsupportedOperationException("resetState not supported for Lz4");
     }
 
     private void readNextChunk()
             throws IOException
     {
-        uncompressedOffset = 0;
-        do {
-            uncompressedLength = readBigEndianInt();
-            if (uncompressedLength == -1) {
-                uncompressedLength = 0;
+        uncompressedBlockLength -= uncompressedChunkOffset;
+        uncompressedChunkOffset = 0;
+        uncompressedChunkLength = 0;
+        while (uncompressedBlockLength == 0) {
+            uncompressedBlockLength = readBigEndianInt();
+            if (uncompressedBlockLength == -1) {
+                uncompressedBlockLength = 0;
                 return;
             }
-        } while (uncompressedLength == 0);
+        }
 
-        int compressedLength = readBigEndianInt();
-        if (compressedLength == -1) {
-            uncompressedLength = 0;
+        int compressedChunkLength = readBigEndianInt();
+        if (compressedChunkLength == -1) {
             return;
         }
 
-        if (compressed.length < compressedLength) {
-            compressed = new byte[compressedLength];
+        if (compressed.length < compressedChunkLength) {
+            // over allocate buffer which makes decompression easier
+            compressed = new byte[compressedChunkLength + SIZE_OF_LONG];
         }
-        readInput(compressedLength, compressed);
+        readInput(compressedChunkLength, compressed);
 
-        if (uncompressed.length < uncompressedLength) {
-            uncompressed = new byte[uncompressedLength];
-        }
-
-        int bytes = decompressor.decompress(compressed, 0, compressedLength, uncompressed, 0, uncompressed.length);
-        if (uncompressedLength != bytes) {
-            throw new IOException("Expected to read " + uncompressedLength + " bytes, but data only contained " + bytes + " bytes");
-        }
+        uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
     }
 
     private void readInput(int length, byte[] buffer)

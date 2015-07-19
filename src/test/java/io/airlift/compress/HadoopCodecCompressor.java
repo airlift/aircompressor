@@ -1,11 +1,9 @@
 package io.airlift.compress;
 
 import com.google.common.base.Throwables;
-import com.google.common.io.ByteStreams;
 import io.airlift.compress.snappy.ByteArrayOutputStream;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -36,9 +34,8 @@ public class HadoopCodecCompressor
 
         try {
             OutputStream out = codec.createOutputStream(byteArrayOutputStream);
-            ByteStreams.copy(new ByteArrayInputStream(input, inputOffset, inputLength), out);
-            // todo if we write in a single shot, we get multiple blocks and the decoder fails
-//            out.write(input, inputOffset, inputLength);
+            // write in a single shot to cause multiple chunks per block
+            out.write(input, inputOffset, inputLength);
             out.close();
         }
         catch (IOException e) {

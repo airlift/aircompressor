@@ -19,7 +19,6 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopCodecCompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopNative;
-import io.airlift.compress.benchmark.DataSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
@@ -67,16 +66,5 @@ public class TestLz4Codec
     protected Decompressor getVerifyDecompressor()
     {
         return new HadoopCodecDecompressor(verifyCodec);
-    }
-
-    @Override
-    public void testCompress(DataSet testCase)
-            throws Exception
-    {
-        // this test case causes a segfault in the native code.
-        if (testCase.getName().equals("silesia/x-ray")) {
-            return;
-        }
-        super.testCompress(testCase);
     }
 }

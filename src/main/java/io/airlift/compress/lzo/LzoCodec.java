@@ -1,5 +1,7 @@
 package io.airlift.compress.lzo;
 
+import org.apache.hadoop.conf.Configurable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
@@ -11,9 +13,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY;
+
 public class LzoCodec
-        implements CompressionCodec
+        implements Configurable, CompressionCodec
 {
+    // Hadoop has a constant for this, but the LZO codebase uses a different value
+    public static final int LZO_BUFFER_SIZE_DEFAULT = 256 * 1024;
+
+    private Configuration conf;
+
+    @Override
+    public Configuration getConf()
+    {
+        return conf;
+    }
+
+    @Override
+    public void setConf(Configuration conf)
+    {
+        this.conf = conf;
+    }
+
     @Override
     public CompressionOutputStream createOutputStream(OutputStream out)
             throws IOException
@@ -44,7 +65,7 @@ public class LzoCodec
     public CompressionInputStream createInputStream(InputStream in)
             throws IOException
     {
-        return new HadoopLzoInputStream(in);
+        return new HadoopLzoInputStream(in, getBufferSize());
     }
 
     @Override
@@ -54,7 +75,7 @@ public class LzoCodec
         if (!(decompressor instanceof HadoopLzoDecompressor)) {
             throw new IllegalArgumentException("Decompressor is not the LZO decompressor");
         }
-        return new HadoopLzoInputStream(in);
+        return new HadoopLzoInputStream(in, getBufferSize());
     }
 
     @Override
@@ -73,6 +94,25 @@ public class LzoCodec
     public String getDefaultExtension()
     {
         return ".lzo";
+    }
+
+    private int getBufferSize()
+    {
+        //
+        // To decode a LZO block we must preallocate an output buffer, but
+        // the Hadoop block stream format does not include the uncompressed
+        // size of chunks.  Instead, we must rely on the "configured"
+        // maximum buffer size used by the writer of the file.
+        //
+
+        int maxUncompressedLength;
+        if (conf != null) {
+            maxUncompressedLength = conf.getInt(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY, LZO_BUFFER_SIZE_DEFAULT);
+        }
+        else {
+            maxUncompressedLength = LZO_BUFFER_SIZE_DEFAULT;
+        }
+        return maxUncompressedLength;
     }
 
     /**
