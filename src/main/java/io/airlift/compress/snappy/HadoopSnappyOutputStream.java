@@ -4,15 +4,12 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Arrays;
 
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 
 class HadoopSnappyOutputStream
         extends CompressionOutputStream
 {
-    public static final int DEFAULT_COMPRESSION_BLOCK = 256 * 1024;
-
     private final SnappyCompressor compressor = new SnappyCompressor();
 
     private final byte[] inputBuffer;
@@ -21,17 +18,12 @@ class HadoopSnappyOutputStream
 
     private final byte[] outputBuffer;
 
-    public HadoopSnappyOutputStream(OutputStream out)
-    {
-        this(out, DEFAULT_COMPRESSION_BLOCK);
-    }
-
     public HadoopSnappyOutputStream(OutputStream out, int bufferSize)
     {
         super(out);
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster
-        inputMaxSize = inputBuffer.length - SIZE_OF_LONG;
+        inputMaxSize = inputBuffer.length - compressionOverhead(bufferSize);
         outputBuffer = new byte[compressor.maxCompressedLength(inputMaxSize) + SIZE_OF_LONG];
     }
 
@@ -41,7 +33,7 @@ class HadoopSnappyOutputStream
     {
         inputBuffer[inputOffset++] = (byte) b;
         if (inputOffset >= inputMaxSize) {
-            writeNextChunk();
+            writeNextChunk(inputBuffer, 0, this.inputOffset);
         }
     }
 
@@ -51,14 +43,20 @@ class HadoopSnappyOutputStream
     {
         while (length > 0) {
             int chunkSize = Math.min(length, inputMaxSize - inputOffset);
+            // favor writing directly from the user buffer to avoid the extra copy
+            if (inputOffset == 0 && length > inputMaxSize) {
+                writeNextChunk(buffer, offset, chunkSize);
+            }
+            else {
             System.arraycopy(buffer, offset, inputBuffer, inputOffset, chunkSize);
             inputOffset += chunkSize;
+
+                if (inputOffset >= inputMaxSize) {
+                    writeNextChunk(inputBuffer, 0, inputOffset);
+                }
+            }
             length -= chunkSize;
             offset += chunkSize;
-
-            if (inputOffset >= inputMaxSize) {
-                writeNextChunk();
-            }
         }
     }
 
@@ -67,7 +65,7 @@ class HadoopSnappyOutputStream
             throws IOException
     {
         if (inputOffset > 0) {
-            writeNextChunk();
+            writeNextChunk(inputBuffer, 0, this.inputOffset);
         }
     }
 
@@ -78,18 +76,16 @@ class HadoopSnappyOutputStream
         finish();
     }
 
-    private void writeNextChunk()
+    private void writeNextChunk(byte[] input, int inputOffset, int inputLength)
             throws IOException
     {
-        int compressedSize = compressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0, outputBuffer.length);
+        int compressedSize = compressor.compress(input, inputOffset, inputLength, outputBuffer, 0, outputBuffer.length);
 
-        writeBigEndianInt(inputOffset);
+        writeBigEndianInt(inputLength);
         writeBigEndianInt(compressedSize);
         out.write(outputBuffer, 0, compressedSize);
 
-        inputOffset = 0;
-        Arrays.fill(inputBuffer, (byte) 0);
-        Arrays.fill(outputBuffer, (byte) 0);
+        this.inputOffset = 0;
     }
 
     private void writeBigEndianInt(int value)
@@ -99,5 +95,10 @@ class HadoopSnappyOutputStream
         out.write(value >>> 16);
         out.write(value >>> 8);
         out.write(value);
+    }
+
+    private static int compressionOverhead(int size)
+    {
+        return (size / 6) + 32;
     }
 }

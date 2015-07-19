@@ -34,11 +34,12 @@ class HadoopLz4InputStream
     public int read()
             throws IOException
     {
-        if (uncompressedChunkOffset >= uncompressedChunkLength) {
-            readNextChunk();
-            if (uncompressedChunkLength == 0) {
+        while (uncompressedChunkOffset >= uncompressedChunkLength) {
+            int compressedChunkLength = bufferCompressedData();
+            if (compressedChunkLength < 0) {
                 return -1;
             }
+            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         return uncompressedChunk[uncompressedChunkOffset--] & 0xFF;
     }
@@ -47,11 +48,20 @@ class HadoopLz4InputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
-        if (uncompressedChunkOffset >= uncompressedChunkLength) {
-            readNextChunk();
-            if (uncompressedChunkLength == 0) {
+        while (uncompressedChunkOffset >= uncompressedChunkLength) {
+            int compressedChunkLength = bufferCompressedData();
+            if (compressedChunkLength < 0) {
                 return -1;
             }
+
+            // favor writing directly to user buffer to avoid extra copy
+            if (length >= uncompressedBlockLength) {
+                uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, output, offset, length);
+                uncompressedChunkOffset = uncompressedChunkLength;
+                return uncompressedChunkLength;
+            }
+
+            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         int size = Math.min(length, uncompressedChunkLength - uncompressedChunkOffset);
         System.arraycopy(uncompressedChunk, uncompressedChunkOffset, output, offset, size);
@@ -66,7 +76,7 @@ class HadoopLz4InputStream
         throw new UnsupportedOperationException("resetState not supported for Lz4");
     }
 
-    private void readNextChunk()
+    private int bufferCompressedData()
             throws IOException
     {
         uncompressedBlockLength -= uncompressedChunkOffset;
@@ -76,13 +86,13 @@ class HadoopLz4InputStream
             uncompressedBlockLength = readBigEndianInt();
             if (uncompressedBlockLength == -1) {
                 uncompressedBlockLength = 0;
-                return;
+                return -1;
             }
         }
 
         int compressedChunkLength = readBigEndianInt();
         if (compressedChunkLength == -1) {
-            return;
+            return -1;
         }
 
         if (compressed.length < compressedChunkLength) {
@@ -90,8 +100,7 @@ class HadoopLz4InputStream
             compressed = new byte[compressedChunkLength + SIZE_OF_LONG];
         }
         readInput(compressedChunkLength, compressed);
-
-        uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
+        return compressedChunkLength;
     }
 
     private void readInput(int length, byte[] buffer)

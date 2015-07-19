@@ -33,7 +33,7 @@ class HadoopSnappyInputStream
             throws IOException
     {
         if (uncompressedChunkOffset >= uncompressedChunkLength) {
-            readNextChunk();
+            readNextChunk(uncompressedChunk, 0, uncompressedChunk.length);
             if (uncompressedChunkLength == 0) {
                 return -1;
             }
@@ -46,9 +46,13 @@ class HadoopSnappyInputStream
             throws IOException
     {
         if (uncompressedChunkOffset >= uncompressedChunkLength) {
-            readNextChunk();
+            boolean directDecompress = readNextChunk(output, offset, length);
             if (uncompressedChunkLength == 0) {
                 return -1;
+            }
+            if (directDecompress) {
+                uncompressedChunkOffset += uncompressedChunkLength;
+                return uncompressedChunkLength;
             }
         }
         int size = Math.min(length, uncompressedChunkLength - uncompressedChunkOffset);
@@ -64,7 +68,7 @@ class HadoopSnappyInputStream
         throw new UnsupportedOperationException("resetState not supported for Snappy");
     }
 
-    private void readNextChunk()
+    private boolean readNextChunk(byte[] userBuffer, int userOffset, int userLength)
             throws IOException
     {
         uncompressedBlockLength -= uncompressedChunkOffset;
@@ -74,13 +78,13 @@ class HadoopSnappyInputStream
             uncompressedBlockLength = readBigEndianInt();
             if (uncompressedBlockLength == -1) {
                 uncompressedBlockLength = 0;
-                return;
+                return false;
             }
         }
 
         int compressedChunkLength = readBigEndianInt();
         if (compressedChunkLength == -1) {
-            return;
+            return false;
         }
 
         if (compressed.length < compressedChunkLength) {
@@ -93,15 +97,24 @@ class HadoopSnappyInputStream
         if (uncompressedChunkLength > uncompressedBlockLength) {
             throw new IOException("Chunk uncompressed size is greater than block size");
         }
-        if (uncompressedChunk.length < uncompressedChunkLength) {
-            // over allocate buffer which makes decompression easier
-            uncompressedChunk = new byte[uncompressedChunkLength + SIZE_OF_LONG];
+
+        boolean directUncompress = true;
+        if (uncompressedChunkLength > userLength) {
+            if (uncompressedChunk.length < uncompressedChunkLength) {
+                // over allocate buffer which makes decompression easier
+                uncompressedChunk = new byte[uncompressedChunkLength + SIZE_OF_LONG];
+            }
+            directUncompress = false;
+            userBuffer = uncompressedChunk;
+            userOffset = 0;
+            userLength = uncompressedChunk.length;
         }
 
-        int bytes = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunkLength);
+        int bytes = decompressor.decompress(compressed, 0, compressedChunkLength, userBuffer, userOffset, userLength);
         if (uncompressedChunkLength != bytes) {
             throw new IOException("Expected to read " + uncompressedChunkLength + " bytes, but data only contained " + bytes + " bytes");
         }
+        return directUncompress;
     }
 
     private void readInput(int length, byte[] buffer)

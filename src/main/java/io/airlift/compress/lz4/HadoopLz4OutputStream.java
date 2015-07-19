@@ -4,7 +4,6 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Arrays;
 
 class HadoopLz4OutputStream
         extends CompressionOutputStream
@@ -34,7 +33,7 @@ class HadoopLz4OutputStream
     {
         inputBuffer[inputOffset++] = (byte) b;
         if (inputOffset >= inputMaxSize) {
-            writeNextChunk();
+            writeNextChunk(inputBuffer, 0, this.inputOffset);
         }
     }
 
@@ -44,14 +43,20 @@ class HadoopLz4OutputStream
     {
         while (length > 0) {
             int chunkSize = Math.min(length, inputMaxSize - inputOffset);
-            System.arraycopy(buffer, offset, inputBuffer, inputOffset, chunkSize);
-            inputOffset += chunkSize;
+            // favor writing directly from the user buffer to avoid the extra copy
+            if (inputOffset == 0 && length > inputMaxSize) {
+                writeNextChunk(buffer, offset, chunkSize);
+            }
+            else {
+                System.arraycopy(buffer, offset, inputBuffer, inputOffset, chunkSize);
+                inputOffset += chunkSize;
+
+                if (inputOffset >= inputMaxSize) {
+                    writeNextChunk(inputBuffer, 0, inputOffset);
+                }
+            }
             length -= chunkSize;
             offset += chunkSize;
-
-            if (inputOffset >= inputMaxSize) {
-                writeNextChunk();
-            }
         }
     }
 
@@ -60,7 +65,7 @@ class HadoopLz4OutputStream
             throws IOException
     {
         if (inputOffset > 0) {
-            writeNextChunk();
+            writeNextChunk(inputBuffer, 0, this.inputOffset);
         }
     }
 
@@ -71,18 +76,16 @@ class HadoopLz4OutputStream
         finish();
     }
 
-    private void writeNextChunk()
+    private void writeNextChunk(byte[] input, int inputOffset, int inputLength)
             throws IOException
     {
-        int compressedSize = compressor.compress(inputBuffer, 0, inputOffset, outputBuffer, 0, outputBuffer.length);
+        int compressedSize = compressor.compress(input, inputOffset, inputLength, outputBuffer, 0, outputBuffer.length);
 
-        writeBigEndianInt(inputOffset);
+        writeBigEndianInt(inputLength);
         writeBigEndianInt(compressedSize);
         out.write(outputBuffer, 0, compressedSize);
 
-        inputOffset = 0;
-        Arrays.fill(inputBuffer, (byte) 0);
-        Arrays.fill(outputBuffer, (byte) 0);
+        this.inputOffset = 0;
     }
 
     private void writeBigEndianInt(int value)

@@ -17,6 +17,7 @@
  */
 package io.airlift.compress.snappy;
 
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
@@ -29,14 +30,31 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_DEFAULT;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_KEY;
+
 public class SnappyCodec
-        implements CompressionCodec
+        implements Configurable, CompressionCodec
 {
+    private Configuration conf;
+
+    @Override
+    public Configuration getConf()
+    {
+        return conf;
+    }
+
+    @Override
+    public void setConf(Configuration conf)
+    {
+        this.conf = conf;
+    }
+
     @Override
     public CompressionOutputStream createOutputStream(OutputStream outputStream)
             throws IOException
     {
-        return new HadoopSnappyOutputStream(outputStream);
+        return new HadoopSnappyOutputStream(outputStream, getBufferSize());
     }
 
     @Override
@@ -46,7 +64,7 @@ public class SnappyCodec
         if (!(compressor instanceof HadoopSnappyCompressor)) {
             throw new IllegalArgumentException("Compressor is not the Snappy decompressor");
         }
-        return new HadoopSnappyOutputStream(outputStream);
+        return new HadoopSnappyOutputStream(outputStream, getBufferSize());
     }
 
     @Override
@@ -94,6 +112,21 @@ public class SnappyCodec
     public String getDefaultExtension()
     {
         return ".snappy";
+    }
+
+    private int getBufferSize()
+    {
+        // Favor using the configured buffer size.  This is not as critical for Snappy
+        // since Snappy always writes the compressed chunk size, so we always know the
+        // correct buffer size to create.
+        int maxUncompressedLength;
+        if (conf != null) {
+            maxUncompressedLength = conf.getInt(IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_KEY, IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_DEFAULT);
+        }
+        else {
+            maxUncompressedLength = IO_COMPRESSION_CODEC_SNAPPY_BUFFERSIZE_DEFAULT;
+        }
+        return maxUncompressedLength;
     }
 
     /**
