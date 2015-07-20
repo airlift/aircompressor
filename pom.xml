@@ -40,6 +40,7 @@
     <properties>
         <project.build.targetJdk>1.7</project.build.targetJdk>
         <air.check.skip-extended>true</air.check.skip-extended>
+        <air.check.skip-license>false</air.check.skip-license>
         <air.test.jvmsize>2G</air.test.jvmsize>
     </properties>
 
