@@ -5,12 +5,12 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+
 class HadoopLz4OutputStream
         extends CompressionOutputStream
 {
     private final Lz4Compressor compressor = new Lz4Compressor();
-
-    private static final int SIZE_OF_LONG = 8;
 
     private final byte[] inputBuffer;
     private final int inputMaxSize;

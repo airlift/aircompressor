@@ -53,13 +53,13 @@ public class Lz4Codec
     @Override
     public Class<? extends Compressor> getCompressorType()
     {
-        throw new UnsupportedOperationException("LZ4 compression not supported");
+        return HadoopLz4Compressor.class;
     }
 
     @Override
     public Compressor createCompressor()
     {
-        throw new UnsupportedOperationException("LZ4 compression not supported");
+        return new HadoopLz4Compressor();
     }
 
     @Override
@@ -91,6 +91,12 @@ public class Lz4Codec
         return new HadoopLz4Decompressor();
     }
 
+    @Override
+    public String getDefaultExtension()
+    {
+        return ".lz4";
+    }
+
     private int getBufferSize()
     {
         //
@@ -108,12 +114,6 @@ public class Lz4Codec
             maxUncompressedLength = IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT;
         }
         return maxUncompressedLength;
-    }
-
-    @Override
-    public String getDefaultExtension()
-    {
-        return ".lz4";
     }
 
     /**
