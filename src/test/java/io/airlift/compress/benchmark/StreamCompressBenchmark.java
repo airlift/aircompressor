@@ -17,6 +17,7 @@ import com.google.common.io.Files;
 import io.airlift.compress.HadoopNative;
 import io.airlift.compress.Util;
 import io.airlift.compress.lz4.Lz4Codec;
+import io.airlift.compress.lzo.LzoCodec;
 import io.airlift.compress.snappy.ByteArrayOutputStream;
 import io.airlift.compress.snappy.SnappyCodec;
 import org.apache.hadoop.conf.Configuration;
@@ -69,6 +70,10 @@ public class StreamCompressBenchmark
     private final Lz4Codec airliftLz4Codec = new Lz4Codec();
     private org.apache.hadoop.io.compress.Lz4Codec hadoopLz4Codec;
 
+    private byte[] streamCompressLzo;
+    private final LzoCodec airliftLzoCodec = new LzoCodec();
+    private com.hadoop.compression.lzo.LzoCodec hadoopLzoCodec;
+
     @Setup
     public void prepare()
             throws IOException
@@ -85,6 +90,11 @@ public class StreamCompressBenchmark
         streamCompressLz4 = new byte[(int) (data.length * 1.1) + 8];
         hadoopLz4Codec = new org.apache.hadoop.io.compress.Lz4Codec();
         hadoopLz4Codec.setConf(HADOOP_CONF);
+
+        // assume stream code will not add more that 10% overhead
+        streamCompressLzo = new byte[(int) (data.length * 1.1) + 8];
+        hadoopLzoCodec = new com.hadoop.compression.lzo.LzoCodec();
+        hadoopLzoCodec.setConf(HADOOP_CONF);
     }
 
     /**
@@ -125,6 +135,20 @@ public class StreamCompressBenchmark
         if (!Arrays.equals(data, uncompressedBytes)) {
             throw new IllegalStateException("broken decompressor: stream hadoop lz4");
         }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        written = streamAirliftLzo(new BytesCounter());
+        hadoopDecompress(airliftLzoCodec, streamCompressLzo, 0, written);
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: stream airlift lzo");
+        }
+
+        Arrays.fill(uncompressedBytes, (byte) 0);
+        written = streamHadoopLzo(new BytesCounter());
+        hadoopDecompress(hadoopLzoCodec, streamCompressLzo, 0, written);
+        if (!Arrays.equals(data, uncompressedBytes)) {
+            throw new IllegalStateException("broken decompressor: stream hadoop lzo");
+        }
     }
 
     private static byte[] getUncompressedData()
@@ -145,6 +169,20 @@ public class StreamCompressBenchmark
             throws IOException
     {
         return streamHadoop(counter, hadoopLz4Codec, streamCompressLz4);
+    }
+
+    @Benchmark
+    public int streamAirliftLzo(BytesCounter counter)
+            throws IOException
+    {
+        return streamHadoop(counter, airliftLzoCodec, streamCompressLzo);
+    }
+
+    @Benchmark
+    public int streamHadoopLzo(BytesCounter counter)
+            throws IOException
+    {
+        return streamHadoop(counter, hadoopLzoCodec, streamCompressLzo);
     }
 
     @Benchmark
