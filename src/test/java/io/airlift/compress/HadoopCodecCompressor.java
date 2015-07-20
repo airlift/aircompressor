@@ -24,7 +24,7 @@ public class HadoopCodecCompressor
     public int maxCompressedLength(int uncompressedSize)
     {
         // assume hadoop stream encoder won't increase size by more than 10% over the block encoder
-        return (int) ((blockCompressorForSizeCalculation.maxCompressedLength(uncompressedSize) + 1.1) + 8);
+        return (int) ((blockCompressorForSizeCalculation.maxCompressedLength(uncompressedSize) * 1.1) + 8);
     }
 
     @Override
