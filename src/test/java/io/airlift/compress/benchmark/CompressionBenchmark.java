@@ -13,14 +13,13 @@
  */
 package io.airlift.compress.benchmark;
 
-import io.airlift.compress.Algorithm;
 import io.airlift.compress.Compressor;
+import io.airlift.compress.Decompressor;
 import io.airlift.compress.Util;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -33,6 +32,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.util.Statistics;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -41,35 +41,46 @@ import java.util.concurrent.TimeUnit;
 @Measurement(iterations = 10)
 @Warmup(iterations = 5)
 @Fork(3)
-public class BlockCompressBenchmark
+public class CompressionBenchmark
 {
-    @Param({
-            "airlift_lz4",
-            "airlift_lzo",
-            "airlift_snappy",
-            "xerial_snappy",
-            "jpountz_lz4_jni"
-    })
-    private Algorithm algorithm;
-
     private Compressor compressor;
+    private Decompressor decompressor;
 
-    private byte[] compressed;
     private byte[] uncompressed;
+    private byte[] compressed;
+
+    private byte[] compressTarget;
+    private byte[] uncompressTarget;
 
     @Setup
-    public void setup(DataSet data)
+    public void setup(BenchmarkAlgorithm benchmarkAlgorithm, DataSet data)
             throws IOException
     {
         uncompressed = data.getUncompressed();
-        compressor = algorithm.getCompressor();
+
+        compressor = benchmarkAlgorithm.getAlgorithm().getCompressor();
+        compressTarget = new byte[compressor.maxCompressedLength(uncompressed.length)];
+
+        decompressor = benchmarkAlgorithm.getAlgorithm().getDecompressor();
+        Compressor compressor = benchmarkAlgorithm.getAlgorithm().getCompressor();
         compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
+        int compressedLength = compressor.compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
+        compressed = Arrays.copyOf(compressed, compressedLength);
+        uncompressTarget = new byte[uncompressed.length];
     }
 
     @Benchmark
-    public int blockCompress(BytesCounter counter)
+    public int compress(BytesCounter counter)
     {
-        int written = compressor.compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
+        int written = compressor.compress(uncompressed, 0, uncompressed.length, compressTarget, 0, compressTarget.length);
+        counter.add(uncompressed.length);
+        return written;
+    }
+
+    @Benchmark
+    public int decompress(BytesCounter counter)
+    {
+        int written = decompressor.decompress(compressed, 0, compressed.length, uncompressTarget, 0, uncompressTarget.length);
         counter.add(uncompressed.length);
         return written;
     }
@@ -78,14 +89,15 @@ public class BlockCompressBenchmark
             throws RunnerException
     {
         Options opt = new OptionsBuilder()
-                .include(".*\\." + BlockCompressBenchmark.class.getSimpleName() + ".*")
+                .include(".*\\." + CompressionBenchmark.class.getSimpleName() + ".*")
                 .build();
 
         Collection<RunResult> results = new Runner(opt).run();
 
         for (RunResult result : results) {
             Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
-            System.out.printf("  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+            System.out.printf("  %-10s  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+                    result.getPrimaryResult().getLabel(),
                     result.getParams().getParam("algorithm"),
                     result.getParams().getParam("name"),
                     Util.toHumanReadableSpeed((long) stats.getMean()),
