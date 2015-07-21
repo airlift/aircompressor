@@ -37,12 +37,15 @@ public abstract class AbstractTestCompression
     private List<DataSet> testCases;
 
     protected abstract Compressor getCompressor();
+
     protected abstract Decompressor getDecompressor();
 
     protected abstract Compressor getVerifyCompressor();
+
     protected abstract Decompressor getVerifyDecompressor();
 
-    protected boolean isByteBufferSupported() {
+    protected boolean isByteBufferSupported()
+    {
         return true;
     }
 

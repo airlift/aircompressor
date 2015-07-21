@@ -15,7 +15,6 @@ package io.airlift.compress.snappy;
 
 import java.util.zip.Checksum;
 
-
 /**
  * A pure-java implementation of the CRC32 checksum that uses
  * the CRC32-C polynomial, the same polynomial used by iSCSI
@@ -83,17 +82,20 @@ class Crc32C implements Checksum
         return ~crc;
     }
 
+    @Override
     public long getValue()
     {
         long ret = crc;
         return (~ret) & 0xffffffffL;
     }
 
+    @Override
     public void reset()
     {
         crc = 0xffffffff;
     }
 
+    @Override
     public void update(byte[] b, int off, int len)
     {
         int localCrc = crc;

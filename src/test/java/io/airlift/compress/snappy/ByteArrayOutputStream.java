@@ -13,14 +13,14 @@
  */
 package io.airlift.compress.snappy;
 
-import com.google.common.base.Preconditions;
-
 import java.io.OutputStream;
 
-final public class ByteArrayOutputStream
+import static com.google.common.base.Preconditions.checkPositionIndex;
+
+public final class ByteArrayOutputStream
         extends OutputStream
 {
-    private final byte buffer[];
+    private final byte[] buffer;
     private final int initialOffset;
     private final int bufferLimit;
     private int offset;
@@ -39,18 +39,18 @@ final public class ByteArrayOutputStream
     }
 
     @Override
-    public void write(int b)
+    public void write(int value)
     {
-        Preconditions.checkPositionIndex(offset + 1, bufferLimit);
-        buffer[offset++] = (byte) b;
+        checkPositionIndex(offset + 1, bufferLimit);
+        buffer[offset++] = (byte) value;
     }
 
     @Override
-    public void write(byte b[], int off, int len)
+    public void write(byte[] buffer, int offset, int length)
     {
-        Preconditions.checkPositionIndex(offset + len, bufferLimit);
-        System.arraycopy(b, off, buffer, offset, len);
-        offset += len;
+        checkPositionIndex(this.offset + length, bufferLimit);
+        System.arraycopy(buffer, offset, this.buffer, this.offset, length);
+        this.offset += length;
     }
 
     public int size()

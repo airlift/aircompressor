@@ -140,8 +140,7 @@ public class TestSnappyStream
                 uncompressBlock(new byte[] {(byte) i, 5, 0, 0, 0, 0, 0, 0, 0});
                 fail("no exception thrown with flag: " + Integer.toHexString(i));
             }
-            catch (IOException e) {
-
+            catch (IOException expected) {
             }
         }
     }

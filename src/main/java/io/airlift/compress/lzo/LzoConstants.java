@@ -13,9 +13,11 @@
  */
 package io.airlift.compress.lzo;
 
-class LzoConstants
+final class LzoConstants
 {
     public static final int SIZE_OF_SHORT = 2;
     public static final int SIZE_OF_INT = 4;
     public static final int SIZE_OF_LONG = 8;
+
+    private LzoConstants() {}
 }

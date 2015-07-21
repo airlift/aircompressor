@@ -26,4 +26,3 @@ public interface Compressor
 
     void compress(ByteBuffer input, ByteBuffer output);
 }
-

@@ -22,8 +22,10 @@ import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
 
 public final class SnappyRawDecompressor
 {
-    private final static int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
-    private final static int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
+    private static final int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
+    private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
+
+    private SnappyRawDecompressor() {}
 
     public static int getUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
     {

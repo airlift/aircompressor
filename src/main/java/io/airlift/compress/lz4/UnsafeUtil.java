@@ -21,6 +21,8 @@ final class UnsafeUtil
 {
     public static final Unsafe UNSAFE;
 
+    private UnsafeUtil() {}
+
     static {
         try {
             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");

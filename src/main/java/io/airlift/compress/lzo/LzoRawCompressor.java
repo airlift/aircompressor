@@ -32,7 +32,7 @@ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
 
-public class LzoRawCompressor
+public final class LzoRawCompressor
 {
     public static final int LAST_LITERAL_SIZE = 5;
     public static final int MIN_MATCH = 4;
@@ -58,6 +58,8 @@ public class LzoRawCompressor
     private static final int MAX_DISTANCE = 0b1100_0000_0000_0000 - 1;
 
     private static final int SKIP_TRIGGER = 6;  /* Increase this value ==> compression run slower on incompressible data */
+
+    private LzoRawCompressor() {}
 
     private static int hash(long value)
     {
