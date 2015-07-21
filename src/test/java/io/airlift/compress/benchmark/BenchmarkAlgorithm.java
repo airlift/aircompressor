@@ -25,12 +25,15 @@ public class BenchmarkAlgorithm
             "airlift_lz4",
             "airlift_lzo",
             "airlift_snappy",
+
             "xerial_snappy",
             "jpountz_lz4_jni",
+            "hadoop_lzo",
 
             "airlift_lz4_stream",
             "airlift_lzo_stream",
             "airlift_snappy_stream",
+
             "hadoop_lz4_stream",
             "hadoop_lzo_stream",
             "hadoop_snappy_stream",

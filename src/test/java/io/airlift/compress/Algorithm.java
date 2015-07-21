@@ -37,12 +37,15 @@ public enum Algorithm
     airlift_lz4(new Lz4Decompressor(), new Lz4Compressor()),
     airlift_snappy(new SnappyDecompressor(), new SnappyCompressor()),
     airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
+
     airlift_lz4_stream(new Lz4Codec(), new Lz4Compressor()),
     airlift_snappy_stream(new SnappyCodec(), new SnappyCompressor()),
     airlift_lzo_stream(new LzoCodec(), new LzoCompressor()),
+
     jpountz_lz4_jni(new JPountzLz4JniDecompressor(), new JPountzLz4JniCompressor()),
     xerial_snappy(new XerialSnappyDecompressor(), new XerialSnappyCompressor()),
     hadoop_lzo(new HadoopLzoDecompressor(), new HadoopLzoCompressor()),
+
     hadoop_lz4_stream(new org.apache.hadoop.io.compress.Lz4Codec(), new Lz4Compressor()),
     hadoop_snappy_stream(new org.apache.hadoop.io.compress.SnappyCodec(), new SnappyCompressor()),
     hadoop_lzo_stream(new org.anarres.lzo.hadoop.codec.LzoCodec(), new LzoCompressor());

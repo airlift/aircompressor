@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.benchmark;
 
+import io.airlift.compress.Algorithm;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.Util;
@@ -96,15 +97,34 @@ public class CompressionBenchmark
 
         for (RunResult result : results) {
             Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
-            System.out.printf("  %-10s  %-15s  %-10s  %10s ± %10s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
+            String algorithm = result.getParams().getParam("algorithm");
+            String name = result.getParams().getParam("name");
+            int compressSize = compressSize(algorithm, name);
+            System.out.printf("  %-10s  %-22s  %-25s  %,11d  %10s ± %11s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
                     result.getPrimaryResult().getLabel(),
-                    result.getParams().getParam("algorithm"),
-                    result.getParams().getParam("name"),
+                    algorithm,
+                    name,
+                    compressSize,
                     Util.toHumanReadableSpeed((long) stats.getMean()),
                     Util.toHumanReadableSpeed((long) stats.getMeanErrorAt(0.999)),
                     stats.getMeanErrorAt(0.999) * 100 / stats.getMean(),
                     stats.getN());
         }
         System.out.println();
+    }
+
+    private static int compressSize(String algorithmName, String name)
+    {
+        try {
+            Compressor compressor = Algorithm.valueOf(algorithmName).getCompressor();
+            DataSet dataSet = new DataSet(name);
+            dataSet.loadFile();
+            byte[] uncompressed = dataSet.getUncompressed();
+            byte[] compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
+            return compressor.compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
+        }
+        catch (Exception e) {
+            return -1;
+        }
     }
 }
