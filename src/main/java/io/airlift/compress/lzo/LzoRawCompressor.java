@@ -105,98 +105,78 @@ public final class LzoRawCompressor
             return (int) (output - outputAddress);
         }
 
-        long anchor = input;
-
-        // First Byte
-        // put position in hash
+        // record first position in hash
         table[hash(UNSAFE.getLong(inputBase, input))] = (int) (input - inputAddress);
 
-        input++;
-        int nextHash = hash(UNSAFE.getLong(inputBase, input));
-
-        boolean done = false;
+        long anchor = input;
         boolean firstLiteral = true;
-        do {
-            long nextInputIndex = input;
-            int findMatchAttempts = 1 << SKIP_TRIGGER;
-            int step = 1;
-
+        while (true) {
             // find 4-byte match
             long matchIndex;
-            do {
-                int hash = nextHash;
-                input = nextInputIndex;
-                nextInputIndex += step;
 
-                step = (findMatchAttempts++) >>> SKIP_TRIGGER;
-
-                if (nextInputIndex > matchFindLimit) {
-                    output = emitLastLiteral(firstLiteral, outputBase, output, inputBase, anchor, inputLimit - anchor);
-                    return (int) (output - outputAddress);
+            int findMatchAttempts = 1 << SKIP_TRIGGER;
+            int step = 1;
+            input++;
+            while (true) {
+                long nextInput = input + step;
+                if (nextInput > matchFindLimit) {
+                    return (int) (emitLastLiteral(firstLiteral, outputBase, output, inputBase, anchor, inputLimit - anchor) - outputAddress);
                 }
 
-                // get position on hash
-                matchIndex = inputAddress + table[hash];
-                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex));
+                matchIndex = computeMatchAndUpdateTable(inputBase, inputAddress, input, table);
 
-                // put position on hash
-                table[hash] = (int) (input - inputAddress);
+                if (UNSAFE.getInt(inputBase, matchIndex) == UNSAFE.getInt(inputBase, input) && matchIndex >= input - MAX_DISTANCE) {
+                    break;
+                }
+
+                step = (findMatchAttempts++) >>> SKIP_TRIGGER;
+                input = nextInput;
             }
-            while (UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input) || matchIndex + MAX_DISTANCE < input);
 
-            // catch up
+            // see if we can find a longer match
             while ((input > anchor) && (matchIndex > inputAddress) && (UNSAFE.getByte(inputBase, input - 1) == UNSAFE.getByte(inputBase, matchIndex - 1))) {
                 --input;
                 --matchIndex;
             }
 
-            int literalLength = (int) (input - anchor);
-
-            output = emitLiteral(firstLiteral, inputBase, anchor, outputBase, output, literalLength);
+            output = emitLiteral(firstLiteral, inputBase, anchor, outputBase, output, (int) (input - anchor));
             firstLiteral = false;
 
             // next match
             while (true) {
-                int offset = (int) (input - matchIndex);
+                int matchLength = count(inputBase, input + MIN_MATCH, matchIndex + MIN_MATCH, matchLimit);
+                output = emitCopy(outputBase, output, (int) (input - matchIndex), matchLength + MIN_MATCH);
+                input += matchLength + MIN_MATCH;
 
-                // find match length
-                input += MIN_MATCH;
-                int matchLength = count(inputBase, input, matchIndex + MIN_MATCH, matchLimit);
-                input += matchLength;
-
-                // write copy command
-                output = emitCopy(outputBase, output, offset, matchLength + MIN_MATCH);
-                anchor = input;
-
-                // are we done?
                 if (input > matchFindLimit) {
-                    done = true;
-                    break;
+                    output = emitLastLiteral(false, outputBase, output, inputBase, input, inputLimit - input);
+                    return (int) (output - outputAddress);
                 }
 
+                anchor = input;
+
+                // update table to improve chances of matching
                 long position = input - 2;
                 table[hash(UNSAFE.getLong(inputBase, position))] = (int) (position - inputAddress);
 
-                // Test next position
-                int hash = hash(UNSAFE.getLong(inputBase, input));
-                matchIndex = inputAddress + table[hash];
-                table[hash] = (int) (input - inputAddress);
+                // try another match at current position. This is, effectively, one iteration of the matching
+                // loop at the top, with a literal of length 0
+                matchIndex = computeMatchAndUpdateTable(inputBase, inputAddress, input, table);
 
-                if (matchIndex + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input)) {
-                    input++;
-                    nextHash = hash(UNSAFE.getLong(inputBase, input));
+                if (UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input) || matchIndex < input - MAX_DISTANCE) {
+                    // we couldn't find one, so continue matching at the next position (followed by literal, etc)
                     break;
                 }
-
-                // go for another match
             }
         }
-        while (!done);
+    }
 
-        // Encode Last Literals
-        output = emitLastLiteral(false, outputBase, output, inputBase, anchor, inputLimit - anchor);
-
-        return (int) (output - outputAddress);
+    private static long computeMatchAndUpdateTable(Object inputBase, long inputAddress, long input, int[] table)
+    {
+        int hash = hash(UNSAFE.getLong(inputBase, input));
+        long matchIndex = inputAddress + table[hash];
+        table[hash] = (int) (input - inputAddress);
+        return matchIndex;
     }
 
     private static int count(Object inputBase, final long start, long matchStart, long matchLimit)
