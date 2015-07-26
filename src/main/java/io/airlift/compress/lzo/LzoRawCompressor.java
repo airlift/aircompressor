@@ -313,6 +313,20 @@ public final class LzoRawCompressor
             throw new IllegalArgumentException("Unsupported copy offset: " + matchOffset);
         }
 
+        // use short command for small copy with small offset
+        if (matchLength <= 8 && matchOffset <= 2048) {
+            // 0bMMMP_PPLL 0bPPPP_PPPP
+
+            // encodes matchLength and matchOffset - 1
+            matchLength--;
+            matchOffset--;
+
+            UNSAFE.putByte(outputBase, output++, (byte) (((matchLength) << 5) | ((matchOffset & 0b111) << 2)));
+            UNSAFE.putByte(outputBase, output++, (byte) (matchOffset >>> 3));
+
+            return output;
+        }
+
         // lzo encodes matchLength - 2
         matchLength -= 2;
 
