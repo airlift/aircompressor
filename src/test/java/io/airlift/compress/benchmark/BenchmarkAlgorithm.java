@@ -37,6 +37,8 @@ public class BenchmarkAlgorithm
             "hadoop_lz4_stream",
             "hadoop_lzo_stream",
             "hadoop_snappy_stream",
+            "java_zip_stream",
+            "hadoop_gzip_stream",
     })
     private Algorithm algorithm;
 

@@ -48,7 +48,10 @@ public enum Algorithm
 
     hadoop_lz4_stream(new org.apache.hadoop.io.compress.Lz4Codec(), new Lz4Compressor()),
     hadoop_snappy_stream(new org.apache.hadoop.io.compress.SnappyCodec(), new SnappyCompressor()),
-    hadoop_lzo_stream(new org.anarres.lzo.hadoop.codec.LzoCodec(), new LzoCompressor());
+    hadoop_lzo_stream(new org.anarres.lzo.hadoop.codec.LzoCodec(), new LzoCompressor()),
+
+    java_zip_stream(new InflateDecompressor(), new DeflateCompressor()),
+    hadoop_gzip_stream(new org.apache.hadoop.io.compress.GzipCodec(), new LzoCompressor());
 
     private final Decompressor decompressor;
     private final Compressor compressor;
