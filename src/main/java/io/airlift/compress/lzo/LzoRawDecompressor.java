@@ -311,12 +311,11 @@ public final class LzoRawDecompressor
                             }
                         }
                         else {
-                            do {
+                            while (output < matchOutputLimit) {
                                 UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
                                 matchAddress += SIZE_OF_LONG;
                                 output += SIZE_OF_LONG;
                             }
-                            while (output < matchOutputLimit);
                         }
                     }
                     output = matchOutputLimit; // correction in case we over-copied
