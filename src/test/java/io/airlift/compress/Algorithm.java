@@ -24,6 +24,8 @@ import io.airlift.compress.snappy.SnappyCompressor;
 import io.airlift.compress.snappy.SnappyDecompressor;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
+import io.airlift.compress.thirdparty.Iq80SnappyCompressor;
+import io.airlift.compress.thirdparty.Iq80SnappyDecompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniCompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniDecompressor;
 import io.airlift.compress.thirdparty.XerialSnappyCompressor;
@@ -44,6 +46,7 @@ public enum Algorithm
 
     jpountz_lz4_jni(new JPountzLz4JniDecompressor(), new JPountzLz4JniCompressor()),
     xerial_snappy(new XerialSnappyDecompressor(), new XerialSnappyCompressor()),
+    iq80_snappy(new Iq80SnappyDecompressor(), new Iq80SnappyCompressor()),
     hadoop_lzo(new HadoopLzoDecompressor(), new HadoopLzoCompressor()),
 
     hadoop_lz4_stream(new org.apache.hadoop.io.compress.Lz4Codec(), new Lz4Compressor()),
