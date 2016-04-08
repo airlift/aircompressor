@@ -1,4 +1,6 @@
-# Compression in pure Java [![Build Status](https://travis-ci.org/airlift/aircompressor.svg?branch=master)](https://travis-ci.org/airlift/aircompressor)
+# Compression in pure Java
+[![Maven Central](https://img.shields.io/maven-central/v/io.airlift/aircompressor.svg?label=Maven%20Central)](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.airlift%22%20AND%20a%3A%22aircompressor%22)
+[![Build Status](https://travis-ci.org/airlift/aircompressor.svg?branch=master)](https://travis-ci.org/airlift/aircompressor)
 
 This library contains implementations of [LZ4](https://github.com/Cyan4973/lz4),
 [Snappy](http://code.google.com/p/snappy/), and
