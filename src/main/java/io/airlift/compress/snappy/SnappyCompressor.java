@@ -18,6 +18,7 @@ import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
 
+import static io.airlift.compress.Fences.reachabilityFence;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class SnappyCompressor
@@ -81,22 +82,24 @@ public class SnappyCompressor
             throw new IllegalArgumentException("Unsupported output ByteBuffer implementation " + output.getClass().getName());
         }
 
-        // HACK: Assure JVM does not collect Slice wrappers while compressing, since the
-        // collection may trigger freeing of the underlying memory resulting in a segfault
-        // There is no other known way to signal to the JVM that an object should not be
-        // collected in a block, and technically, the JVM is allowed to eliminate these locks.
-        synchronized (input) {
-            synchronized (output) {
-                int written = SnappyRawCompressor.compress(
-                        inputBase,
-                        inputAddress,
-                        inputLimit,
-                        outputBase,
-                        outputAddress,
-                        outputLimit,
-                        table);
-                output.position(output.position() + written);
-            }
+        // HACK: Assure JVM does not collect ByteBuffers while decompressing, since the
+        // collection may trigger freeing of the underlying memory resulting in a segfault.
+        try {
+            int written = SnappyRawCompressor.compress(
+                    inputBase,
+                    inputAddress,
+                    inputLimit,
+                    outputBase,
+                    outputAddress,
+                    outputLimit,
+                    table);
+            output.position(output.position() + written);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
+            // it is possible but unlikely that the above reference could be retained, so clear the reference here
+            reachabilityFence(null);
         }
     }
 }
