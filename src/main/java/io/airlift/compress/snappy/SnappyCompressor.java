@@ -14,10 +14,10 @@
 package io.airlift.compress.snappy;
 
 import io.airlift.compress.Compressor;
-import sun.nio.ch.DirectBuffer;
 
 import java.nio.ByteBuffer;
 
+import static io.airlift.compress.snappy.UnsafeUtil.getAddress;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class SnappyCompressor
@@ -48,11 +48,11 @@ public class SnappyCompressor
         Object inputBase;
         long inputAddress;
         long inputLimit;
-        if (input instanceof DirectBuffer) {
-            DirectBuffer direct = (DirectBuffer) input;
+        if (input.isDirect()) {
             inputBase = null;
-            inputAddress = direct.address() + input.position();
-            inputLimit = direct.address() + input.limit();
+            long address = getAddress(input);
+            inputAddress = address + input.position();
+            inputLimit = address + input.limit();
         }
         else if (input.hasArray()) {
             inputBase = input.array();
@@ -66,11 +66,11 @@ public class SnappyCompressor
         Object outputBase;
         long outputAddress;
         long outputLimit;
-        if (output instanceof DirectBuffer) {
-            DirectBuffer direct = (DirectBuffer) output;
+        if (output.isDirect()) {
             outputBase = null;
-            outputAddress = direct.address() + output.position();
-            outputLimit = direct.address() + output.limit();
+            long address = getAddress(output);
+            outputAddress = address + output.position();
+            outputLimit = address + output.limit();
         }
         else if (output.hasArray()) {
             outputBase = output.array();
