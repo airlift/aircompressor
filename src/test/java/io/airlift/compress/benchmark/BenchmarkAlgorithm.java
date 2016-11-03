@@ -26,6 +26,7 @@ public class BenchmarkAlgorithm
             "airlift_lzo",
             "airlift_snappy",
 
+            "iq80_snappy",
             "xerial_snappy",
             "jpountz_lz4_jni",
             "hadoop_lzo",
