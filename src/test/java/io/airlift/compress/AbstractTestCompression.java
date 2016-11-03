@@ -174,6 +174,13 @@ public abstract class AbstractTestCompression
         byte[] originalUncompressed = testCase.getUncompressed();
         byte[] compressed = new byte[compressor.maxCompressedLength(originalUncompressed.length)];
 
+        // attempt to compress slightly different data to ensure the compressor doesn't keep state
+        // between calls that may affect results
+        if (originalUncompressed.length > 1) {
+            byte[] output = new byte[compressor.maxCompressedLength(originalUncompressed.length - 1)];
+            compressor.compress(originalUncompressed, 1, originalUncompressed.length - 1, output, 0, output.length);
+        }
+
         int compressedLength = compressor.compress(
                 originalUncompressed,
                 0,
@@ -259,6 +266,14 @@ public abstract class AbstractTestCompression
 
     private void verifyCompressByteBuffer(Compressor compressor, ByteBuffer expected, ByteBuffer compressed)
     {
+        // attempt to compress slightly different data to ensure the compressor doesn't keep state
+        // between calls that may affect results
+        if (expected.remaining() > 1) {
+            ByteBuffer duplicate = expected.duplicate();
+            duplicate.get(); // skip one byte
+            compressor.compress(duplicate, ByteBuffer.allocate(compressed.remaining()));
+        }
+
         compressor.compress(expected.duplicate(), compressed);
         compressed.flip();
 

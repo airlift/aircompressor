@@ -49,6 +49,8 @@ public class Lz4Compressor
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
     {
+        Arrays.fill(table, 0);
+
         Object inputBase;
         long inputAddress;
         long inputLimit;
