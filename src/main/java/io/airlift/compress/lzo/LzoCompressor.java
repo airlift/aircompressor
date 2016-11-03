@@ -16,8 +16,8 @@ package io.airlift.compress.lzo;
 import io.airlift.compress.Compressor;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
+import static io.airlift.compress.lzo.LzoRawCompressor.MAX_TABLE_SIZE;
 import static io.airlift.compress.lzo.UnsafeUtil.getAddress;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -27,7 +27,7 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 public class LzoCompressor
     implements Compressor
 {
-    private final int[] table = new int[LzoRawCompressor.STREAM_SIZE];
+    private final int[] table = new int[MAX_TABLE_SIZE];
 
     @Override
     public int maxCompressedLength(int uncompressedSize)
@@ -38,8 +38,6 @@ public class LzoCompressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
-        Arrays.fill(table, 0);
-
         long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
@@ -49,8 +47,6 @@ public class LzoCompressor
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
     {
-        Arrays.fill(table, 0);
-
         Object inputBase;
         long inputAddress;
         long inputLimit;

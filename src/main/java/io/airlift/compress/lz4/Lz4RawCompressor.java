@@ -27,6 +27,8 @@ package io.airlift.compress.lz4;
 * limitations under the License.
 */
 
+import java.util.Arrays;
+
 import static io.airlift.compress.lz4.Lz4Constants.LAST_LITERAL_SIZE;
 import static io.airlift.compress.lz4.Lz4Constants.MIN_MATCH;
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_INT;
@@ -38,12 +40,11 @@ public final class Lz4RawCompressor
 {
     private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 
-    private static final int MEMORY_USAGE = 14;
-    public static final int STREAM_SIZE = 2 * ((1 << (MEMORY_USAGE - 3)) + 4);
+    private static final int HASH_LOG = 12;
+    private static final int HASH_SHIFT = 40 - HASH_LOG;
 
-    private static final int HASHLOG = MEMORY_USAGE - 2;
-    private static final int HASH_SHIFT = 40 - HASHLOG;
-    private static final int HASH_MASK = (1 << HASHLOG) - 1;
+    private static final int MIN_TABLE_SIZE = 16;
+    public static final int MAX_TABLE_SIZE = (1 << HASH_LOG);
 
     private static final int COPY_LENGTH = 8;
     private static final int MATCH_FIND_LIMIT = COPY_LENGTH + MIN_MATCH;
@@ -61,9 +62,9 @@ public final class Lz4RawCompressor
 
     private Lz4RawCompressor() {}
 
-    private static int hash(long value)
+    private static int hash(long value, int mask)
     {
-        return (int) ((value * 889523592379L >>> HASH_SHIFT) & HASH_MASK);
+        return (int) ((value * 889523592379L >>> HASH_SHIFT) & mask);
     }
 
     public static int maxCompressedLength(int sourceLength)
@@ -80,6 +81,11 @@ public final class Lz4RawCompressor
             final long maxOutputLength,
             final int[] table)
     {
+        int tableSize = computeTableSize(inputLength);
+        Arrays.fill(table, 0, tableSize, 0);
+
+        int mask = tableSize - 1;
+
         if (inputLength > MAX_INPUT_SIZE) {
             throw new IllegalArgumentException("Max input length exceeded");
         }
@@ -104,10 +110,10 @@ public final class Lz4RawCompressor
 
         // First Byte
         // put position in hash
-        table[hash(UNSAFE.getLong(inputBase, input))] = (int) (input - inputAddress);
+        table[hash(UNSAFE.getLong(inputBase, input), mask)] = (int) (input - inputAddress);
 
         input++;
-        int nextHash = hash(UNSAFE.getLong(inputBase, input));
+        int nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
 
         boolean done = false;
         do {
@@ -130,7 +136,7 @@ public final class Lz4RawCompressor
 
                 // get position on hash
                 matchIndex = inputAddress + table[hash];
-                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex));
+                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex), mask);
 
                 // put position on hash
                 table[hash] = (int) (input - inputAddress);
@@ -165,16 +171,16 @@ public final class Lz4RawCompressor
                 }
 
                 long position = input - 2;
-                table[hash(UNSAFE.getLong(inputBase, position))] = (int) (position - inputAddress);
+                table[hash(UNSAFE.getLong(inputBase, position), mask)] = (int) (position - inputAddress);
 
                 // Test next position
-                int hash = hash(UNSAFE.getLong(inputBase, input));
+                int hash = hash(UNSAFE.getLong(inputBase, input), mask);
                 matchIndex = inputAddress + table[hash];
                 table[hash] = (int) (input - inputAddress);
 
                 if (matchIndex + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input)) {
                     input++;
-                    nextHash = hash(UNSAFE.getLong(inputBase, input));
+                    nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
                     break;
                 }
 
@@ -300,5 +306,14 @@ public final class Lz4RawCompressor
         }
 
         return output;
+    }
+
+    private static int computeTableSize(int inputSize)
+    {
+        // smallest power of 2 larger than inputSize
+        int target = Integer.highestOneBit(inputSize - 1) << 1;
+
+        // keep it between MIN_TABLE_SIZE and MAX_TABLE_SIZE
+        return Math.max(Math.min(target, MAX_TABLE_SIZE), MIN_TABLE_SIZE);
     }
 }
