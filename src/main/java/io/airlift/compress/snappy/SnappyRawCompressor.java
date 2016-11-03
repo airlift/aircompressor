@@ -88,14 +88,13 @@ public final class SnappyRawCompressor
         long output = writeUncompressedLength(outputBase, outputAddress, (int) (inputLimit - inputAddress));
 
         for (long blockAddress = inputAddress; blockAddress < inputLimit; blockAddress += BLOCK_SIZE) {
-            // Get encoding table for compression
-            Arrays.fill(table, (short) 0);
-
             final long blockLimit = Math.min(inputLimit, blockAddress + BLOCK_SIZE);
             long input = blockAddress;
             assert blockLimit - blockAddress <= BLOCK_SIZE;
 
             int blockHashTableSize = getHashTableSize((int) (blockLimit - blockAddress));
+            Arrays.fill(table, 0, blockHashTableSize, (short) 0);
+
             // todo given that hashTableSize is required to be a power of 2, this is overly complex
             final int shift = 32 - log2Floor(blockHashTableSize);
             assert (blockHashTableSize & (blockHashTableSize - 1)) == 0 : "table must be power of two";
@@ -351,28 +350,11 @@ public final class SnappyRawCompressor
         // many hash table entries anyway.
         assert (MAX_HASH_TABLE_SIZE >= 256);
 
-        int hashTableSize = 256;
-        while (hashTableSize < MAX_HASH_TABLE_SIZE && hashTableSize < inputSize) {
-            hashTableSize <<= 1;
-        }
-        assert 0 == (hashTableSize & (hashTableSize - 1)) : "hash must be power of two";
-        assert hashTableSize <= MAX_HASH_TABLE_SIZE : "hash table too large";
-        return hashTableSize;
+        // smallest power of 2 larger than inputSize
+        int target = Integer.highestOneBit(inputSize - 1) << 1;
 
-//        // todo should be faster but is not
-//        int newHashTableSize;
-//        if (inputSize < 256) {
-//            newHashTableSize = 256;
-//        } else if (inputSize > MAX_HASH_TABLE_SIZE) {
-//            newHashTableSize = MAX_HASH_TABLE_SIZE;
-//        } else {
-//            int leadingZeros = Integer.numberOfLeadingZeros(inputSize - 1);
-//            newHashTableSize = 1 << (32 - leadingZeros);
-//        }
-//
-//        assert 0 == (newHashTableSize & (newHashTableSize - 1)) : "hash must be power of two";
-//        assert newHashTableSize <= MAX_HASH_TABLE_SIZE : "hash table too large";
-//        return newHashTableSize;
+        // keep it between MIN_TABLE_SIZE and MAX_TABLE_SIZE
+        return Math.max(Math.min(target, MAX_HASH_TABLE_SIZE), 256);
     }
 
     // Any hash function will produce a valid compressed stream, but a good
