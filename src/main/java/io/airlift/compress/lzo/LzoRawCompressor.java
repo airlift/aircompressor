@@ -28,7 +28,6 @@ public final class LzoRawCompressor
     private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 
     private static final int HASH_LOG = 12;
-    private static final int HASH_SHIFT = 40 - HASH_LOG;
 
     private static final int MIN_TABLE_SIZE = 16;
     public static final int MAX_TABLE_SIZE = (1 << HASH_LOG);
@@ -50,7 +49,16 @@ public final class LzoRawCompressor
 
     private static int hash(long value, int mask)
     {
-        return (int) ((value * 889523592379L >>> HASH_SHIFT) & mask);
+        // Multiplicative hash. It performs the equivalent to
+        // this computation:
+        //
+        //  value * frac(a)
+        //
+        // for some real number 'a' with a good & random mix
+        // of 1s and 0s in its binary representation
+        //
+        // For performance, it does it using fixed point math
+        return (int) ((value * 889523592379L >>> 28) & mask);
     }
 
     public static int maxCompressedLength(int sourceLength)
