@@ -74,7 +74,7 @@ public class CompressionBenchmark
     public int compress(BytesCounter counter)
     {
         int written = compressor.compress(uncompressed, 0, uncompressed.length, compressTarget, 0, compressTarget.length);
-        counter.add(uncompressed.length);
+        counter.bytes += uncompressed.length;
         return written;
     }
 
@@ -82,7 +82,7 @@ public class CompressionBenchmark
     public int decompress(BytesCounter counter)
     {
         int written = decompressor.decompress(compressed, 0, compressed.length, uncompressTarget, 0, uncompressTarget.length);
-        counter.add(uncompressed.length);
+        counter.bytes += uncompressed.length;
         return written;
     }
 
@@ -96,7 +96,7 @@ public class CompressionBenchmark
         Collection<RunResult> results = new Runner(opt).run();
 
         for (RunResult result : results) {
-            Statistics stats = result.getSecondaryResults().get("getBytes").getStatistics();
+            Statistics stats = result.getSecondaryResults().get("bytes").getStatistics();
             String algorithm = result.getParams().getParam("algorithm");
             String name = result.getParams().getParam("name");
             int compressSize = compressSize(algorithm, name);
