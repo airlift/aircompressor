@@ -14,30 +14,12 @@
 package io.airlift.compress.benchmark;
 
 import org.openjdk.jmh.annotations.AuxCounters;
-import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 @AuxCounters
 @State(Scope.Thread)
 public class BytesCounter
 {
-    private long bytes;
-
-    @Setup(Level.Iteration)
-    public void reset()
-    {
-        bytes = 0;
-    }
-
-    public void add(long bytes)
-    {
-        this.bytes += bytes;
-    }
-
-    public long getBytes()
-    {
-        return bytes;
-    }
+    public long bytes;
 }
