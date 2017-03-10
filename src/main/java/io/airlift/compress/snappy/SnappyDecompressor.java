@@ -26,10 +26,7 @@ public class SnappyDecompressor
 {
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
     {
-        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
-        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
-
-        return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
+        return SnappyRawDecompressor.readUncompressedLength(compressed, compressedOffset, compressed.length)[0];
     }
 
     @Override
