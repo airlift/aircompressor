@@ -26,22 +26,14 @@ public class SnappyDecompressor
 {
     public static int getUncompressedLength(byte[] compressed, int compressedOffset)
     {
-        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
-        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
-
-        return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
+        return SnappyRawDecompressor.readUncompressedLength(compressed, compressedOffset, compressed.length)[0];
     }
 
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
-        long outputLimit = outputAddress + maxOutputLength;
-
-        return SnappyRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return SnappyRawDecompressor.decompressSafe(input, inputOffset, inputOffset + inputLength, output, outputOffset, outputOffset + maxOutputLength);
     }
 
     @Override

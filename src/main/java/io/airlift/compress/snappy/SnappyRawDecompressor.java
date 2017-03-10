@@ -67,6 +67,44 @@ public final class SnappyRawDecompressor
         return expectedLength;
     }
 
+    /**
+     * Probably slower version of decompress that doesn't use sun.misc.Unsafe.
+     */
+    public static int decompressSafe(
+            final byte[] inputBase,
+            final int inputOffset,
+            final int inputLimit,
+            final byte[] outputBase,
+            final int outputOffset,
+            final int outputLimit)
+    {
+        // Read the uncompressed length from the front of the input
+        int input = inputOffset;
+        int[] varInt = readUncompressedLength(inputBase, input, inputLimit);
+        int expectedLength = varInt[0];
+        input += varInt[1];
+
+        SnappyInternalUtils.checkArgument(expectedLength <= (outputLimit - outputOffset),
+                "Uncompressed length %s must be less than %s", expectedLength, (outputLimit - outputOffset));
+
+        // Process the entire input
+        int uncompressedSize = uncompressAll(
+                inputBase,
+                input,
+                inputLimit,
+                outputBase,
+                outputOffset,
+                outputLimit);
+
+        if (!(expectedLength == uncompressedSize)) {
+            throw new MalformedInputException(0, String.format("Recorded length is %s bytes but actual length after decompression is %s bytes ",
+                    expectedLength,
+                    uncompressedSize));
+        }
+
+        return expectedLength;
+    }
+
     private static int uncompressAll(
             final Object inputBase,
             final long inputAddress,
@@ -214,6 +252,87 @@ public final class SnappyRawDecompressor
         return (int) (output - outputAddress);
     }
 
+    /**
+     * Probably slower variant of SnappyRawDecompressor::uncompressAll
+     * that doesn't use Unsafe memory accesses.
+     */
+    private static int uncompressAll(
+            final byte[] inputBase,
+            final int inputOffset,
+            final int inputLimit,
+            final byte[] outputBase,
+            final int outputOffset,
+            final int outputLimit)
+    {
+        int output = outputOffset;
+        int input = inputOffset;
+
+        while (input < inputLimit) {
+            int opCode = inputBase[input++] & 0xFF;
+            int entry = opLookupTable[opCode] & 0xFFFF;
+
+            int trailerBytes = entry >>> 11;
+            int trailer = 0;
+            if (input + trailerBytes > inputLimit) {
+                throw new MalformedInputException(input - inputOffset);
+            }
+            switch (trailerBytes) {
+            case 4:
+                trailer = (inputBase[input + 3] & 0xff) << 24;
+            case 3:
+                trailer |= (inputBase[input + 2] & 0xff) << 16;
+            case 2:
+                trailer |= (inputBase[input + 1] & 0xff) << 8;
+            case 1:
+                trailer |= (inputBase[input] & 0xff);
+            }
+            if (trailer < 0) {
+                throw new MalformedInputException(input - inputOffset);
+            }
+            input += trailerBytes;
+
+            int length = entry & 0xff;
+            if (length == 0) {
+                continue;
+            }
+
+            if ((opCode & 0x3) == LITERAL) {
+                int literalLength = length + trailer;
+
+                int literalOutputLimit = output + literalLength;
+                if (literalOutputLimit > outputLimit) {
+                    throw new MalformedInputException(input - inputOffset);
+                }
+
+                // slow, precise copy
+                System.arraycopy(inputBase, input, outputBase, output, literalLength);
+                input += literalLength;
+                output += literalLength;
+            }
+            else {
+                // matchOffset/256 is encoded in bits 8..10.  By just fetching
+                // those bits, we get matchOffset (since the bit-field starts at
+                // bit 8).
+                int matchOffset = entry & 0x700;
+                matchOffset += trailer;
+
+                int matchAddress = output - matchOffset;
+                if (matchAddress < outputOffset || output + length > outputLimit) {
+                    throw new MalformedInputException(input - inputOffset);
+                }
+                int matchOutputLimit = output + length;
+
+                // slow match copy
+                while (output < matchOutputLimit) {
+                    outputBase[output++] = outputBase[matchAddress++];
+                }
+                output = matchOutputLimit; // correction in case we over-copied
+            }
+        }
+
+        return output - outputOffset;
+    }
+
     // Mapping from i in range [0,4] to a mask to extract the bottom 8*i bits
     private static final int[] wordmask = new int[] {
             0, 0xff, 0xffff, 0xffffff, 0xffffffff
@@ -304,11 +423,58 @@ public final class SnappyRawDecompressor
         return new int[] {result, bytesRead};
     }
 
+    /**
+     * Reads the variable length integer encoded a the specified offset, and
+     * returns this length with the number of bytes read.
+     */
+    static int[] readUncompressedLength(byte[] compressed, int compressedOffset, int compressedLimit)
+    {
+        int result;
+        int bytesRead = 0;
+        {
+            int b = getUnsignedByteSafe(compressed, compressedOffset + bytesRead, compressedLimit);
+            bytesRead++;
+            result = b & 0x7f;
+            if ((b & 0x80) != 0) {
+                b = getUnsignedByteSafe(compressed, compressedOffset + bytesRead, compressedLimit);
+                bytesRead++;
+                result |= (b & 0x7f) << 7;
+                if ((b & 0x80) != 0) {
+                    b = getUnsignedByteSafe(compressed, compressedOffset + bytesRead, compressedLimit);
+                    bytesRead++;
+                    result |= (b & 0x7f) << 14;
+                    if ((b & 0x80) != 0) {
+                        b = getUnsignedByteSafe(compressed, compressedOffset + bytesRead, compressedLimit);
+                        bytesRead++;
+                        result |= (b & 0x7f) << 21;
+                        if ((b & 0x80) != 0) {
+                            b = getUnsignedByteSafe(compressed, compressedOffset + bytesRead, compressedLimit);
+                            bytesRead++;
+                            result |= (b & 0x7f) << 28;
+                            if ((b & 0x80) != 0) {
+                                throw new MalformedInputException(compressedOffset + bytesRead, "last byte of compressed length int has high bit set");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return new int[] {result, bytesRead};
+    }
+
     private static int getUnsignedByteSafe(Object base, long address, long limit)
     {
         if (address >= limit) {
             throw new MalformedInputException(limit - address, "Input is truncated");
         }
         return UNSAFE.getByte(base, address) & 0xFF;
+    }
+
+    private static int getUnsignedByteSafe(byte[] base, int offset, int limit)
+    {
+        if (offset >= limit) {
+            throw new MalformedInputException(limit - offset, "Input is truncated");
+        }
+        return base[offset] & 0xFF;
     }
 }
