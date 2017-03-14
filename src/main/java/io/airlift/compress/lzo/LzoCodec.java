@@ -109,7 +109,7 @@ public class LzoCodec
     @Override
     public String getDefaultExtension()
     {
-        return ".lzo";
+        return ".lzo_deflate";
     }
 
     private int getBufferSize()
