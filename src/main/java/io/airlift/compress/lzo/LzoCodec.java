@@ -136,7 +136,7 @@ public class LzoCodec
      * with a compressor can function.  This interface can be implemented if needed.
      */
     @DoNotPool
-    private static class HadoopLzoCompressor
+    static class HadoopLzoCompressor
             implements Compressor
     {
         @Override
@@ -212,7 +212,7 @@ public class LzoCodec
      * size.
      */
     @DoNotPool
-    private static class HadoopLzoDecompressor
+    static class HadoopLzoDecompressor
             implements Decompressor
     {
         @Override
