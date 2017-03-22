@@ -25,6 +25,7 @@ public class BenchmarkAlgorithm
             "airlift_lz4",
             "airlift_lzo",
             "airlift_snappy",
+            "airlift_zstd",
 
             "iq80_snappy",
             "xerial_snappy",
