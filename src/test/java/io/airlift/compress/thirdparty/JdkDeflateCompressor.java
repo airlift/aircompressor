@@ -11,14 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.thirdparty;
+
+import io.airlift.compress.Compressor;
 
 import java.nio.ByteBuffer;
 import java.util.zip.Deflater;
 
 import static java.util.zip.Deflater.FULL_FLUSH;
 
-public class DeflateCompressor
+public class JdkDeflateCompressor
         implements Compressor
 {
     @Override
