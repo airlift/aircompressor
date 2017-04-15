@@ -15,10 +15,8 @@ package io.airlift.compress.benchmark;
 
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
-import io.airlift.compress.DeflateCompressor;
 import io.airlift.compress.HadoopCodecCompressor;
 import io.airlift.compress.HadoopCodecDecompressor;
-import io.airlift.compress.InflateDecompressor;
 import io.airlift.compress.lz4.Lz4Codec;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
@@ -34,6 +32,8 @@ import io.airlift.compress.thirdparty.Iq80SnappyCompressor;
 import io.airlift.compress.thirdparty.Iq80SnappyDecompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniCompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniDecompressor;
+import io.airlift.compress.thirdparty.JdkDeflateCompressor;
+import io.airlift.compress.thirdparty.JdkInflateDecompressor;
 import io.airlift.compress.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
@@ -65,7 +65,7 @@ public enum Algorithm
     hadoop_snappy_stream(new org.apache.hadoop.io.compress.SnappyCodec(), new SnappyCompressor()),
     hadoop_lzo_stream(new org.anarres.lzo.hadoop.codec.LzoCodec(), new LzoCompressor()),
 
-    java_zip_stream(new InflateDecompressor(), new DeflateCompressor()),
+    java_zip_stream(new JdkInflateDecompressor(), new JdkDeflateCompressor()),
     hadoop_gzip_stream(new org.apache.hadoop.io.compress.GzipCodec(), new LzoCompressor());
 
     private final Decompressor decompressor;

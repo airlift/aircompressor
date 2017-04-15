@@ -11,13 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.thirdparty;
+
+import io.airlift.compress.Decompressor;
+import io.airlift.compress.MalformedInputException;
 
 import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
-public class InflateDecompressor
+public class JdkInflateDecompressor
         implements Decompressor
 {
     @Override
