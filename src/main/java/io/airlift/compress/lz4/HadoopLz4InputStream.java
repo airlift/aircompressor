@@ -54,7 +54,7 @@ class HadoopLz4InputStream
             }
             uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
-        return uncompressedChunk[uncompressedChunkOffset--] & 0xFF;
+        return uncompressedChunk[uncompressedChunkOffset++] & 0xFF;
     }
 
     @Override
