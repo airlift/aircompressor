@@ -51,7 +51,7 @@ class HadoopSnappyInputStream
                 return -1;
             }
         }
-        return uncompressedChunk[uncompressedChunkOffset--] & 0xFF;
+        return uncompressedChunk[uncompressedChunkOffset++] & 0xFF;
     }
 
     @Override
