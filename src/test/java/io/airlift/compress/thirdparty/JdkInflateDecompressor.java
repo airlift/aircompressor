@@ -28,7 +28,7 @@ public class JdkInflateDecompressor
             throws MalformedInputException
     {
         try {
-            Inflater inflater = new Inflater();
+            Inflater inflater = new Inflater(true);
             inflater.setInput(input, inputOffset, inputLength);
             int resultLength = inflater.inflate(output, outputOffset, maxOutputLength);
             inflater.end();
