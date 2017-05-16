@@ -103,9 +103,9 @@ public final class SnappyRawDecompressor
                     case 1:
                         trailer |= (UNSAFE.getByte(inputBase, input) & 0xff);
                 }
-                if (trailer < 0) {
-                    throw new MalformedInputException(input - inputAddress);
-                }
+            }
+            if (trailer < 0) {
+                throw new MalformedInputException(input - inputAddress);
             }
             input += trailerBytes;
 
