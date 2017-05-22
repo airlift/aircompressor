@@ -38,11 +38,21 @@ public class HadoopCodecDecompressor
         try (InputStream in = codec.createInputStream(new ByteArrayInputStream(input, inputOffset, inputLength))) {
             int bytesRead = 0;
             while (bytesRead < maxOutputLength) {
-                int size = in.read(output, outputOffset + bytesRead, maxOutputLength - bytesRead);
-                if (size < 0) {
-                    break;
+                if (bytesRead % 7 == 0) { // exercise both read APIs
+                    int result = in.read();
+                    if (result < 0) {
+                        break;
+                    }
+                    output[outputOffset + bytesRead] = (byte) (result & 0xff);
+                    bytesRead += 1;
                 }
-                bytesRead += size;
+                else {
+                    int size = in.read(output, outputOffset + bytesRead, maxOutputLength - bytesRead);
+                    if (size < 0) {
+                        break;
+                    }
+                    bytesRead += size;
+                }
             }
 
             if (in.read() >= 0) {

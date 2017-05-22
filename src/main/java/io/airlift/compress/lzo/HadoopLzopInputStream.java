@@ -134,7 +134,7 @@ class HadoopLzopInputStream
 
             decompress(compressedLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
-        return uncompressedChunk[uncompressedOffset--] & 0xFF;
+        return uncompressedChunk[uncompressedOffset++] & 0xFF;
     }
 
     @Override
