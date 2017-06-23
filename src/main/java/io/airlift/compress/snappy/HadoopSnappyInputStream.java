@@ -78,7 +78,9 @@ class HadoopSnappyInputStream
     public void resetState()
             throws IOException
     {
-        throw new UnsupportedOperationException("resetState not supported for Snappy");
+        uncompressedBlockLength = 0;
+        uncompressedChunkOffset = 0;
+        uncompressedChunkLength = 0;
     }
 
     private boolean readNextChunk(byte[] userBuffer, int userOffset, int userLength)

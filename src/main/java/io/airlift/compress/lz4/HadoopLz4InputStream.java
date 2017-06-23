@@ -86,7 +86,9 @@ class HadoopLz4InputStream
     public void resetState()
             throws IOException
     {
-        throw new UnsupportedOperationException("resetState not supported for Lz4");
+        uncompressedBlockLength = 0;
+        uncompressedChunkOffset = 0;
+        uncompressedChunkLength = 0;
     }
 
     private int bufferCompressedData()

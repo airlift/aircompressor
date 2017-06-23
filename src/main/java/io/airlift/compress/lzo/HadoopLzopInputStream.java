@@ -170,7 +170,9 @@ class HadoopLzopInputStream
     public void resetState()
             throws IOException
     {
-        throw new UnsupportedOperationException("resetState not supported for Lzo");
+        uncompressedLength = 0;
+        uncompressedOffset = 0;
+        finished = false;
     }
 
     private int bufferCompressedData()
