@@ -21,12 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
-public class HadoopCodecDecompressor
+public class HadoopCodecDecompressorByteAtATime
         implements Decompressor
 {
     private final CompressionCodec codec;
 
-    public HadoopCodecDecompressor(CompressionCodec codec)
+    public HadoopCodecDecompressorByteAtATime(CompressionCodec codec)
     {
         this.codec = codec;
     }
@@ -38,11 +38,12 @@ public class HadoopCodecDecompressor
         try (InputStream in = codec.createInputStream(new ByteArrayInputStream(input, inputOffset, inputLength))) {
             int bytesRead = 0;
             while (bytesRead < maxOutputLength) {
-                int size = in.read(output, outputOffset + bytesRead, maxOutputLength - bytesRead);
-                if (size < 0) {
+                int result = in.read();
+                if (result < 0) {
                     break;
                 }
-                bytesRead += size;
+                output[outputOffset + bytesRead] = (byte) (result & 0xff);
+                bytesRead += 1;
             }
 
             if (in.read() >= 0) {
