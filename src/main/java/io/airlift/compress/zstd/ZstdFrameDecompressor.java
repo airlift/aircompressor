@@ -33,6 +33,7 @@ class ZstdFrameDecompressor
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
     private static final int MAGIC_NUMBER = 0xFD2FB528;
+    private static final int V07_MAGIC_NUMBER = 0xFD2FB527;
 
     private static final int MIN_SEQUENCES_SIZE = 1;
     private static final int MIN_BLOCK_SIZE = 1 // block type tag
@@ -958,6 +959,9 @@ class ZstdFrameDecompressor
 
         int magic = UNSAFE.getInt(inputBase, inputAddress);
         if (magic != MAGIC_NUMBER) {
+            if (magic == V07_MAGIC_NUMBER) {
+                throw new MalformedInputException(inputAddress, "Data encoded in unsupported ZSTD v0.7 format");
+            }
             throw new MalformedInputException(inputAddress, "Invalid magic prefix: " + Integer.toHexString(magic));
         }
 
