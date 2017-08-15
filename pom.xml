@@ -16,7 +16,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>59</version>
+        <version>66</version>
     </parent>
 
     <inceptionYear>2011</inceptionYear>
@@ -37,7 +37,7 @@
   </scm>
 
     <properties>
-        <project.build.targetJdk>1.7</project.build.targetJdk>
+        <project.build.targetJdk>1.8</project.build.targetJdk>
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>false</air.check.skip-license>
         <air.check.fail-checkstyle>true</air.check.fail-checkstyle>
