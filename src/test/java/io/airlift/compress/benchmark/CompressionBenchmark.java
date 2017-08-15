@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.benchmark;
 
-import io.airlift.compress.Algorithm;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.Util;
@@ -21,6 +20,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -53,17 +53,40 @@ public class CompressionBenchmark
     private byte[] compressTarget;
     private byte[] uncompressTarget;
 
+    @Param({
+            "airlift_lz4",
+            "airlift_lzo",
+            "airlift_snappy",
+            "airlift_zstd",
+
+            "iq80_snappy",
+            "xerial_snappy",
+            "jpountz_lz4_jni",
+            "hadoop_lzo",
+
+            "airlift_lz4_stream",
+            "airlift_lzo_stream",
+            "airlift_snappy_stream",
+
+            "hadoop_lz4_stream",
+            "hadoop_lzo_stream",
+            "hadoop_snappy_stream",
+            "java_zip_stream",
+            "hadoop_gzip_stream",
+    })
+    private Algorithm algorithm;
+
     @Setup
-    public void setup(BenchmarkAlgorithm benchmarkAlgorithm, DataSet data)
+    public void setup(DataSet data)
             throws IOException
     {
         uncompressed = data.getUncompressed();
 
-        compressor = benchmarkAlgorithm.getAlgorithm().getCompressor();
+        compressor = algorithm.getCompressor();
         compressTarget = new byte[compressor.maxCompressedLength(uncompressed.length)];
 
-        decompressor = benchmarkAlgorithm.getAlgorithm().getDecompressor();
-        Compressor compressor = benchmarkAlgorithm.getAlgorithm().getCompressor();
+        decompressor = algorithm.getDecompressor();
+        Compressor compressor = algorithm.getCompressor();
         compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
         int compressedLength = compressor.compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
         compressed = Arrays.copyOf(compressed, compressedLength);

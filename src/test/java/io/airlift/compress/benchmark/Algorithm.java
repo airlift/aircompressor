@@ -11,8 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress;
+package io.airlift.compress.benchmark;
 
+import io.airlift.compress.Compressor;
+import io.airlift.compress.Decompressor;
+import io.airlift.compress.DeflateCompressor;
+import io.airlift.compress.HadoopCodecCompressor;
+import io.airlift.compress.HadoopCodecDecompressor;
+import io.airlift.compress.InflateDecompressor;
 import io.airlift.compress.lz4.Lz4Codec;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
