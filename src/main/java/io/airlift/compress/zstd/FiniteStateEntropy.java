@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
 import static io.airlift.compress.zstd.BitStream.peekBits;
 import static io.airlift.compress.zstd.FseTableReader.FSE_MAX_SYMBOL_VALUE;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+import static io.airlift.compress.zstd.Util.verify;
 import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_INT;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -110,6 +111,7 @@ class FiniteStateEntropy
         }
 
         while (true) {
+            verify(output <= outputLimit - 2, input, "Output buffer is too small");
             UNSAFE.putByte(outputBase, output++, symbols[state1]);
             int numberOfBits = numbersOfBits[state1];
             state1 = (int) (newStates[state1] + peekBits(bitsConsumed, bits, numberOfBits));
@@ -126,6 +128,7 @@ class FiniteStateEntropy
                 break;
             }
 
+            verify(output <= outputLimit - 2, input, "Output buffer is too small");
             UNSAFE.putByte(outputBase, output++, symbols[state2]);
             int numberOfBits1 = numbersOfBits[state2];
             state2 = (int) (newStates[state2] + peekBits(bitsConsumed, bits, numberOfBits1));
