@@ -74,7 +74,7 @@ class FiniteStateEntropy
         int[] newStates = table.newState;
 
         // decode 4 symbols per loop
-        while (output < outputLimit) {
+        while (output <= outputLimit - 4) {
             int numberOfBits;
 
             UNSAFE.putByte(outputBase, output, symbols[state1]);
