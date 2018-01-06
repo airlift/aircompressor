@@ -90,12 +90,14 @@ public final class Lz4RawDecompressor
             }
 
             // fast copy. We may overcopy but there's enough room in input and output to not overrun them
+            int index = 0;
             do {
                 UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
-                input += SIZE_OF_LONG;
                 output += SIZE_OF_LONG;
+                input += SIZE_OF_LONG;
+                index += SIZE_OF_LONG;
             }
-            while (output < literalOutputLimit);
+            while (index < literalLength);
             output = literalOutputLimit;
 
             input = literalEnd;
@@ -170,12 +172,14 @@ public final class Lz4RawDecompressor
                 }
             }
             else {
+                int i = 0;
                 do {
                     UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
-                    matchAddress += SIZE_OF_LONG;
                     output += SIZE_OF_LONG;
+                    matchAddress += SIZE_OF_LONG;
+                    i += SIZE_OF_LONG;
                 }
-                while (output < matchOutputLimit);
+                while (i < matchLength - SIZE_OF_LONG); // first long copied previously
             }
 
             output = matchOutputLimit; // correction in case we overcopied
