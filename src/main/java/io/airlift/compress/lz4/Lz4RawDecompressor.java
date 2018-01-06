@@ -84,7 +84,6 @@ public final class Lz4RawDecompressor
 
                 // slow, precise copy
                 UNSAFE.copyMemory(inputBase, input, outputBase, output, literalLength);
-                input += literalLength;
                 output += literalLength;
                 break;
             }
