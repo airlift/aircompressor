@@ -121,10 +121,16 @@ public class CompressionBenchmark
 
         Collection<RunResult> results = new Runner(opt).run();
 
+        int count = 0;
+        double sum = 0;
         for (RunResult result : results) {
             Statistics stats = result.getSecondaryResults().get("bytes").getStatistics();
             String algorithm = result.getParams().getParam("algorithm");
             String name = result.getParams().getParam("name");
+
+            count++;
+            sum += 1 / stats.getMean();
+
             int compressSize = compressSize(algorithm, name);
             System.out.printf("  %-10s  %-22s  %-25s  %,11d  %10s ± %11s (%5.2f%%) (N = %d, \u03B1 = 99.9%%)\n",
                     result.getPrimaryResult().getLabel(),
@@ -136,6 +142,8 @@ public class CompressionBenchmark
                     stats.getMeanErrorAt(0.999) * 100 / stats.getMean(),
                     stats.getN());
         }
+        System.out.println();
+        System.out.println("Overall: " + Util.toHumanReadableSpeed((long) (count / sum)));
         System.out.println();
     }
 
