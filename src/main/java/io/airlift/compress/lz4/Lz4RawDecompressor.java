@@ -71,14 +71,15 @@ public final class Lz4RawDecompressor
             }
 
             // copy literal
+            long literalEnd = input + literalLength;
             long literalOutputLimit = output + literalLength;
-            if (literalOutputLimit > (fastOutputLimit - MIN_MATCH) || input + literalLength > inputLimit - (OFFSET_SIZE + TOKEN_SIZE + LAST_LITERAL_SIZE)) {
+            if (literalOutputLimit > (fastOutputLimit - MIN_MATCH) || literalEnd > inputLimit - (OFFSET_SIZE + TOKEN_SIZE + LAST_LITERAL_SIZE)) {
                 // copy the last literal and finish
                 if (literalOutputLimit > outputLimit) {
                     throw new MalformedInputException(input - inputAddress, "attempt to write last literal outside of destination buffer");
                 }
 
-                if (input + literalLength != inputLimit) {
+                if (literalEnd != inputLimit) {
                     throw new MalformedInputException(input - inputAddress, "all input must be consumed");
                 }
 
@@ -95,8 +96,9 @@ public final class Lz4RawDecompressor
                 output += SIZE_OF_LONG;
             }
             while (output < literalOutputLimit);
-            input -= (output - literalOutputLimit); // adjust index if we overcopied
             output = literalOutputLimit;
+
+            input = literalEnd;
 
             // get offset
             // we know we can read two bytes because of the bounds check performed before copying the literal above
