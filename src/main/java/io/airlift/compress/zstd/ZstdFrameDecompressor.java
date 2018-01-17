@@ -173,55 +173,57 @@ class ZstdFrameDecompressor
         long input = inputAddress;
         long output = outputAddress;
 
-        input += verifyMagic(inputBase, inputAddress, inputLimit);
+        while (input < inputLimit) {
+            input += verifyMagic(inputBase, inputAddress, inputLimit);
 
-        FrameHeader frameHeader = readFrameHeader(inputBase, input, inputLimit);
-        input += frameHeader.headerSize;
+            FrameHeader frameHeader = readFrameHeader(inputBase, input, inputLimit);
+            input += frameHeader.headerSize;
 
-        boolean lastBlock;
-        do {
-            verify(input + SIZE_OF_BLOCK_HEADER <= inputLimit, input, "Not enough input bytes");
+            boolean lastBlock;
+            do {
+                verify(input + SIZE_OF_BLOCK_HEADER <= inputLimit, input, "Not enough input bytes");
 
-            // read block header
-            int header = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
-            input += SIZE_OF_BLOCK_HEADER;
+                // read block header
+                int header = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
+                input += SIZE_OF_BLOCK_HEADER;
 
-            lastBlock = (header & 1) != 0;
-            int blockType = (header >>> 1) & 0b11;
-            int blockSize = (header >>> 3) & 0x1F_FFFF; // 21 bits
+                lastBlock = (header & 1) != 0;
+                int blockType = (header >>> 1) & 0b11;
+                int blockSize = (header >>> 3) & 0x1F_FFFF; // 21 bits
 
-            int decodedSize;
-            switch (blockType) {
-                case RAW_BLOCK:
-                    verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
-                    decodedSize = decodeRawBlock(inputBase, input, blockSize, outputBase, output, outputLimit);
-                    input += blockSize;
-                    break;
-                case RLE_BLOCK:
-                    verify(inputAddress + 1 <= inputLimit, input, "Not enough input bytes");
-                    decodedSize = decodeRleBlock(blockSize, inputBase, input, outputBase, output, outputLimit);
-                    input += 1;
-                    break;
-                case COMPRESSED_BLOCK:
-                    verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
-                    decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize);
-                    input += blockSize;
-                    break;
-                default:
-                    throw fail(input, "Invalid block type");
+                int decodedSize;
+                switch (blockType) {
+                    case RAW_BLOCK:
+                        verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
+                        decodedSize = decodeRawBlock(inputBase, input, blockSize, outputBase, output, outputLimit);
+                        input += blockSize;
+                        break;
+                    case RLE_BLOCK:
+                        verify(inputAddress + 1 <= inputLimit, input, "Not enough input bytes");
+                        decodedSize = decodeRleBlock(blockSize, inputBase, input, outputBase, output, outputLimit);
+                        input += 1;
+                        break;
+                    case COMPRESSED_BLOCK:
+                        verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
+                        decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize);
+                        input += blockSize;
+                        break;
+                    default:
+                        throw fail(input, "Invalid block type");
+                }
+
+                output += decodedSize;
             }
+            while (!lastBlock);
 
-            output += decodedSize;
-        }
-        while (!lastBlock);
+            if (frameHeader.hasChecksum) {
+                Slice outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputAddress, (int) (outputLimit - outputAddress));
+                long hash = XxHash64.hash(0, outputSlice);
 
-        if (frameHeader.hasChecksum) {
-            Slice outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputAddress, (int) (outputLimit - outputAddress));
-            long hash = XxHash64.hash(0, outputSlice);
-
-            int checksum = UNSAFE.getInt(inputBase, input);
-            if (checksum != (int) hash) {
-                throw new MalformedInputException(input, String.format("Bad checksum. Expected: %s, actual: %s", Integer.toHexString(checksum), Integer.toHexString((int) hash)));
+                int checksum = UNSAFE.getInt(inputBase, input);
+                if (checksum != (int) hash) {
+                    throw new MalformedInputException(input, String.format("Bad checksum. Expected: %s, actual: %s", Integer.toHexString(checksum), Integer.toHexString((int) hash)));
+                }
             }
         }
 
