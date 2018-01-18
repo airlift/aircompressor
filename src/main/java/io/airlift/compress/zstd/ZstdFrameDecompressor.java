@@ -499,7 +499,8 @@ class ZstdFrameDecompressor
                 final long matchOutputLimit = literalOutputLimit + matchLength;
 
                 verify(matchOutputLimit <= outputLimit, input, "Output buffer too small");
-                verify(literalsInput + literalsLength <= literalsLimit, input, "Input is corrupted");
+                long literalEnd = literalsInput + literalsLength;
+                verify(literalEnd <= literalsLimit, input, "Input is corrupted");
 
                 long matchAddress = literalOutputLimit - offset;
 
@@ -513,7 +514,7 @@ class ZstdFrameDecompressor
                     copyMatch(outputBase, fastOutputLimit, output, offset, matchOutputLimit, matchAddress);
                 }
                 output = matchOutputLimit;
-                literalsInput += literalsLength;
+                literalsInput = literalEnd;
             }
         }
 
