@@ -15,7 +15,6 @@ package io.airlift.compress;
 
 import com.google.common.primitives.Bytes;
 import io.airlift.compress.benchmark.DataSet;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
@@ -32,6 +31,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import static com.google.common.base.Preconditions.checkPositionIndexes;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 @Guice(modules = TestingModule.class)
 public abstract class AbstractTestCompression
@@ -400,7 +400,7 @@ public abstract class AbstractTestCompression
 
         for (int i = 0; i < Math.min(leftLength, rightLength); i++) {
             if (left[leftOffset + i] != right[rightOffset + i]) {
-                Assert.fail(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[leftOffset + i], right[rightOffset + i]));
+                fail(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[leftOffset + i], right[rightOffset + i]));
             }
         }
 
@@ -413,7 +413,7 @@ public abstract class AbstractTestCompression
         int rightPosition = right.position();
         for (int i = 0; i < Math.min(left.remaining(), right.remaining()); i++) {
             if (left.get(leftPosition + i) != right.get(rightPosition + i)) {
-                Assert.fail(String.format("Byte buffers differ at position %s: 0x%02X vs 0x%02X", i, left.get(leftPosition + i), right.get(rightPosition + i)));
+                fail(String.format("Byte buffers differ at position %s: 0x%02X vs 0x%02X", i, left.get(leftPosition + i), right.get(rightPosition + i)));
             }
         }
 

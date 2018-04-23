@@ -25,7 +25,7 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
  * This class is not thread-safe
  */
 public class LzoCompressor
-    implements Compressor
+        implements Compressor
 {
     private final int[] table = new int[MAX_TABLE_SIZE];
 

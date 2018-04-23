@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class XerialSnappyCompressor
-    implements Compressor
+        implements Compressor
 {
     @Override
     public int maxCompressedLength(int uncompressedSize)

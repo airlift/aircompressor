@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 
 public class TestZstd
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     @Override
     protected Compressor getCompressor()

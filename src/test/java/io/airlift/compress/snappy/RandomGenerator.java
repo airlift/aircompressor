@@ -33,6 +33,7 @@ class RandomGenerator
         }
     }
 
+    @SuppressWarnings("IllegalToken")
     public int getNextPosition(int length)
     {
         if (position + length > data.length) {

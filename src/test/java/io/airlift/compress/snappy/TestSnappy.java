@@ -20,7 +20,7 @@ import io.airlift.compress.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 
 public class TestSnappy
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     @Override
     protected Compressor getCompressor()

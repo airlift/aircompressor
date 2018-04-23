@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TestingModule
-    implements Module
+        implements Module
 {
     @Override
     public void configure(Binder binder)

@@ -20,7 +20,7 @@ import io.airlift.compress.thirdparty.JPountzLz4JniCompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniDecompressor;
 
 public class TestLz4
-    extends AbstractTestCompression
+        extends AbstractTestCompression
 {
     @Override
     protected Compressor getCompressor()

@@ -20,7 +20,7 @@ import net.jpountz.lz4.LZ4Factory;
 import java.nio.ByteBuffer;
 
 public class JPountzLz4JniCompressor
-    implements Compressor
+        implements Compressor
 {
     private final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
 

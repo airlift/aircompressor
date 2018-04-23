@@ -16,7 +16,6 @@ package io.airlift.compress.snappy;
 import com.google.common.base.Charsets;
 import io.airlift.compress.TestingModule;
 import io.airlift.compress.benchmark.DataSet;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
@@ -69,10 +68,10 @@ public class TestSnappyStream
         assertEquals(compressed.length, 37);
 
         // stream header
-        Assert.assertEquals(Arrays.copyOf(compressed, 10), SnappyFramed.HEADER_BYTES);
+        assertEquals(Arrays.copyOf(compressed, 10), SnappyFramed.HEADER_BYTES);
 
         // flag: compressed
-        Assert.assertEquals(toInt(compressed[10]), SnappyFramed.COMPRESSED_DATA_FLAG);
+        assertEquals(toInt(compressed[10]), SnappyFramed.COMPRESSED_DATA_FLAG);
 
         // length: 23 = 0x000017
         assertEquals(toInt(compressed[11]), 0x17);
@@ -99,7 +98,7 @@ public class TestSnappyStream
         assertEquals(compressed.length, random.length + 10 + 4 + 4);
 
         // flag: uncompressed
-        Assert.assertEquals(toInt(compressed[10]), SnappyFramed.UNCOMPRESSED_DATA_FLAG);
+        assertEquals(toInt(compressed[10]), SnappyFramed.UNCOMPRESSED_DATA_FLAG);
 
         // length: 5004 = 0x138c
         assertEquals(toInt(compressed[13]), 0x00);
@@ -112,7 +111,7 @@ public class TestSnappyStream
             throws Exception
     {
         byte[] empty = new byte[0];
-        Assert.assertEquals(compress(empty), SnappyFramed.HEADER_BYTES);
+        assertEquals(compress(empty), SnappyFramed.HEADER_BYTES);
         assertEquals(uncompress(SnappyFramed.HEADER_BYTES), empty);
     }
 
@@ -506,7 +505,7 @@ public class TestSnappyStream
     static File[] getTestFiles()
     {
         File[] testFiles = TEST_DATA_DIR.listFiles();
-        Assert.assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
+        assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
         return testFiles;
     }
 

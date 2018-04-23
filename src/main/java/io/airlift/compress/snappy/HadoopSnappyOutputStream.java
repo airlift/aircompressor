@@ -61,8 +61,8 @@ class HadoopSnappyOutputStream
                 writeNextChunk(buffer, offset, chunkSize);
             }
             else {
-            System.arraycopy(buffer, offset, inputBuffer, inputOffset, chunkSize);
-            inputOffset += chunkSize;
+                System.arraycopy(buffer, offset, inputBuffer, inputOffset, chunkSize);
+                inputOffset += chunkSize;
 
                 if (inputOffset >= inputMaxSize) {
                     writeNextChunk(inputBuffer, 0, inputOffset);

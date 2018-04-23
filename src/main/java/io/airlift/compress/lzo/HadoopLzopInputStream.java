@@ -24,8 +24,8 @@ import java.util.zip.Adler32;
 import java.util.zip.Checksum;
 
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
-import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
 import static io.airlift.compress.lzo.LzopCodec.LZOP_IMPLEMENTATION_VERSION;
+import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
 import static io.airlift.compress.lzo.LzopCodec.LZO_1X_VARIANT;
 import static java.lang.String.format;
 

@@ -21,7 +21,7 @@ import net.jpountz.lz4.LZ4SafeDecompressor;
 import java.nio.ByteBuffer;
 
 public class JPountzLz4JniDecompressor
-    implements Decompressor
+        implements Decompressor
 {
     private final LZ4SafeDecompressor decompressor = LZ4Factory.fastestInstance().safeDecompressor();
 

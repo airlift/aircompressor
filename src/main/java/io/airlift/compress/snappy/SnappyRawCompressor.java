@@ -68,6 +68,7 @@ public final class SnappyRawCompressor
         return 32 + sourceLength + sourceLength / 6;
     }
 
+    @SuppressWarnings("IllegalToken")
     public static int compress(
             final Object inputBase,
             final long inputAddress,
@@ -213,7 +214,6 @@ public final class SnappyRawCompressor
 
                     candidateIndex = blockAddress + (table[curHash] & 0xFFFF);
                     table[curHash] = (short) (input - blockAddress);
-
                 } while (inputBytes == UNSAFE.getInt(inputBase, candidateIndex));
                 nextEmitAddress = input;
             }
@@ -342,6 +342,7 @@ public final class SnappyRawCompressor
         return output;
     }
 
+    @SuppressWarnings("IllegalToken")
     private static int getHashTableSize(int inputSize)
     {
         // Use smaller hash table when input.size() is smaller, since we

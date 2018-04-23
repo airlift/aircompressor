@@ -28,6 +28,7 @@ public final class LzoRawDecompressor
 
     private LzoRawDecompressor() {}
 
+    @SuppressWarnings("InnerAssignment")
     public static int decompress(
             final Object inputBase,
             final long inputAddress,
