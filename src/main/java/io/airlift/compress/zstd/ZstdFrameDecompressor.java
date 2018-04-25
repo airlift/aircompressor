@@ -511,7 +511,7 @@ class ZstdFrameDecompressor
                     // copy literals. literalOutputLimit <= fastOutputLimit, so we can copy
                     // long at a time with over-copy
                     output = copyLiterals(outputBase, literalsBase, output, literalsInput, literalOutputLimit);
-                    copyMatch(outputBase, fastOutputLimit, output, offset, matchOutputLimit, matchAddress);
+                    copyMatch(outputBase, fastOutputLimit, output, offset, matchOutputLimit, matchAddress, matchLength);
                 }
                 output = matchOutputLimit;
                 literalsInput = literalEnd;
@@ -532,22 +532,25 @@ class ZstdFrameDecompressor
         return output;
     }
 
-    private void copyMatch(Object outputBase, long fastOutputLimit, long output, int offset, long matchOutputLimit, long matchAddress)
+    private void copyMatch(Object outputBase, long fastOutputLimit, long output, int offset, long matchOutputLimit, long matchAddress, int matchLength)
     {
         matchAddress = copyMatchHead(outputBase, output, offset, matchAddress);
         output += SIZE_OF_LONG;
 
-        copyMatchTail(outputBase, fastOutputLimit, output, matchOutputLimit, matchAddress);
+        copyMatchTail(outputBase, fastOutputLimit, output, matchOutputLimit, matchAddress, matchLength);
     }
 
-    private void copyMatchTail(Object outputBase, long fastOutputLimit, long output, long matchOutputLimit, long matchAddress)
+    private void copyMatchTail(Object outputBase, long fastOutputLimit, long output, long matchOutputLimit, long matchAddress, int matchLength)
     {
-        if (matchOutputLimit <= fastOutputLimit) {
-            while (output < matchOutputLimit) {
+        if (matchOutputLimit < fastOutputLimit) {
+            int copied = 0;
+            do {
                 UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
-                matchAddress += SIZE_OF_LONG;
                 output += SIZE_OF_LONG;
+                matchAddress += SIZE_OF_LONG;
+                copied += SIZE_OF_LONG;
             }
+            while (copied < matchLength - SIZE_OF_LONG); // first long copied in copyMatchHead
         }
         else {
             while (output < fastOutputLimit) {
