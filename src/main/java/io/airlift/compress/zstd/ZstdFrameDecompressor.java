@@ -15,6 +15,7 @@ package io.airlift.compress.zstd;
 
 import io.airlift.compress.MalformedInputException;
 import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.airlift.slice.UnsafeSliceFactory;
 import io.airlift.slice.XxHash64;
 
@@ -173,6 +174,7 @@ class ZstdFrameDecompressor
 
         while (input < inputLimit) {
             reset();
+            long outputStart = output;
             input += verifyMagic(inputBase, inputAddress, inputLimit);
 
             FrameHeader frameHeader = readFrameHeader(inputBase, input, inputLimit);
@@ -216,7 +218,13 @@ class ZstdFrameDecompressor
             while (!lastBlock);
 
             if (frameHeader.hasChecksum) {
-                Slice outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputAddress, (int) (output - outputAddress));
+                int decodedFrameSize = (int) (output - outputStart);
+
+                Slice outputSlice = Slices.EMPTY_SLICE;
+                if (decodedFrameSize > 0) {
+                    outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputStart, decodedFrameSize);
+                }
+
                 long hash = XxHash64.hash(0, outputSlice);
 
                 int checksum = UNSAFE.getInt(inputBase, input);
