@@ -13,11 +13,15 @@
  */
 package io.airlift.compress.zstd;
 
+import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
 
 public class TestZstd
     extends AbstractTestCompression
@@ -45,5 +49,22 @@ public class TestZstd
     protected Decompressor getVerifyDecompressor()
     {
         return new ZstdJniDecompressor();
+    }
+
+    // Ideally, this should be covered by super.testDecompressWithOutputPadding(...), but the data written by the native
+    // compressor doesn't include checksums, so it's not a comprehensive test. The dataset for this test has a checksum.
+    @Test
+    public void testDecompressWithOutputPaddingAndChecksum()
+            throws IOException
+    {
+        int padding = 1021;
+
+        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/with-checksum.zst"));
+        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/with-checksum"));
+
+        byte[] output = new byte[uncompressed.length + padding * 2]; // pre + post padding
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, padding, output.length);
+
+        assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, padding, decompressedSize);
     }
 }

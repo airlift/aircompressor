@@ -217,13 +217,15 @@ class ZstdFrameDecompressor
             while (!lastBlock);
 
             if (frameHeader.hasChecksum) {
-                Slice outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputAddress, (int) (outputLimit - outputAddress));
+                Slice outputSlice = UnsafeSliceFactory.getInstance().newSlice(outputBase, outputAddress, (int) (output - outputAddress));
                 long hash = XxHash64.hash(0, outputSlice);
 
                 int checksum = UNSAFE.getInt(inputBase, input);
                 if (checksum != (int) hash) {
                     throw new MalformedInputException(input, String.format("Bad checksum. Expected: %s, actual: %s", Integer.toHexString(checksum), Integer.toHexString((int) hash)));
                 }
+
+                input += SIZE_OF_INT;
             }
         }
 

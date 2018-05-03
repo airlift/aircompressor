@@ -89,6 +89,29 @@ public abstract class AbstractTestCompression
         assertByteArraysEqual(uncompressed, 0, uncompressedSize, uncompressedOriginal, 0, uncompressedOriginal.length);
     }
 
+    // Tests that decompression works correctly when the decompressed data does not span the entire output buffer
+    @Test(dataProvider = "data")
+    public void testDecompressWithOutputPadding(DataSet dataSet)
+    {
+        int padding = 1021;
+
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+        byte[] compressed = prepareCompressedData(uncompressedOriginal);
+
+        byte[] uncompressed = new byte[uncompressedOriginal.length + 2 * padding]; // pre + post padding
+
+        Decompressor decompressor = getDecompressor();
+        int uncompressedSize = decompressor.decompress(
+                compressed,
+                0,
+                compressed.length,
+                uncompressed,
+                padding,
+                uncompressedOriginal.length + padding);
+
+        assertByteArraysEqual(uncompressed, padding, uncompressedSize, uncompressedOriginal, 0, uncompressedOriginal.length);
+    }
+
     @Test(dataProvider = "data")
     public void testDecompressByteBufferHeapToHeap(DataSet dataSet)
             throws Exception
