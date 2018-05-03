@@ -336,6 +336,7 @@ class ZstdFrameDecompressor
             final Object literalsBase, final long literalsAddress, final long literalsLimit)
     {
         final long fastOutputLimit = outputLimit - SIZE_OF_LONG;
+        final long fastMatchOutputLimit = fastOutputLimit - SIZE_OF_LONG;
 
         long input = inputAddress;
         long output = outputAddress;
@@ -520,7 +521,7 @@ class ZstdFrameDecompressor
                     // copy literals. literalOutputLimit <= fastOutputLimit, so we can copy
                     // long at a time with over-copy
                     output = copyLiterals(outputBase, literalsBase, output, literalsInput, literalOutputLimit);
-                    copyMatch(outputBase, fastOutputLimit, output, offset, matchOutputLimit, matchAddress, matchLength);
+                    copyMatch(outputBase, fastOutputLimit, output, offset, matchOutputLimit, matchAddress, matchLength, fastMatchOutputLimit);
                 }
                 output = matchOutputLimit;
                 literalsInput = literalEnd;
@@ -541,17 +542,22 @@ class ZstdFrameDecompressor
         return output;
     }
 
-    private void copyMatch(Object outputBase, long fastOutputLimit, long output, int offset, long matchOutputLimit, long matchAddress, int matchLength)
+    private void copyMatch(Object outputBase, long fastOutputLimit, long output, int offset, long matchOutputLimit, long matchAddress, int matchLength, long fastMatchOutputLimit)
     {
         matchAddress = copyMatchHead(outputBase, output, offset, matchAddress);
         output += SIZE_OF_LONG;
+        matchLength -= SIZE_OF_LONG; // first 8 bytes copied above
 
-        copyMatchTail(outputBase, fastOutputLimit, output, matchOutputLimit, matchAddress, matchLength);
+        copyMatchTail(outputBase, fastOutputLimit, output, matchOutputLimit, matchAddress, matchLength, fastMatchOutputLimit);
     }
 
-    private void copyMatchTail(Object outputBase, long fastOutputLimit, long output, long matchOutputLimit, long matchAddress, int matchLength)
+    private void copyMatchTail(Object outputBase, long fastOutputLimit, long output, long matchOutputLimit, long matchAddress, int matchLength, long fastMatchOutputLimit)
     {
-        if (matchOutputLimit < fastOutputLimit) {
+        // fastMatchOutputLimit is just fastOutputLimit - SIZE_OF_LONG. It needs to be passed in so that it can be computed once for the
+        // whole invocation to decompressSequences. Otherwise, we'd just compute it here.
+        // If matchOutputLimit is < fastMatchOutputLimit, we know that even after the head (8 bytes) has been copied, the output pointer
+        // will be within fastOutputLimit, so it's safe to copy blindly before checking the limit condition
+        if (matchOutputLimit < fastMatchOutputLimit) {
             int copied = 0;
             do {
                 UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
@@ -559,7 +565,7 @@ class ZstdFrameDecompressor
                 matchAddress += SIZE_OF_LONG;
                 copied += SIZE_OF_LONG;
             }
-            while (copied < matchLength - SIZE_OF_LONG); // first long copied in copyMatchHead
+            while (copied < matchLength);
         }
         else {
             while (output < fastOutputLimit) {

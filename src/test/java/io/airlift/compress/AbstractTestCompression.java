@@ -13,6 +13,7 @@
  */
 package io.airlift.compress;
 
+import com.google.common.primitives.Bytes;
 import io.airlift.compress.benchmark.DataSet;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -26,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Preconditions.checkPositionIndexes;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -110,6 +112,33 @@ public abstract class AbstractTestCompression
                 uncompressedOriginal.length + padding);
 
         assertByteArraysEqual(uncompressed, padding, uncompressedSize, uncompressedOriginal, 0, uncompressedOriginal.length);
+    }
+
+    @Test(dataProvider = "data")
+    public void testDecompressionBufferOverrun(DataSet dataSet)
+    {
+        byte[] uncompressedOriginal = dataSet.getUncompressed();
+        byte[] compressed = prepareCompressedData(uncompressedOriginal);
+
+        // add padding with random bytes that we can verify later
+        byte[] padding = new byte[100];
+        ThreadLocalRandom.current().nextBytes(padding);
+
+        byte[] uncompressed = Bytes.concat(new byte[uncompressedOriginal.length], padding);
+
+        Decompressor decompressor = getDecompressor();
+        int uncompressedSize = decompressor.decompress(
+                compressed,
+                0,
+                compressed.length,
+                uncompressed,
+                0,
+                uncompressedOriginal.length);
+
+        assertByteArraysEqual(uncompressed, 0, uncompressedSize, uncompressedOriginal, 0, uncompressedOriginal.length);
+
+        // verify padding is intact
+        assertByteArraysEqual(padding, 0, padding.length, uncompressed, uncompressed.length - padding.length, padding.length);
     }
 
     @Test(dataProvider = "data")
