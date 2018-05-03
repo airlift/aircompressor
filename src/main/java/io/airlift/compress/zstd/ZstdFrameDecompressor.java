@@ -168,12 +168,11 @@ class ZstdFrameDecompressor
             return 0;
         }
 
-        reset();
-
         long input = inputAddress;
         long output = outputAddress;
 
         while (input < inputLimit) {
+            reset();
             input += verifyMagic(inputBase, inputAddress, inputLimit);
 
             FrameHeader frameHeader = readFrameHeader(inputBase, input, inputLimit);
