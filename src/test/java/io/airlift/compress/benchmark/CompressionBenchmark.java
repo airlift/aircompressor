@@ -28,9 +28,9 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.results.RunResult;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
 import org.openjdk.jmh.runner.options.CommandLineOptionException;
 import org.openjdk.jmh.runner.options.CommandLineOptions;
-import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
 import org.openjdk.jmh.util.Statistics;
 
@@ -114,12 +114,15 @@ public class CompressionBenchmark
     public static void main(String[] args)
             throws RunnerException, CommandLineOptionException
     {
-        Options opt = new OptionsBuilder()
-                .parent(new CommandLineOptions(args))
-                .include(".*\\." + CompressionBenchmark.class.getSimpleName() + ".*")
-                .build();
+        CommandLineOptions parsedOptions = new CommandLineOptions(args);
+        ChainedOptionsBuilder options = new OptionsBuilder()
+                .parent(parsedOptions);
 
-        Collection<RunResult> results = new Runner(opt).run();
+        if (parsedOptions.getIncludes().isEmpty()) {
+            options = options.include(".*\\." + CompressionBenchmark.class.getSimpleName() + ".*");
+        }
+
+        Collection<RunResult> results = new Runner(options.build()).run();
 
         int count = 0;
         double sum = 0;
