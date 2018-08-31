@@ -17,12 +17,12 @@ import java.util.Arrays;
 
 import static io.airlift.compress.zstd.BitInputStream.isEndOfStream;
 import static io.airlift.compress.zstd.BitInputStream.peekBitsFast;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.zstd.FseTableReader.FSE_MAX_SYMBOL_VALUE;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.isPowerOf2;
 import static io.airlift.compress.zstd.Util.verify;
-import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_INT;
-import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_SHORT;
 
 class Huffman
 {

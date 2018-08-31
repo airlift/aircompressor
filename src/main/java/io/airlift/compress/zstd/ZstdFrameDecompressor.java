@@ -22,6 +22,36 @@ import io.airlift.slice.XxHash64;
 import java.util.Arrays;
 
 import static io.airlift.compress.zstd.BitInputStream.peekBits;
+import static io.airlift.compress.zstd.Constants.COMPRESSED_BLOCK;
+import static io.airlift.compress.zstd.Constants.COMPRESSED_LITERALS_BLOCK;
+import static io.airlift.compress.zstd.Constants.DEFAULT_MAX_OFFSET_CODE_SYMBOL;
+import static io.airlift.compress.zstd.Constants.LITERALS_LENGTH_BITS;
+import static io.airlift.compress.zstd.Constants.LITERAL_LENGTH_TABLE_LOG;
+import static io.airlift.compress.zstd.Constants.LONG_NUMBER_OF_SEQUENCES;
+import static io.airlift.compress.zstd.Constants.MAGIC_NUMBER;
+import static io.airlift.compress.zstd.Constants.MATCH_LENGTH_BITS;
+import static io.airlift.compress.zstd.Constants.MATCH_LENGTH_TABLE_LOG;
+import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
+import static io.airlift.compress.zstd.Constants.MAX_LITERALS_LENGTH_SYMBOL;
+import static io.airlift.compress.zstd.Constants.MAX_MATCH_LENGTH_SYMBOL;
+import static io.airlift.compress.zstd.Constants.MIN_BLOCK_SIZE;
+import static io.airlift.compress.zstd.Constants.MIN_SEQUENCES_SIZE;
+import static io.airlift.compress.zstd.Constants.MIN_WINDOW_LOG;
+import static io.airlift.compress.zstd.Constants.OFFSET_TABLE_LOG;
+import static io.airlift.compress.zstd.Constants.RAW_BLOCK;
+import static io.airlift.compress.zstd.Constants.RAW_LITERALS_BLOCK;
+import static io.airlift.compress.zstd.Constants.RLE_BLOCK;
+import static io.airlift.compress.zstd.Constants.RLE_LITERALS_BLOCK;
+import static io.airlift.compress.zstd.Constants.SEQUENCE_ENCODING_BASIC;
+import static io.airlift.compress.zstd.Constants.SEQUENCE_ENCODING_COMPRESSED;
+import static io.airlift.compress.zstd.Constants.SEQUENCE_ENCODING_REPEAT;
+import static io.airlift.compress.zstd.Constants.SEQUENCE_ENCODING_RLE;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_BLOCK_HEADER;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_BYTE;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+import static io.airlift.compress.zstd.Constants.TREELESS_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.fail;
 import static io.airlift.compress.zstd.Util.mask;
@@ -33,51 +63,9 @@ class ZstdFrameDecompressor
     private static final int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
-    private static final int MAGIC_NUMBER = 0xFD2FB528;
     private static final int V07_MAGIC_NUMBER = 0xFD2FB527;
 
-    private static final int MIN_SEQUENCES_SIZE = 1;
-    private static final int MIN_BLOCK_SIZE = 1 // block type tag
-            + 1 // min size of raw or rle length header
-            + MIN_SEQUENCES_SIZE;
-
-    private static final int MAX_BLOCK_SIZE = 128 * 1024;
-
-    private static final int MIN_WINDOW_LOG = 10;
     private static final int MAX_WINDOW_SIZE = 1 << 23;
-
-    public static final int SIZE_OF_BYTE = 1;
-    public static final int SIZE_OF_SHORT = 2;
-    public static final int SIZE_OF_INT = 4;
-    public static final int SIZE_OF_LONG = 8;
-
-    private static final long SIZE_OF_BLOCK_HEADER = 3;
-
-    // block types
-    private static final int RAW_BLOCK = 0;
-    private static final int RLE_BLOCK = 1;
-    private static final int COMPRESSED_BLOCK = 2;
-
-    // literal block types
-    private static final int RAW_LITERALS_BLOCK = 0;
-    private static final int RLE_LITERALS_BLOCK = 1;
-    private static final int COMPRESSED_LITERALS_BLOCK = 2;
-    private static final int REPEAT_STATS_LITERALS_BLOCK = 3;
-
-    private static final int LONG_NUMBER_OF_SEQUENCES = 0x7F00;
-
-    private static final int MAX_LITERALS_LENGTH_SYMBOL = 35;
-    private static final int MAX_MATCH_LENGTH_SYMBOL = 52;
-    private static final int MAX_OFFSET_CODE_SYMBOL = 28;
-
-    private static final int LITERALS_LENGTH_FSE_LOG = 9;
-    private static final int MATCH_LENGTH_FSE_LOG = 9;
-    private static final int OFFSET_CODES_FSE_LOG = 8;
-
-    private static final int SET_BASIC = 0;
-    private static final int SET_RLE = 1;
-    private static final int SET_COMPRESSED = 2;
-    private static final int SET_REPEAT = 3;
 
     private static final int[] LITERALS_LENGTH_BASE = {
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -95,17 +83,6 @@ class ZstdFrameDecompressor
             0xFD, 0x1FD, 0x3FD, 0x7FD, 0xFFD, 0x1FFD, 0x3FFD, 0x7FFD,
             0xFFFD, 0x1FFFD, 0x3FFFD, 0x7FFFD, 0xFFFFD, 0x1FFFFD, 0x3FFFFD, 0x7FFFFD,
             0xFFFFFD, 0x1FFFFFD, 0x3FFFFFD, 0x7FFFFFD, 0xFFFFFFD};
-
-    private static final int[] LITERALS_LENGTH_BITS = {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12,
-            13, 14, 15, 16};
-
-    private static final int[] MATCH_LENGTH_BITS = {
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            1, 1, 1, 1, 2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11,
-            12, 13, 14, 15, 16};
 
     private static final FiniteStateEntropy.Table DEFAULT_LITERALS_LENGTH_TABLE = new FiniteStateEntropy.Table(
             6,
@@ -146,9 +123,9 @@ class ZstdFrameDecompressor
 
     private final int[] previousOffsets = new int[3];
 
-    private final FiniteStateEntropy.Table literalsLengthTable = new FiniteStateEntropy.Table(LITERALS_LENGTH_FSE_LOG);
-    private final FiniteStateEntropy.Table offsetCodesTable = new FiniteStateEntropy.Table(OFFSET_CODES_FSE_LOG);
-    private final FiniteStateEntropy.Table matchLengthTable = new FiniteStateEntropy.Table(MATCH_LENGTH_FSE_LOG);
+    private final FiniteStateEntropy.Table literalsLengthTable = new FiniteStateEntropy.Table(LITERAL_LENGTH_TABLE_LOG);
+    private final FiniteStateEntropy.Table offsetCodesTable = new FiniteStateEntropy.Table(OFFSET_TABLE_LOG);
+    private final FiniteStateEntropy.Table matchLengthTable = new FiniteStateEntropy.Table(MATCH_LENGTH_TABLE_LOG);
 
     private FiniteStateEntropy.Table currentLiteralsLengthTable;
     private FiniteStateEntropy.Table currentOffsetCodesTable;
@@ -312,7 +289,7 @@ class ZstdFrameDecompressor
                 input += decodeRleLiterals(inputBase, input, blockSize);
                 break;
             }
-            case REPEAT_STATS_LITERALS_BLOCK:
+            case TREELESS_LITERALS_BLOCK:
                 verify(huffman.isLoaded(), input, "Dictionary is corrupted");
             case COMPRESSED_LITERALS_BLOCK: {
                 input += decodeCompressedLiterals(inputBase, input, blockSize, literalsBlockType);
@@ -484,7 +461,7 @@ class ZstdFrameDecompressor
                 }
 
                 int totalBits = literalsLengthBits + matchLengthBits + offsetBits;
-                if (totalBits > 64 - 7 - (LITERALS_LENGTH_FSE_LOG + MATCH_LENGTH_FSE_LOG + OFFSET_CODES_FSE_LOG)) {
+                if (totalBits > 64 - 7 - (LITERAL_LENGTH_TABLE_LOG + MATCH_LENGTH_TABLE_LOG + OFFSET_TABLE_LOG)) {
                     BitInputStream.Loader loader1 = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
                     loader1.load();
 
@@ -623,7 +600,7 @@ class ZstdFrameDecompressor
     private long computeMatchLengthTable(int matchLengthType, Object inputBase, long input, long inputLimit)
     {
         switch (matchLengthType) {
-            case SET_RLE:
+            case SEQUENCE_ENCODING_RLE:
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
@@ -632,14 +609,14 @@ class ZstdFrameDecompressor
                 FseTableReader.initializeRleTable(matchLengthTable, value);
                 currentMatchLengthTable = matchLengthTable;
                 break;
-            case SET_BASIC:
+            case SEQUENCE_ENCODING_BASIC:
                 currentMatchLengthTable = DEFAULT_MATCH_LENGTH_TABLE;
                 break;
-            case SET_REPEAT:
+            case SEQUENCE_ENCODING_REPEAT:
                 verify(currentMatchLengthTable != null, input, "Expected match length table to be present");
                 break;
-            case SET_COMPRESSED:
-                input += fse.readFseTable(matchLengthTable, inputBase, input, inputLimit, MAX_MATCH_LENGTH_SYMBOL, MATCH_LENGTH_FSE_LOG);
+            case SEQUENCE_ENCODING_COMPRESSED:
+                input += fse.readFseTable(matchLengthTable, inputBase, input, inputLimit, MAX_MATCH_LENGTH_SYMBOL, MATCH_LENGTH_TABLE_LOG);
                 currentMatchLengthTable = matchLengthTable;
                 break;
             default:
@@ -651,23 +628,23 @@ class ZstdFrameDecompressor
     private long computeOffsetsTable(int offsetCodesType, Object inputBase, long input, long inputLimit)
     {
         switch (offsetCodesType) {
-            case SET_RLE:
+            case SEQUENCE_ENCODING_RLE:
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
-                verify(value <= MAX_OFFSET_CODE_SYMBOL, input, "Value exceeds expected maximum value");
+                verify(value <= DEFAULT_MAX_OFFSET_CODE_SYMBOL, input, "Value exceeds expected maximum value");
 
                 FseTableReader.initializeRleTable(offsetCodesTable, value);
                 currentOffsetCodesTable = offsetCodesTable;
                 break;
-            case SET_BASIC:
+            case SEQUENCE_ENCODING_BASIC:
                 currentOffsetCodesTable = DEFAULT_OFFSET_CODES_TABLE;
                 break;
-            case SET_REPEAT:
+            case SEQUENCE_ENCODING_REPEAT:
                 verify(currentOffsetCodesTable != null, input, "Expected match length table to be present");
                 break;
-            case SET_COMPRESSED:
-                input += fse.readFseTable(offsetCodesTable, inputBase, input, inputLimit, MAX_OFFSET_CODE_SYMBOL, OFFSET_CODES_FSE_LOG);
+            case SEQUENCE_ENCODING_COMPRESSED:
+                input += fse.readFseTable(offsetCodesTable, inputBase, input, inputLimit, DEFAULT_MAX_OFFSET_CODE_SYMBOL, OFFSET_TABLE_LOG);
                 currentOffsetCodesTable = offsetCodesTable;
                 break;
             default:
@@ -679,7 +656,7 @@ class ZstdFrameDecompressor
     private long computeLiteralsTable(int literalsLengthType, Object inputBase, long input, long inputLimit)
     {
         switch (literalsLengthType) {
-            case SET_RLE:
+            case SEQUENCE_ENCODING_RLE:
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
@@ -688,14 +665,14 @@ class ZstdFrameDecompressor
                 FseTableReader.initializeRleTable(literalsLengthTable, value);
                 currentLiteralsLengthTable = literalsLengthTable;
                 break;
-            case SET_BASIC:
+            case SEQUENCE_ENCODING_BASIC:
                 currentLiteralsLengthTable = DEFAULT_LITERALS_LENGTH_TABLE;
                 break;
-            case SET_REPEAT:
+            case SEQUENCE_ENCODING_REPEAT:
                 verify(currentLiteralsLengthTable != null, input, "Expected match length table to be present");
                 break;
-            case SET_COMPRESSED:
-                input += fse.readFseTable(literalsLengthTable, inputBase, input, inputLimit, MAX_LITERALS_LENGTH_SYMBOL, LITERALS_LENGTH_FSE_LOG);
+            case SEQUENCE_ENCODING_COMPRESSED:
+                input += fse.readFseTable(literalsLengthTable, inputBase, input, inputLimit, MAX_LITERALS_LENGTH_SYMBOL, LITERAL_LENGTH_TABLE_LOG);
                 currentLiteralsLengthTable = literalsLengthTable;
                 break;
             default:
@@ -784,7 +761,7 @@ class ZstdFrameDecompressor
         input += headerSize;
 
         long inputLimit = input + compressedSize;
-        if (literalsBlockType != REPEAT_STATS_LITERALS_BLOCK) {
+        if (literalsBlockType != TREELESS_LITERALS_BLOCK) {
             input += huffman.readTable(inputBase, input, compressedSize);
         }
 

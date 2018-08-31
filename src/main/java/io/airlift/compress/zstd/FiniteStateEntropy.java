@@ -14,9 +14,9 @@
 package io.airlift.compress.zstd;
 
 import static io.airlift.compress.zstd.BitInputStream.peekBits;
+import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.verify;
-import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_INT;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 class FiniteStateEntropy

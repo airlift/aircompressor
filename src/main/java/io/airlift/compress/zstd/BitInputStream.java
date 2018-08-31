@@ -13,10 +13,10 @@
  */
 package io.airlift.compress.zstd;
 
+import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.highestBit;
 import static io.airlift.compress.zstd.Util.verify;
-import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_LONG;
 
 /**
  * Bit streams are encoded as a byte-aligned little-endian stream. Thus, bits are laid out
