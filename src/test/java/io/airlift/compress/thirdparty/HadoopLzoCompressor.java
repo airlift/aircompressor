@@ -13,30 +13,29 @@
  */
 package io.airlift.compress.thirdparty;
 
-import com.hadoop.compression.lzo.LzoCodec;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.HadoopNative;
-import org.apache.hadoop.conf.Configuration;
+import org.anarres.lzo.hadoop.codec.LzoCompressor;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class HadoopLzoCompressor
-    implements Compressor
+        implements Compressor
 {
     static {
         HadoopNative.requireHadoopNative();
     }
 
-    private static final Configuration HADOOP_CONF = new Configuration();
-
+    private static final int maxOutputBufferSize = 128 * 1024 * 1024;
     private final org.apache.hadoop.io.compress.Compressor compressor;
 
     public HadoopLzoCompressor()
     {
-        LzoCodec codec = new LzoCodec();
-        codec.setConf(HADOOP_CONF);
-        compressor = codec.createCompressor();
+        // use a large enough buffer to avoid framing
+        compressor = new LzoCompressor(LzoCompressor.CompressionStrategy.LZO1X_1, maxOutputBufferSize);
     }
 
     @Override
@@ -48,6 +47,7 @@ public class HadoopLzoCompressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
+        checkArgument(inputLength < maxOutputBufferSize, "input size " + inputLength + " exceed maximum size : " + maxOutputLength);
         compressor.reset();
         compressor.setInput(input, inputOffset, inputLength);
         compressor.finish();
