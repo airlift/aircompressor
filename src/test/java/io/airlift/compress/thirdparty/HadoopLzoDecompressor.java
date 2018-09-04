@@ -13,37 +13,37 @@
  */
 package io.airlift.compress.thirdparty;
 
-import com.hadoop.compression.lzo.LzoCodec;
 import io.airlift.compress.Decompressor;
-import io.airlift.compress.HadoopNative;
 import io.airlift.compress.MalformedInputException;
-import org.apache.hadoop.conf.Configuration;
+import org.anarres.lzo.hadoop.codec.LzoDecompressor;
+import org.anarres.lzo.hadoop.codec.LzoDecompressor.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class HadoopLzoDecompressor
-    implements Decompressor
+        implements Decompressor
 {
-    static {
-        HadoopNative.requireHadoopNative();
-    }
-
-    private static final Configuration HADOOP_CONF = new Configuration();
-
+    private static final int MAX_OUTPUT_BUFFER_SIZE = 128 * 1024 * 1024;
     private final org.apache.hadoop.io.compress.Decompressor decompressor;
 
     public HadoopLzoDecompressor()
     {
-        LzoCodec codec = new LzoCodec();
-        codec.setConf(HADOOP_CONF);
-        decompressor = codec.createDecompressor();
+        decompressor = new LzoDecompressor(CompressionStrategy.LZO1X, MAX_OUTPUT_BUFFER_SIZE);
     }
 
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
+        checkArgument(maxOutputLength < MAX_OUTPUT_BUFFER_SIZE, "output size " + maxOutputLength + " exceed maximum size : " + maxOutputLength);
+        // nothing decompress to nothing
+        if (inputLength == 0) {
+            return 0;
+        }
+
         decompressor.reset();
         decompressor.setInput(input, inputOffset, inputLength);
 

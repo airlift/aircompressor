@@ -45,16 +45,10 @@ public final class LzoRawDecompressor
         // maximum offset in buffers to which it's safe to write long-at-a-time
         final long fastOutputLimit = outputLimit - SIZE_OF_LONG;
 
-        // LZO can concat two blocks together so, decode until the input data is consumed
+        // LZO can concat multiple blocks together so, decode until all input data is consumed
         long input = inputAddress;
         long output = outputAddress;
         while (input < inputLimit) {
-            //
-            // Note: For safety some of the code below may stop decoding early or skip decoding,
-            // because input is not available.  This makes the code safe, and since LZO requires
-            // an explicit "stop" command, the decoder will still throw a exception.
-            //
-
             boolean firstCommand = true;
             int lastLiteralLength = 0;
             while (true) {
@@ -62,15 +56,12 @@ public final class LzoRawDecompressor
                     throw new MalformedInputException(input - inputAddress);
                 }
                 int command = UNSAFE.getByte(inputBase, input++) & 0xFF;
-                if (command == 0b0001_0001) {
-                    break;
-                }
-
                 // Commands are described using a bit pattern notation:
                 // 0: bit is not set
                 // 1: bit is set
                 // L: part of literal length
-                // P: part of match offset position
+                // H: high bits of match offset position
+                // D: low bits of match offset position
                 // M: part of match length
                 // ?: see documentation in command decoder
 
@@ -80,6 +71,7 @@ public final class LzoRawDecompressor
                 if ((command & 0b1111_0000) == 0b0000_0000) {
                     if (lastLiteralLength == 0) {
                         // 0b0000_LLLL (0bLLLL_LLLL)*
+                        // copy 4 or more literals only
 
                         // copy length :: fixed
                         //   0
@@ -104,43 +96,44 @@ public final class LzoRawDecompressor
                         literalLength += 3;
                     }
                     else if (lastLiteralLength <= 3) {
-                        // 0b0000_PPLL 0bPPPP_PPPP
+                        // 0b0000_DDLL 0bHHHH_HHHH
+                        // copy of a 2-byte block from the dictionary within a 1kB distance
 
                         // copy length: fixed
-                        //   3
-                        matchLength = 3;
+                        //   2
+                        matchLength = 2;
 
-                        // copy offset :: 12 bits :: valid range [2048..3071]
-                        //   [0..1] from command [2..3]
-                        //   [2..9] from trailer [0..7]
-                        //   [10] unset
-                        //   [11] set
+                        // copy offset :: valid range [1..1024]
+                        //   DD from command [2..3]
+                        //   HH from trailer [0..7]
+                        // offset = (HH << 2) + DD + 1
                         if (input >= inputLimit) {
                             throw new MalformedInputException(input - inputAddress);
                         }
                         matchOffset = (command & 0b1100) >>> 2;
                         matchOffset |= (UNSAFE.getByte(inputBase, input++) & 0xFF) << 2;
-                        matchOffset |= 0b1000_0000_0000;
 
                         // literal length :: 2 bits :: valid range [0..3]
                         //   [0..1] from command [0..1]
                         literalLength = (command & 0b0000_0011);
                     }
                     else {
-                        // 0b0000_PPLL 0bPPPP_PPPP
+                        // 0b0000_DDLL 0bHHHH_HHHH
 
                         // copy length :: fixed
-                        //   2
-                        matchLength = 2;
+                        //   3
+                        matchLength = 3;
 
-                        // copy offset :: 10 bits :: valid range [0..1023]
-                        //   [0..1] from command [2..3]
-                        //   [2..9] from trailer [0..7]
+                        // copy offset :: 10 bits :: valid range [2049..3072]
+                        //   DD from command [2..3]
+                        //   HH from trailer [0..7]
+                        // offset = (H << 2) + D + 2049
                         if (input >= inputLimit) {
                             throw new MalformedInputException(input - inputAddress);
                         }
                         matchOffset = (command & 0b1100) >>> 2;
                         matchOffset |= (UNSAFE.getByte(inputBase, input++) & 0xFF) << 2;
+                        matchOffset |= 0b1000_0000_0000;
 
                         // literal length :: 2 bits :: valid range [0..3]
                         //   [0..1] from command [0..1]
@@ -154,7 +147,7 @@ public final class LzoRawDecompressor
                     literalLength = command - 17;
                 }
                 else if ((command & 0b1111_0000) == 0b0001_0000) {
-                    // 0b0001_?MMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+                    // 0b0001_HMMM (0bMMMM_MMMM)* 0bDDDD_DDDD_DDDD_DDLL
 
                     // copy length - 2 :: variable bits :: valid range [3..]
                     //   2 + variableLength(command bits [0..2], 3)
@@ -177,25 +170,25 @@ public final class LzoRawDecompressor
                     int trailer = UNSAFE.getShort(inputBase, input) & 0xFFFF;
                     input += SIZE_OF_SHORT;
 
-                    // copy offset :: 16 bits :: valid range [32767..49151]
+                    // copy offset :: 16 bits :: valid range [16383..49151]
                     //   [0..13] from trailer [2..15]
-                    //   [14] if command bit [3] unset
-                    //   [15] if command bit [3] set
-                    matchOffset = trailer >> 2;
-                    if ((command & 0b1000) == 0) {
-                        matchOffset |= 0b0100_0000_0000_0000;
+                    //   [14] if command bit [3] set
+                    //   plus fixed offset 0b11_1111_1111_1111
+                    matchOffset = (command & 0b1000) << 11;
+                    matchOffset += trailer >> 2;
+                    if (matchOffset == 0) {
+                        // match offset of zero, means that this is the last command in the sequence
+                        break;
                     }
-                    else {
-                        matchOffset |= 0b1000_0000_0000_0000;
-                    }
-                    matchOffset--;
+                    matchOffset += 0b11_1111_1111_1111;
 
                     // literal length :: 2 bits :: valid range [0..3]
                     //   [0..1] from trailer [0..1]
                     literalLength = trailer & 0b11;
                 }
                 else if ((command & 0b1110_0000) == 0b0010_0000) {
-                    // 0b001M_MMMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+                    // command in [32, 63]
+                    // 0b001M_MMMM (0bMMMM_MMMM)* 0bDDDD_DDDD_DDDD_DDLL
 
                     // copy length - 2 :: variable bits :: valid range [3..]
                     //   2 + variableLength(command bits [0..4], 5)
@@ -227,7 +220,7 @@ public final class LzoRawDecompressor
                     literalLength = trailer & 0b11;
                 }
                 else if ((command & 0b1100_0000) != 0) {
-                    // 0bMMMP_PPLL 0bPPPP_PPPP
+                    // 0bMMMD_DDLL 0bHHHH_HHHH
 
                     // copy length - 1 :: 3 bits :: valid range [1..8]
                     //   [0..2] from command [5..7]
@@ -346,13 +339,7 @@ public final class LzoRawDecompressor
                 }
                 lastLiteralLength = literalLength;
             }
-
-            if (input + SIZE_OF_SHORT > inputLimit && UNSAFE.getShort(inputBase, input) != 0) {
-                throw new MalformedInputException(input - inputAddress);
-            }
-            input += SIZE_OF_SHORT;
         }
-
         return (int) (output - outputAddress);
     }
 
