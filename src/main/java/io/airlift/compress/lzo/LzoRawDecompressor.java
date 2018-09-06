@@ -71,7 +71,7 @@ public final class LzoRawDecompressor
             if ((command & 0b1111_0000) == 0b0000_0000) {
                 if (lastLiteralLength == 0) {
                     // 0b0000_LLLL (0bLLLL_LLLL)*
-                    // copy 4 ore more literals only
+                    // copy 4 or more literals only
 
                     // copy length :: fixed
                     //   0
@@ -133,7 +133,7 @@ public final class LzoRawDecompressor
                     }
                     matchOffset = (command & 0b1100) >>> 2;
                     matchOffset |= (UNSAFE.getByte(inputBase, input++) & 0xFF) << 2;
-                    matchOffset += 0b1000_0000_0000;
+                    matchOffset |= 0b1000_0000_0000;
 
                     // literal length :: 2 bits :: valid range [0..3]
                     //   [0..1] from command [0..1]
@@ -147,7 +147,7 @@ public final class LzoRawDecompressor
                 literalLength = command - 17;
             }
             else if ((command & 0b1111_0000) == 0b0001_0000) {
-                // 0b0001_?MMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+                // 0b0001_HMMM (0bMMMM_MMMM)* 0bDDDD_DDDD_DDDD_DDLL
 
                 // copy length - 2 :: variable bits :: valid range [3..]
                 //   2 + variableLength(command bits [0..2], 3)
@@ -187,7 +187,7 @@ public final class LzoRawDecompressor
             }
             else if ((command & 0b1110_0000) == 0b0010_0000) {
                 // command in [32, 63]
-                // 0b001M_MMMM (0bMMMM_MMMM)* 0bPPPP_PPPP_PPPP_PPLL
+                // 0b001M_MMMM (0bMMMM_MMMM)* 0bDDDD_DDDD_DDDD_DDLL
 
                 // copy length - 2 :: variable bits :: valid range [3..]
                 //   2 + variableLength(command bits [0..4], 5)
@@ -219,7 +219,7 @@ public final class LzoRawDecompressor
                 literalLength = trailer & 0b11;
             }
             else if ((command & 0b1100_0000) != 0) {
-                // 0bMMMP_PPLL 0bPPPP_PPPP
+                // 0bMMMD_DDLL 0bHHHH_HHHH
 
                 // copy length - 1 :: 3 bits :: valid range [1..8]
                 //   [0..2] from command [5..7]
