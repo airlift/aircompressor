@@ -20,8 +20,6 @@ import org.anarres.lzo.hadoop.codec.LzoCompressor;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 public class HadoopLzoCompressor
         implements Compressor
 {
@@ -29,13 +27,12 @@ public class HadoopLzoCompressor
         HadoopNative.requireHadoopNative();
     }
 
-    private static final int maxOutputBufferSize = 128 * 1024 * 1024;
     private final org.apache.hadoop.io.compress.Compressor compressor;
 
     public HadoopLzoCompressor()
     {
-        // use a large enough buffer to avoid framing
-        compressor = new LzoCompressor(LzoCompressor.CompressionStrategy.LZO1X_1, maxOutputBufferSize);
+        // use a small buffer so we get multiple compressed chunks
+        compressor = new LzoCompressor(LzoCompressor.CompressionStrategy.LZO1X_1, 256 * 1024);
     }
 
     @Override
@@ -47,7 +44,6 @@ public class HadoopLzoCompressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
-        checkArgument(inputLength < maxOutputBufferSize, "input size " + inputLength + " exceed maximum size : " + maxOutputLength);
         compressor.reset();
         compressor.setInput(input, inputOffset, inputLength);
         compressor.finish();
