@@ -18,6 +18,7 @@ import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopNative;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
+import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
 
 public class TestLzo
         extends AbstractTestCompression
@@ -47,8 +48,6 @@ public class TestLzo
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        // The hadoop decompressor can not deal with multiple compressed blocks
-        // todo write a verify decompressor that handles the consecutive blocks, but uses the native code
-        return new LzoDecompressor();
+        return new HadoopLzoDecompressor();
     }
 }

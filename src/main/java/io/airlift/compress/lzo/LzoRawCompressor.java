@@ -245,11 +245,11 @@ public final class LzoRawCompressor
         output += literalLength;
 
         // write stop command
+        // this is a 0b0001_HMMM command with a zero match offset
         UNSAFE.putByte(outputBase, output++, (byte) 0b0001_0001);
-
-        // write 2 zeros
         UNSAFE.putShort(outputBase, output, (byte) 0);
         output += SIZE_OF_SHORT;
+
         return output;
     }
 
