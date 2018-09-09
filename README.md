@@ -12,3 +12,8 @@ typically 10-40% faster than the JNI wrapper for the native libraries.
 In addition to the raw block encoders, there are implementations of the
 Hadoop CompressionCodec for each algorithm. They are
 typically 300% faster than the JNI wrappers.
+
+# Requirements
+
+This library requires a Java 1.8+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform.
+
