@@ -13,10 +13,14 @@
  */
 package io.airlift.compress.lzo;
 
+import io.airlift.compress.IncompatibleJvmException;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 import java.nio.Buffer;
+import java.nio.ByteOrder;
+
+import static java.lang.String.format;
 
 final class UnsafeUtil
 {
@@ -26,13 +30,18 @@ final class UnsafeUtil
     private UnsafeUtil() {}
 
     static {
+        ByteOrder order = ByteOrder.nativeOrder();
+        if (!order.equals(ByteOrder.LITTLE_ENDIAN)) {
+            throw new IncompatibleJvmException(format("LZO requires a little endian platform (found %s)", order));
+        }
+
         try {
             Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
             theUnsafe.setAccessible(true);
             UNSAFE = (Unsafe) theUnsafe.get(null);
         }
         catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IncompatibleJvmException("LZO requires access to sun.misc.Unsafe");
         }
 
         try {
@@ -41,7 +50,7 @@ final class UnsafeUtil
             ADDRESS_ACCESSOR = field;
         }
         catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new IncompatibleJvmException("LZO requires access to java.nio.Buffer raw address field");
         }
     }
 
