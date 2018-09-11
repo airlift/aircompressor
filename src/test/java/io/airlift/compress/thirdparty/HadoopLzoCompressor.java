@@ -14,7 +14,9 @@
 package io.airlift.compress.thirdparty;
 
 import io.airlift.compress.Compressor;
-import org.anarres.lzo.hadoop.codec.LzoCompressor;
+import io.airlift.compress.HadoopNative;
+import org.anarres.lzo.hadoop.codec.LzoCodec;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -22,12 +24,21 @@ import java.nio.ByteBuffer;
 public class HadoopLzoCompressor
         implements Compressor
 {
+    static {
+        HadoopNative.requireHadoopNative();
+    }
+
     private final org.apache.hadoop.io.compress.Compressor compressor;
 
     public HadoopLzoCompressor()
     {
-        // use a small buffer so we get multiple compressed chunks
-        compressor = new LzoCompressor(LzoCompressor.CompressionStrategy.LZO1X_1, 256 * 1024);
+        Configuration hadoopConf = new Configuration();
+        hadoopConf.set("io.compression.codec.lzo.class", "com.hadoop.compression.lzo.LzoCodec");
+        hadoopConf.set("io.compression.codec.lzo.compressor", "LZO1X_999");
+        hadoopConf.set("io.compression.codec.lzo.compression.level", "3");
+        LzoCodec codec = new LzoCodec();
+        codec.setConf(hadoopConf);
+        compressor = codec.createCompressor();
     }
 
     @Override
