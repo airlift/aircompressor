@@ -15,6 +15,8 @@ package io.airlift.compress.snappy;
 
 import java.util.Random;
 
+import static com.google.common.base.Verify.verify;
+
 class RandomGenerator
 {
     public final byte[] data;
@@ -33,12 +35,11 @@ class RandomGenerator
         }
     }
 
-    @SuppressWarnings("IllegalToken")
     public int getNextPosition(int length)
     {
         if (position + length > data.length) {
             position = 0;
-            assert (length < data.length);
+            verify(length < data.length);
         }
         int result = position;
         position += length;

@@ -96,16 +96,19 @@ class Crc32C
         crc = 0xffffffff;
     }
 
-    @SuppressWarnings("InnerAssignment")
     @Override
     public void update(byte[] b, int off, int len)
     {
         int localCrc = crc;
         while (len > 7) {
             int c0 = b[off++] ^ localCrc;
-            int c1 = b[off++] ^ (localCrc >>>= 8);
-            int c2 = b[off++] ^ (localCrc >>>= 8);
-            int c3 = b[off++] ^ (localCrc >>>= 8);
+            localCrc >>>= 8;
+            int c1 = b[off++] ^ localCrc;
+            localCrc >>>= 8;
+            int c2 = b[off++] ^ localCrc;
+            localCrc >>>= 8;
+            int c3 = b[off++] ^ localCrc;
+
             localCrc = (T8_7[c0 & 0xff] ^ T8_6[c1 & 0xff])
                     ^ (T8_5[c2 & 0xff] ^ T8_4[c3 & 0xff]);
 

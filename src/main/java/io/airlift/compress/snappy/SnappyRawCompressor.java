@@ -68,6 +68,7 @@ public final class SnappyRawCompressor
         return 32 + sourceLength + sourceLength / 6;
     }
 
+    // suppress warnings is required to use assert
     @SuppressWarnings("IllegalToken")
     public static int compress(
             final Object inputBase,
