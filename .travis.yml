@@ -5,6 +5,9 @@ jdk:
 
 sudo: false
 
+before_install:
+  - sudo apt-get install -qq liblzo2-dev
+
 script:
   - travis_wait 20 mvn test
 
