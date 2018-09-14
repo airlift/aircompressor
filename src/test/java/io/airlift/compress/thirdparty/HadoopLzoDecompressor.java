@@ -13,10 +13,10 @@
  */
 package io.airlift.compress.thirdparty;
 
+import com.hadoop.compression.lzo.LzoCodec;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
-import org.anarres.lzo.hadoop.codec.LzoDecompressor;
-import org.anarres.lzo.hadoop.codec.LzoDecompressor.CompressionStrategy;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,7 +31,13 @@ public class HadoopLzoDecompressor
 
     public HadoopLzoDecompressor()
     {
-        decompressor = new LzoDecompressor(CompressionStrategy.LZO1X, MAX_OUTPUT_BUFFER_SIZE);
+        Configuration hadoopConf = new Configuration();
+        hadoopConf.set("io.compression.codec.lzo.class", "com.hadoop.compression.lzo.LzoCodec");
+        hadoopConf.set("io.compression.codec.lzo.compressor", "LZO1X_999");
+        hadoopConf.set("io.compression.codec.lzo.compression.level", "3");
+        LzoCodec codec = new LzoCodec();
+        codec.setConf(hadoopConf);
+        decompressor = codec.createDecompressor();
     }
 
     @Override

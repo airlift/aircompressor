@@ -15,7 +15,7 @@ package io.airlift.compress.thirdparty;
 
 import io.airlift.compress.Compressor;
 import io.airlift.compress.HadoopNative;
-import org.anarres.lzo.hadoop.codec.LzoCodec;
+import com.hadoop.compression.lzo.LzoCodec;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
