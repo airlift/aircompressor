@@ -3,16 +3,13 @@ language: java
 jdk:
   - oraclejdk8
 
-sudo: false
+sudo: true
 
 before_install:
   - sudo apt-get install -qq liblzo2-dev
 
-env:
-  - C_INCLUDE_PATH=/usr/include/lzo LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
-
 script:
-  - travis_wait 20 mvn test
+  - mvn -Dtest=TestLzo test
 
 cache:
   directories:
