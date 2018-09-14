@@ -6,7 +6,7 @@ jdk:
 sudo: true
 
 before_install:
-  - sudo apt-get install -qq liblzo2-dev
+  - sudo apt-get install -qq liblzo2-dev lzop
 
 script:
   - mvn -Dtest=TestLzo test
