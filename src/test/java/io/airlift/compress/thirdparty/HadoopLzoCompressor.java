@@ -24,10 +24,6 @@ import java.nio.ByteBuffer;
 public class HadoopLzoCompressor
         implements Compressor
 {
-    static {
-        HadoopNative.requireHadoopNative();
-    }
-
     private final org.apache.hadoop.io.compress.Compressor compressor;
 
     public HadoopLzoCompressor()
