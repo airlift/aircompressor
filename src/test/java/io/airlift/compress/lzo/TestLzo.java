@@ -30,13 +30,13 @@ public class TestLzo
     @Override
     protected Compressor getCompressor()
     {
-        return new LzoCompressor();
+        return new HadoopLzoCompressor();
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new LzoDecompressor();
+        return new HadoopLzoDecompressor();
     }
 
     @Override

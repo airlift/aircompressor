@@ -3,10 +3,13 @@ language: java
 jdk:
   - oraclejdk8
 
-sudo: false
+sudo: true
+
+before_install:
+  - sudo apt-get install -qq liblzo2-dev lzop
 
 script:
-  - travis_wait 20 mvn test
+  - mvn -Dtest=TestLzo test
 
 cache:
   directories:
