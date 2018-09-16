@@ -17,6 +17,9 @@ import com.hadoop.compression.lzo.LzoCodec;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.compress.CodecPool;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.util.ReflectionUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,9 +38,9 @@ public class HadoopLzoDecompressor
         hadoopConf.set("io.compression.codec.lzo.class", "com.hadoop.compression.lzo.LzoCodec");
         hadoopConf.set("io.compression.codec.lzo.compressor", "LZO1X_999");
         hadoopConf.set("io.compression.codec.lzo.compression.level", "3");
-        LzoCodec codec = new LzoCodec();
-        codec.setConf(hadoopConf);
-        decompressor = codec.createDecompressor();
+        CompressionCodec codec = ReflectionUtils.newInstance(
+                LzoCodec.class, hadoopConf);
+        decompressor = CodecPool.getDecompressor(codec);
     }
 
     @Override
