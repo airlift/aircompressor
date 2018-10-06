@@ -156,12 +156,12 @@ class FiniteStateEntropy
         final byte[] symbol;
         final byte[] numberOfBits;
 
-        public Table(int log2Size)
+        public Table(int log2Capacity)
         {
-            int size = 1 << log2Size;
-            newState = new int[size];
-            symbol = new byte[size];
-            numberOfBits = new byte[size];
+            int capacity = 1 << log2Capacity;
+            newState = new int[capacity];
+            symbol = new byte[capacity];
+            numberOfBits = new byte[capacity];
         }
 
         public Table(int log2Size, int[] newState, byte[] symbol, byte[] numberOfBits)
