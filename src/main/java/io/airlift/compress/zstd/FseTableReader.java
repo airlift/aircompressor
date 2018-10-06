@@ -172,7 +172,7 @@ class FseTableReader
         return (int) (input - inputAddress);
     }
 
-    public static void buildRleTable(FiniteStateEntropy.Table table, byte value)
+    public static void initializeRleTable(FiniteStateEntropy.Table table, byte value)
     {
         table.log2Size = 0;
         table.symbol[0] = value;

@@ -629,7 +629,7 @@ class ZstdFrameDecompressor
                 byte value = UNSAFE.getByte(inputBase, input++);
                 verify(value <= MAX_MATCH_LENGTH_SYMBOL, input, "Value exceeds expected maximum value");
 
-                FseTableReader.buildRleTable(matchLengthTable, value);
+                FseTableReader.initializeRleTable(matchLengthTable, value);
                 currentMatchLengthTable = matchLengthTable;
                 break;
             case SET_BASIC:
@@ -657,7 +657,7 @@ class ZstdFrameDecompressor
                 byte value = UNSAFE.getByte(inputBase, input++);
                 verify(value <= MAX_OFFSET_CODE_SYMBOL, input, "Value exceeds expected maximum value");
 
-                FseTableReader.buildRleTable(offsetCodesTable, value);
+                FseTableReader.initializeRleTable(offsetCodesTable, value);
                 currentOffsetCodesTable = offsetCodesTable;
                 break;
             case SET_BASIC:
@@ -685,7 +685,7 @@ class ZstdFrameDecompressor
                 byte value = UNSAFE.getByte(inputBase, input++);
                 verify(value <= MAX_LITERALS_LENGTH_SYMBOL, input, "Value exceeds expected maximum value");
 
-                FseTableReader.buildRleTable(literalsLengthTable, value);
+                FseTableReader.initializeRleTable(literalsLengthTable, value);
                 currentLiteralsLengthTable = literalsLengthTable;
                 break;
             case SET_BASIC:
