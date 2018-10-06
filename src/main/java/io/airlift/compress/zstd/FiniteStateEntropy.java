@@ -32,14 +32,14 @@ class FiniteStateEntropy
         table = new FiniteStateEntropy.Table(maxLog);
     }
 
-    public int decompress(final Object inputBase, final long inputAddress, final long inputLimit, byte[] weights)
+    public int decompress(final Object inputBase, final long inputAddress, final long inputLimit, byte[] outputBuffer)
     {
         long input = inputAddress;
         input += reader.readFseTable(table, inputBase, input, inputLimit, FSE_MAX_SYMBOL_VALUE, MAX_TABLE_LOG);
 
-        final Object outputBase = weights;
+        final Object outputBase = outputBuffer;
         final long outputAddress = ARRAY_BYTE_BASE_OFFSET;
-        final long outputLimit = outputAddress + weights.length;
+        final long outputLimit = outputAddress + outputBuffer.length;
 
         long output = outputAddress;
 
