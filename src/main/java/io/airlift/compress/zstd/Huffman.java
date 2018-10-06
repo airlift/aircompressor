@@ -17,6 +17,7 @@ import java.util.Arrays;
 
 import static io.airlift.compress.zstd.BitStream.isEndOfStream;
 import static io.airlift.compress.zstd.BitStream.peekBitsFast;
+import static io.airlift.compress.zstd.FseTableReader.FSE_MAX_SYMBOL_VALUE;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.isPowerOf2;
 import static io.airlift.compress.zstd.Util.verify;
@@ -27,6 +28,7 @@ class Huffman
 {
     private static final int MAX_SYMBOL = 255;
     private static final int MAX_TABLE_LOG = 12;
+    private static final int MAX_FSE_TABLE_LOG = 6;
 
     // stats
     private final byte[] weights = new byte[MAX_SYMBOL + 1];
@@ -37,7 +39,8 @@ class Huffman
     private final byte[] symbols = new byte[1 << MAX_TABLE_LOG];
     private final byte[] numbersOfBits = new byte[1 << MAX_TABLE_LOG];
 
-    private final FiniteStateEntropy finiteStateEntropy = new FiniteStateEntropy(6);
+    private final FseTableReader reader = new FseTableReader();
+    private final FiniteStateEntropy.Table fseTable = new FiniteStateEntropy.Table(MAX_FSE_TABLE_LOG);
 
     public boolean isLoaded()
     {
@@ -70,7 +73,9 @@ class Huffman
         else {
             verify(inputSize + 1 <= size, input, "Not enough input bytes");
 
-            outputSize = finiteStateEntropy.decompress(inputBase, input, input + inputSize, weights);
+            long inputLimit = input + inputSize;
+            input += reader.readFseTable(fseTable, inputBase, input, inputLimit, FSE_MAX_SYMBOL_VALUE, MAX_FSE_TABLE_LOG);
+            outputSize = FiniteStateEntropy.decompress(fseTable, inputBase, input, inputLimit, weights);
         }
 
         int totalWeight = 0;

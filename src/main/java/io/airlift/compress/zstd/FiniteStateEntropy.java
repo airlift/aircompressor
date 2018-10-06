@@ -14,7 +14,6 @@
 package io.airlift.compress.zstd;
 
 import static io.airlift.compress.zstd.BitStream.peekBits;
-import static io.airlift.compress.zstd.FseTableReader.FSE_MAX_SYMBOL_VALUE;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.verify;
 import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_INT;
@@ -22,25 +21,17 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 class FiniteStateEntropy
 {
-    private static final int MAX_TABLE_LOG = 12;
-
-    private final FiniteStateEntropy.Table table;
-    private final FseTableReader reader = new FseTableReader();
-
-    public FiniteStateEntropy(int maxLog)
+    private FiniteStateEntropy()
     {
-        table = new FiniteStateEntropy.Table(maxLog);
     }
 
-    public int decompress(final Object inputBase, final long inputAddress, final long inputLimit, byte[] outputBuffer)
+    public static int decompress(FiniteStateEntropy.Table table, final Object inputBase, final long inputAddress, final long inputLimit, byte[] outputBuffer)
     {
-        long input = inputAddress;
-        input += reader.readFseTable(table, inputBase, input, inputLimit, FSE_MAX_SYMBOL_VALUE, MAX_TABLE_LOG);
-
         final Object outputBase = outputBuffer;
         final long outputAddress = ARRAY_BYTE_BASE_OFFSET;
         final long outputLimit = outputAddress + outputBuffer.length;
 
+        long input = inputAddress;
         long output = outputAddress;
 
         // initialize bit stream
