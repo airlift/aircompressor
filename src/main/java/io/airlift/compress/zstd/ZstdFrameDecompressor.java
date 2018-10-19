@@ -206,7 +206,7 @@ class ZstdFrameDecompressor
                         break;
                     case COMPRESSED_BLOCK:
                         verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
-                        decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize);
+                        decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize, outputAddress);
                         input += blockSize;
                         break;
                     default:
@@ -292,7 +292,7 @@ class ZstdFrameDecompressor
         return size;
     }
 
-    private int decodeCompressedBlock(Object inputBase, final long inputAddress, int blockSize, Object outputBase, long outputAddress, long outputLimit, int windowSize)
+    private int decodeCompressedBlock(Object inputBase, final long inputAddress, int blockSize, Object outputBase, long outputAddress, long outputLimit, int windowSize, long outputAbsoluteBaseAddress)
     {
         long inputLimit = inputAddress + blockSize;
         long input = inputAddress;
@@ -327,13 +327,15 @@ class ZstdFrameDecompressor
         return decompressSequences(
                 inputBase, input, inputAddress + blockSize,
                 outputBase, outputAddress, outputLimit,
-                literalsBase, literalsAddress, literalsLimit);
+                literalsBase, literalsAddress, literalsLimit,
+                outputAbsoluteBaseAddress);
     }
 
     private int decompressSequences(
             final Object inputBase, final long inputAddress, final long inputLimit,
             final Object outputBase, final long outputAddress, final long outputLimit,
-            final Object literalsBase, final long literalsAddress, final long literalsLimit)
+            final Object literalsBase, final long literalsAddress, final long literalsLimit,
+            long outputAbsoluteBaseAddress)
     {
         final long fastOutputLimit = outputLimit - SIZE_OF_LONG;
         final long fastMatchOutputLimit = fastOutputLimit - SIZE_OF_LONG;
@@ -513,6 +515,7 @@ class ZstdFrameDecompressor
                 verify(literalEnd <= literalsLimit, input, "Input is corrupted");
 
                 long matchAddress = literalOutputLimit - offset;
+                verify(matchAddress >= outputAbsoluteBaseAddress, input, "Input is corrupted");
 
                 if (literalOutputLimit > fastOutputLimit) {
                     executeLastSequence(outputBase, output, literalOutputLimit, matchOutputLimit, fastOutputLimit, literalsInput, matchAddress);

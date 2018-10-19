@@ -17,6 +17,7 @@ import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
+import io.airlift.compress.MalformedInputException;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 import org.testng.annotations.Test;
@@ -79,5 +80,15 @@ public class TestZstd
         getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
 
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
+    }
+
+    @Test(expectedExceptions = MalformedInputException.class, expectedExceptionsMessageRegExp = "Input is corrupted: offset=894")
+    public void testInvalidSequenceOffset()
+            throws IOException
+    {
+        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/offset-before-start.zst"));
+        byte[] output = new byte[compressed.length * 10];
+
+        getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
     }
 }
