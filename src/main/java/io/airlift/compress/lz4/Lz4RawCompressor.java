@@ -17,7 +17,6 @@ import java.util.Arrays;
 
 import static io.airlift.compress.lz4.Lz4Constants.LAST_LITERAL_SIZE;
 import static io.airlift.compress.lz4.Lz4Constants.MIN_MATCH;
-import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_INT;
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
@@ -151,7 +150,7 @@ public final class Lz4RawCompressor
             // next match
             while (true) {
                 // find match length
-                int matchLength = count(inputBase, input + MIN_MATCH, matchIndex + MIN_MATCH, matchLimit);
+                int matchLength = count(inputBase, input + MIN_MATCH, matchLimit, matchIndex + MIN_MATCH);
                 output = emitMatch(outputBase, output, tokenAddress, (short) (input - matchIndex), matchLength);
 
                 input += matchLength + MIN_MATCH;
@@ -234,37 +233,36 @@ public final class Lz4RawCompressor
         return output;
     }
 
-    private static int count(Object inputBase, final long start, long matchStart, long matchLimit)
+    /**
+     * matchAddress must be < inputAddress
+     */
+    static int count(Object inputBase, final long inputAddress, final long inputLimit, final long matchAddress)
     {
-        long current = start;
+        long input = inputAddress;
+        long match = matchAddress;
+
+        int remaining = (int) (inputLimit - inputAddress);
 
         // first, compare long at a time
-        while (current < matchLimit - (SIZE_OF_LONG - 1)) {
-            long diff = UNSAFE.getLong(inputBase, matchStart) ^ UNSAFE.getLong(inputBase, current);
+        int count = 0;
+        while (count < remaining - (SIZE_OF_LONG - 1)) {
+            long diff = UNSAFE.getLong(inputBase, match) ^ UNSAFE.getLong(inputBase, input);
             if (diff != 0) {
-                current += Long.numberOfTrailingZeros(diff) >> 3;
-                return (int) (current - start);
+                return count + (Long.numberOfTrailingZeros(diff) >> 3);
             }
 
-            current += SIZE_OF_LONG;
-            matchStart += SIZE_OF_LONG;
+            count += SIZE_OF_LONG;
+            input += SIZE_OF_LONG;
+            match += SIZE_OF_LONG;
         }
 
-        if (current < matchLimit - (SIZE_OF_INT - 1) && UNSAFE.getInt(inputBase, matchStart) == UNSAFE.getInt(inputBase, current)) {
-            current += SIZE_OF_INT;
-            matchStart += SIZE_OF_INT;
+        while (count < remaining && UNSAFE.getByte(inputBase, match) == UNSAFE.getByte(inputBase, input)) {
+            count++;
+            match++;
+            input++;
         }
 
-        if (current < matchLimit - (SIZE_OF_SHORT - 1) && UNSAFE.getShort(inputBase, matchStart) == UNSAFE.getShort(inputBase, current)) {
-            current += SIZE_OF_SHORT;
-            matchStart += SIZE_OF_SHORT;
-        }
-
-        if (current < matchLimit && UNSAFE.getByte(inputBase, matchStart) == UNSAFE.getByte(inputBase, current)) {
-            ++current;
-        }
-
-        return (int) (current - start);
+        return count;
     }
 
     private static long emitLastLiteral(
