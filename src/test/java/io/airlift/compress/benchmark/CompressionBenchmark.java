@@ -65,6 +65,7 @@ public class CompressionBenchmark
             "xerial_snappy",
             "jpountz_lz4_jni",
             "hadoop_lzo",
+            "zstd_jni",
 
             "airlift_lz4_stream",
             "airlift_lzo_stream",
