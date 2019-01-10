@@ -74,6 +74,7 @@ public class DataSet
             "artificial/aaa.txt",
             "artificial/alphabet.txt",
             "artificial/random.txt",
+            "artificial/uniform_ascii.bin", // random ASCII with uniform probabilities per symbol
 
             "large/bible.txt",
             "large/E.coli",
