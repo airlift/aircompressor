@@ -21,7 +21,7 @@ import io.airlift.slice.XxHash64;
 
 import java.util.Arrays;
 
-import static io.airlift.compress.zstd.BitStream.peekBits;
+import static io.airlift.compress.zstd.BitInputStream.peekBits;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.fail;
 import static io.airlift.compress.zstd.Util.mask;
@@ -374,7 +374,7 @@ class ZstdFrameDecompressor
             input = computeMatchLengthTable(matchLengthType, inputBase, input, inputLimit);
 
             // decompress sequences
-            BitStream.Initializer initializer = new BitStream.Initializer(inputBase, input, inputLimit);
+            BitInputStream.Initializer initializer = new BitInputStream.Initializer(inputBase, input, inputLimit);
             initializer.initialize();
             int bitsConsumed = initializer.getBitsConsumed();
             long bits = initializer.getBits();
@@ -410,7 +410,7 @@ class ZstdFrameDecompressor
             while (sequenceCount > 0) {
                 sequenceCount--;
 
-                BitStream.Loader loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+                BitInputStream.Loader loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
                 loader.load();
                 bitsConsumed = loader.getBitsConsumed();
                 bits = loader.getBits();
@@ -485,7 +485,7 @@ class ZstdFrameDecompressor
 
                 int totalBits = literalsLengthBits + matchLengthBits + offsetBits;
                 if (totalBits > 64 - 7 - (LITERALS_LENGTH_FSE_LOG + MATCH_LENGTH_FSE_LOG + OFFSET_CODES_FSE_LOG)) {
-                    BitStream.Loader loader1 = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+                    BitInputStream.Loader loader1 = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
                     loader1.load();
 
                     bitsConsumed = loader1.getBitsConsumed();

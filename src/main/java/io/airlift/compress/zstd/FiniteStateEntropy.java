@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.zstd;
 
-import static io.airlift.compress.zstd.BitStream.peekBits;
+import static io.airlift.compress.zstd.BitInputStream.peekBits;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.verify;
 import static io.airlift.compress.zstd.ZstdFrameDecompressor.SIZE_OF_INT;
@@ -35,7 +35,7 @@ class FiniteStateEntropy
         long output = outputAddress;
 
         // initialize bit stream
-        BitStream.Initializer initializer = new BitStream.Initializer(inputBase, input, inputLimit);
+        BitInputStream.Initializer initializer = new BitInputStream.Initializer(inputBase, input, inputLimit);
         initializer.initialize();
         int bitsConsumed = initializer.getBitsConsumed();
         long currentAddress = initializer.getCurrentAddress();
@@ -45,7 +45,7 @@ class FiniteStateEntropy
         int state1 = (int) peekBits(bitsConsumed, bits, table.log2Size);
         bitsConsumed += table.log2Size;
 
-        BitStream.Loader loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+        BitInputStream.Loader loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
         loader.load();
         bits = loader.getBits();
         bitsConsumed = loader.getBitsConsumed();
@@ -55,7 +55,7 @@ class FiniteStateEntropy
         int state2 = (int) peekBits(bitsConsumed, bits, table.log2Size);
         bitsConsumed += table.log2Size;
 
-        loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+        loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
         loader.load();
         bits = loader.getBits();
         bitsConsumed = loader.getBitsConsumed();
@@ -91,7 +91,7 @@ class FiniteStateEntropy
 
             output += SIZE_OF_INT;
 
-            loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
             boolean done = loader.load();
             bitsConsumed = loader.getBitsConsumed();
             bits = loader.getBits();
@@ -108,7 +108,7 @@ class FiniteStateEntropy
             state1 = (int) (newStates[state1] + peekBits(bitsConsumed, bits, numberOfBits));
             bitsConsumed += numberOfBits;
 
-            loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
             loader.load();
             bitsConsumed = loader.getBitsConsumed();
             bits = loader.getBits();
@@ -125,7 +125,7 @@ class FiniteStateEntropy
             state2 = (int) (newStates[state2] + peekBits(bitsConsumed, bits, numberOfBits1));
             bitsConsumed += numberOfBits1;
 
-            loader = new BitStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, input, currentAddress, bits, bitsConsumed);
             loader.load();
             bitsConsumed = loader.getBitsConsumed();
             bits = loader.getBits();

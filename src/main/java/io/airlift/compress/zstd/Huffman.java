@@ -15,8 +15,8 @@ package io.airlift.compress.zstd;
 
 import java.util.Arrays;
 
-import static io.airlift.compress.zstd.BitStream.isEndOfStream;
-import static io.airlift.compress.zstd.BitStream.peekBitsFast;
+import static io.airlift.compress.zstd.BitInputStream.isEndOfStream;
+import static io.airlift.compress.zstd.BitInputStream.peekBitsFast;
 import static io.airlift.compress.zstd.FseTableReader.FSE_MAX_SYMBOL_VALUE;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.isPowerOf2;
@@ -127,7 +127,7 @@ class Huffman
 
     public void decodeSingleStream(final Object inputBase, final long inputAddress, final long inputLimit, final Object outputBase, final long outputAddress, final long outputLimit)
     {
-        BitStream.Initializer initializer = new BitStream.Initializer(inputBase, inputAddress, inputLimit);
+        BitInputStream.Initializer initializer = new BitInputStream.Initializer(inputBase, inputAddress, inputLimit);
         initializer.initialize();
 
         long bits = initializer.getBits();
@@ -142,7 +142,7 @@ class Huffman
         long output = outputAddress;
         long fastOutputLimit = outputLimit - 4;
         while (output < fastOutputLimit) {
-            BitStream.Loader loader = new BitStream.Loader(inputBase, inputAddress, currentAddress, bits, bitsConsumed);
+            BitInputStream.Loader loader = new BitInputStream.Loader(inputBase, inputAddress, currentAddress, bits, bitsConsumed);
             boolean done = loader.load();
             bits = loader.getBits();
             bitsConsumed = loader.getBitsConsumed();
@@ -170,25 +170,25 @@ class Huffman
         long start3 = start2 + (UNSAFE.getShort(inputBase, inputAddress + 2) & 0xFFFF);
         long start4 = start3 + (UNSAFE.getShort(inputBase, inputAddress + 4) & 0xFFFF);
 
-        BitStream.Initializer initializer = new BitStream.Initializer(inputBase, start1, start2);
+        BitInputStream.Initializer initializer = new BitInputStream.Initializer(inputBase, start1, start2);
         initializer.initialize();
         int stream1bitsConsumed = initializer.getBitsConsumed();
         long stream1currentAddress = initializer.getCurrentAddress();
         long stream1bits = initializer.getBits();
 
-        initializer = new BitStream.Initializer(inputBase, start2, start3);
+        initializer = new BitInputStream.Initializer(inputBase, start2, start3);
         initializer.initialize();
         int stream2bitsConsumed = initializer.getBitsConsumed();
         long stream2currentAddress = initializer.getCurrentAddress();
         long stream2bits = initializer.getBits();
 
-        initializer = new BitStream.Initializer(inputBase, start3, start4);
+        initializer = new BitInputStream.Initializer(inputBase, start3, start4);
         initializer.initialize();
         int stream3bitsConsumed = initializer.getBitsConsumed();
         long stream3currentAddress = initializer.getCurrentAddress();
         long stream3bits = initializer.getBits();
 
-        initializer = new BitStream.Initializer(inputBase, start4, inputLimit);
+        initializer = new BitInputStream.Initializer(inputBase, start4, inputLimit);
         initializer.initialize();
         int stream4bitsConsumed = initializer.getBitsConsumed();
         long stream4currentAddress = initializer.getCurrentAddress();
@@ -236,7 +236,7 @@ class Huffman
             output3 += SIZE_OF_INT;
             output4 += SIZE_OF_INT;
 
-            BitStream.Loader loader = new BitStream.Loader(inputBase, start1, stream1currentAddress, stream1bits, stream1bitsConsumed);
+            BitInputStream.Loader loader = new BitInputStream.Loader(inputBase, start1, stream1currentAddress, stream1bits, stream1bitsConsumed);
             boolean done = loader.load();
             stream1bitsConsumed = loader.getBitsConsumed();
             stream1bits = loader.getBits();
@@ -246,7 +246,7 @@ class Huffman
                 break;
             }
 
-            loader = new BitStream.Loader(inputBase, start2, stream2currentAddress, stream2bits, stream2bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, start2, stream2currentAddress, stream2bits, stream2bitsConsumed);
             done = loader.load();
             stream2bitsConsumed = loader.getBitsConsumed();
             stream2bits = loader.getBits();
@@ -256,7 +256,7 @@ class Huffman
                 break;
             }
 
-            loader = new BitStream.Loader(inputBase, start3, stream3currentAddress, stream3bits, stream3bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, start3, stream3currentAddress, stream3bits, stream3bitsConsumed);
             done = loader.load();
             stream3bitsConsumed = loader.getBitsConsumed();
             stream3bits = loader.getBits();
@@ -265,7 +265,7 @@ class Huffman
                 break;
             }
 
-            loader = new BitStream.Loader(inputBase, start4, stream4currentAddress, stream4bits, stream4bitsConsumed);
+            loader = new BitInputStream.Loader(inputBase, start4, stream4currentAddress, stream4bits, stream4bitsConsumed);
             done = loader.load();
             stream4bitsConsumed = loader.getBitsConsumed();
             stream4bits = loader.getBits();
@@ -292,7 +292,7 @@ class Huffman
 
         // closer to the end
         while (outputAddress < outputLimit) {
-            BitStream.Loader loader = new BitStream.Loader(inputBase, startAddress, currentAddress, bits, bitsConsumed);
+            BitInputStream.Loader loader = new BitInputStream.Loader(inputBase, startAddress, currentAddress, bits, bitsConsumed);
             boolean done = loader.load();
             bitsConsumed = loader.getBitsConsumed();
             bits = loader.getBits();
