@@ -15,6 +15,9 @@ package io.airlift.compress.zstd;
 
 import io.airlift.compress.MalformedInputException;
 
+import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+
 class Util
 {
     private Util()
@@ -43,8 +46,21 @@ class Util
         }
     }
 
+    public static void checkArgument(boolean condition, String reason)
+    {
+        if (!condition) {
+            throw new IllegalArgumentException(reason);
+        }
+    }
+
     public static MalformedInputException fail(long offset, String reason)
     {
         throw new MalformedInputException(offset, reason);
+    }
+
+    public static void put24BitLittleEndian(Object outputBase, long outputAddress, int value)
+    {
+        UNSAFE.putShort(outputBase, outputAddress, (short) value);
+        UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_SHORT, (byte) (value >>> Short.SIZE));
     }
 }

@@ -38,6 +38,7 @@ import io.airlift.compress.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
+import io.airlift.compress.zstd.ZstdCompressor;
 import io.airlift.compress.zstd.ZstdDecompressor;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -48,7 +49,7 @@ public enum Algorithm
     airlift_lz4(new Lz4Decompressor(), new Lz4Compressor()),
     airlift_snappy(new SnappyDecompressor(), new SnappyCompressor()),
     airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
-    airlift_zstd(new ZstdDecompressor(), new ZstdJniCompressor(6)),
+    airlift_zstd(new ZstdDecompressor(), new ZstdCompressor()),
 
     airlift_lz4_stream(new Lz4Codec(), new Lz4Compressor()),
     airlift_snappy_stream(new SnappyCodec(), new SnappyCompressor()),

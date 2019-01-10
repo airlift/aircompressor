@@ -13,6 +13,9 @@
  */
 package io.airlift.compress.zstd;
 
+import java.util.Objects;
+import java.util.StringJoiner;
+
 class FrameHeader
 {
     final long headerSize;
@@ -28,5 +31,40 @@ class FrameHeader
         this.contentSize = contentSize;
         this.dictionaryId = dictionaryId;
         this.hasChecksum = hasChecksum;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FrameHeader that = (FrameHeader) o;
+        return headerSize == that.headerSize &&
+                windowSize == that.windowSize &&
+                contentSize == that.contentSize &&
+                dictionaryId == that.dictionaryId &&
+                hasChecksum == that.hasChecksum;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(headerSize, windowSize, contentSize, dictionaryId, hasChecksum);
+    }
+
+    @Override
+    public String toString()
+    {
+        return new StringJoiner(", ", FrameHeader.class.getSimpleName() + "[", "]")
+                .add("headerSize=" + headerSize)
+                .add("windowSize=" + windowSize)
+                .add("contentSize=" + contentSize)
+                .add("dictionaryId=" + dictionaryId)
+                .add("hasChecksum=" + hasChecksum)
+                .toString();
     }
 }

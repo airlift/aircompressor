@@ -867,7 +867,7 @@ class ZstdFrameDecompressor
         return (int) (input - inputAddress);
     }
 
-    private static FrameHeader readFrameHeader(final Object inputBase, final long inputAddress, final long inputLimit)
+    static FrameHeader readFrameHeader(final Object inputBase, final long inputAddress, final long inputLimit)
     {
         long input = inputAddress;
         verify(input < inputLimit, input, "Not enough input bytes");
@@ -954,7 +954,7 @@ class ZstdFrameDecompressor
         return readFrameHeader(inputBase, input, inputLimit).contentSize;
     }
 
-    private static int verifyMagic(Object inputBase, long inputAddress, long inputLimit)
+    static int verifyMagic(Object inputBase, long inputAddress, long inputLimit)
     {
         verify(inputLimit - inputAddress >= 4, inputAddress, "Not enough input bytes");
 

@@ -30,8 +30,7 @@ public class TestZstd
     @Override
     protected Compressor getCompressor()
     {
-        // TODO: replace with Java implementation once it's ready
-        return new ZstdJniCompressor(6);
+        return new ZstdCompressor();
     }
 
     @Override
@@ -43,7 +42,7 @@ public class TestZstd
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new ZstdJniCompressor(6);
+        return new ZstdJniCompressor(3);
     }
 
     @Override
