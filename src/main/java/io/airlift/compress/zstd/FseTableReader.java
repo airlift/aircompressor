@@ -13,17 +13,16 @@
  */
 package io.airlift.compress.zstd;
 
+import static io.airlift.compress.zstd.FiniteStateEntropy.MAX_SYMBOL;
+import static io.airlift.compress.zstd.FiniteStateEntropy.MIN_TABLE_LOG;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.highestBit;
 import static io.airlift.compress.zstd.Util.verify;
 
 class FseTableReader
 {
-    private static final int FSE_MIN_TABLE_LOG = 5;
-
-    public static final int FSE_MAX_SYMBOL_VALUE = 255;
-    private final short[] nextSymbol = new short[FSE_MAX_SYMBOL_VALUE + 1];
-    private final short[] normalizedCounters = new short[FSE_MAX_SYMBOL_VALUE + 1];
+    private final short[] nextSymbol = new short[MAX_SYMBOL + 1];
+    private final short[] normalizedCounters = new short[MAX_SYMBOL + 1];
 
     public int readFseTable(FiniteStateEntropy.Table table, Object inputBase, long inputAddress, long inputLimit, int maxSymbol, int maxTableLog)
     {
@@ -37,7 +36,7 @@ class FseTableReader
 
         int bitStream = UNSAFE.getInt(inputBase, input);
 
-        int tableLog = (bitStream & 0xF) + FSE_MIN_TABLE_LOG;
+        int tableLog = (bitStream & 0xF) + MIN_TABLE_LOG;
 
         int numberOfBits = tableLog + 1;
         bitStream >>>= 4;
@@ -124,7 +123,7 @@ class FseTableReader
         verify(remaining == 1 && bitCount <= 32, input, "Input is corrupted");
 
         maxSymbol = symbolNumber - 1;
-        verify(maxSymbol <= FSE_MAX_SYMBOL_VALUE, input, "Max symbol value too large (too many symbols for FSE)");
+        verify(maxSymbol <= MAX_SYMBOL, input, "Max symbol value too large (too many symbols for FSE)");
 
         input += (bitCount + 7) >> 3;
 
@@ -145,19 +144,7 @@ class FseTableReader
             }
         }
 
-        // spread symbols
-        int tableMask = tableSize - 1;
-        int step = (tableSize >>> 1) + (tableSize >>> 3) + 3;
-        int position = 0;
-        for (byte symbol = 0; symbol < symbolCount; symbol++) {
-            for (int i = 0; i < normalizedCounters[symbol]; i++) {
-                table.symbol[position] = symbol;
-                do {
-                    position = (position + step) & tableMask;
-                }
-                while (position > highThreshold);
-            }
-        }
+        int position = FseCompressionTable.spreadSymbols(normalizedCounters, maxSymbol, tableSize, highThreshold, table.symbol);
 
         // position must reach all cells once, otherwise normalizedCounter is incorrect
         verify(position == 0, input, "Input is corrupted");

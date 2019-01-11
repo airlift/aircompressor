@@ -18,17 +18,20 @@ import io.airlift.slice.Slices;
 import io.airlift.slice.UnsafeSliceFactory;
 import io.airlift.slice.XxHash64;
 
+import static io.airlift.compress.zstd.Constants.COMPRESSED_BLOCK;
 import static io.airlift.compress.zstd.Constants.MAGIC_NUMBER;
 import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.zstd.Constants.RAW_BLOCK;
+import static io.airlift.compress.zstd.Constants.RAW_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_BLOCK_HEADER;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.checkArgument;
 import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 class ZstdFrameCompressor
 {
@@ -129,23 +132,26 @@ class ZstdFrameCompressor
         return SIZE_OF_INT;
     }
 
-    public static int compress(Object inputBase, long inputAddress, long inputLimit, Object outputBase, long outputAddress, long outputLimit)
+    public static int compress(Object inputBase, long inputAddress, long inputLimit, Object outputBase, long outputAddress, long outputLimit, int compressionLevel)
     {
         int inputSize = (int) (inputLimit - inputAddress);
+
+        CompressionParameters parameters = CompressionParameters.compute(compressionLevel, inputSize);
 
         long output = outputAddress;
 
         output += writeMagic(outputBase, output, outputLimit);
-        output += writeFrameHeader(outputBase, output, outputLimit, inputSize, MAX_BLOCK_SIZE);
-        output += compressFrame(inputBase, inputAddress, inputLimit, outputBase, output, outputLimit);
+        output += writeFrameHeader(outputBase, output, outputLimit, inputSize, 1 << parameters.getWindowLog());
+        output += compressFrame(inputBase, inputAddress, inputLimit, outputBase, output, outputLimit, parameters);
         output += writeChecksum(outputBase, output, outputLimit, inputBase, inputAddress, inputLimit);
 
         return (int) (output - outputAddress);
     }
 
-    private static int compressFrame(Object inputBase, long inputAddress, long inputLimit, Object outputBase, long outputAddress, long outputLimit)
+    private static int compressFrame(Object inputBase, long inputAddress, long inputLimit, Object outputBase, long outputAddress, long outputLimit, CompressionParameters parameters)
     {
-        int blockSize = MAX_BLOCK_SIZE;
+        int windowSize = 1 << parameters.getWindowLog(); // TODO: store window size in parameters directly?
+        int blockSize = Math.min(MAX_BLOCK_SIZE, windowSize);
 
         int outputSize = (int) (outputLimit - outputAddress);
         int remaining = (int) (inputLimit - inputAddress);
@@ -153,18 +159,32 @@ class ZstdFrameCompressor
         long output = outputAddress;
         long input = inputAddress;
 
+        CompressionContext context = new CompressionContext(parameters, inputAddress, remaining);
+
         do {
             checkArgument(outputSize >= SIZE_OF_BLOCK_HEADER + MIN_BLOCK_SIZE, "Output buffer too small");
 
             int lastBlockFlag = blockSize >= remaining ? 1 : 0;
             blockSize = Math.min(blockSize, remaining);
 
-            checkArgument(blockSize + SIZE_OF_BLOCK_HEADER <= outputSize, "Output size too small");
+            int compressedSize = 0;
+            if (remaining > 0) {
+                compressedSize = compressBlock(inputBase, input, blockSize, outputBase, output + SIZE_OF_BLOCK_HEADER, outputSize - SIZE_OF_BLOCK_HEADER, context, parameters);
+            }
 
-            int blockHeader = lastBlockFlag | (RAW_BLOCK << 1) | (blockSize << 3);
-            put24BitLittleEndian(outputBase, output, blockHeader);
-            UNSAFE.copyMemory(inputBase, input, outputBase, output + SIZE_OF_BLOCK_HEADER, blockSize);
-            int compressedSize = SIZE_OF_BLOCK_HEADER + blockSize;
+            if (compressedSize == 0) { // block is not compressible
+                checkArgument(blockSize + SIZE_OF_BLOCK_HEADER <= outputSize, "Output size too small");
+
+                int blockHeader = lastBlockFlag | (RAW_BLOCK << 1) | (blockSize << 3);
+                put24BitLittleEndian(outputBase, output, blockHeader);
+                UNSAFE.copyMemory(inputBase, input, outputBase, output + SIZE_OF_BLOCK_HEADER, blockSize);
+                compressedSize = SIZE_OF_BLOCK_HEADER + blockSize;
+            }
+            else {
+                int blockHeader = lastBlockFlag | (COMPRESSED_BLOCK << 1) | (compressedSize << 3);
+                put24BitLittleEndian(outputBase, output, blockHeader);
+                compressedSize += SIZE_OF_BLOCK_HEADER;
+            }
 
             input += blockSize;
             remaining -= blockSize;
@@ -174,5 +194,94 @@ class ZstdFrameCompressor
         while (remaining > 0);
 
         return (int) (output - outputAddress);
+    }
+
+    private static int compressBlock(Object inputBase, long inputAddress, int inputSize, Object outputBase, long outputAddress, int outputSize, CompressionContext context, CompressionParameters parameters)
+    {
+        if (inputSize < MIN_BLOCK_SIZE + SIZE_OF_BLOCK_HEADER + 1) {
+            //  don't even attempt compression below a certain input size
+            return 0;
+        }
+
+        context.blockCompressionState.enforceMaxDistance(inputAddress + inputSize, 1 << parameters.getWindowLog());
+        context.sequenceStore.reset();
+
+        int lastLiteralsSize = parameters.getStrategy()
+                .getCompressor()
+                .compressBlock(inputBase, inputAddress, inputSize, context.sequenceStore, context.blockCompressionState, context.offsets, parameters);
+
+        long lastLiteralsAddress = inputAddress + inputSize - lastLiteralsSize;
+
+        // append [lastLiteralsAddress .. lastLiteralsSize] to sequenceStore literals buffer
+        context.sequenceStore.appendLiterals(inputBase, lastLiteralsAddress, lastLiteralsSize);
+
+        // convert length/offsets into codes
+        context.sequenceStore.generateCodes();
+
+        long outputLimit = outputAddress + outputSize;
+        long output = outputAddress;
+
+        int literalsSize = rawLiterals(outputBase, output, (int) (outputLimit - output), context.sequenceStore.literalsBuffer, ARRAY_BYTE_BASE_OFFSET, context.sequenceStore.literalsLength);
+        output += literalsSize;
+
+        int compressedSequencesSize = SequenceEncoder.compressSequences(outputBase, output, (int) (outputLimit - output), context.sequenceStore, parameters.getStrategy(), context.sequenceEncodingContext);
+
+        int compressedSize = literalsSize + compressedSequencesSize;
+        if (compressedSize == 0) {
+            // not compressible
+            return compressedSize;
+        }
+
+        // Check compressibility
+        int maxCompressedSize = inputSize - calculateMinimumGain(inputSize, parameters.getStrategy());
+        if (compressedSize > maxCompressedSize) {
+            return 0; // not compressed
+        }
+
+        // confirm repeated offsets and entropy tables
+        context.commit();
+
+        return compressedSize;
+    }
+
+    private static int calculateMinimumGain(int inputSize, CompressionParameters.Strategy strategy)
+    {
+        // TODO: move this to Strategy to avoid hardcoding a specific strategy here
+        int minLog = strategy == CompressionParameters.Strategy.BTULTRA ? 7 : 6;
+        return (inputSize >>> minLog) + 2;
+    }
+
+    private static int rawLiterals(Object outputBase, long outputAddress, int outputSize, Object inputBase, long inputAddress, int inputSize)
+    {
+        int headerSize = 1;
+        if (inputSize >= 32) {
+            headerSize++;
+        }
+        if (inputSize >= 4096) {
+            headerSize++;
+        }
+
+        checkArgument(inputSize + headerSize <= outputSize, "Output buffer too small");
+
+        switch (headerSize) {
+            case 1:
+                UNSAFE.putByte(outputBase, outputAddress, (byte) (RAW_LITERALS_BLOCK | (inputSize << 3)));
+                break;
+            case 2:
+                UNSAFE.putShort(outputBase, outputAddress, (short) (RAW_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
+                break;
+            case 3:
+                put24BitLittleEndian(outputBase, outputAddress, RAW_LITERALS_BLOCK | (3 << 2) | (inputSize << 4));
+                break;
+            default:
+                throw new AssertionError();
+        }
+
+        // TODO: ensure this test is correct
+        checkArgument(inputSize + 1 <= outputSize, "Output buffer too small");
+
+        UNSAFE.copyMemory(inputBase, inputAddress, outputBase, outputAddress + headerSize, inputSize);
+
+        return headerSize + inputSize;
     }
 }

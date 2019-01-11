@@ -53,14 +53,42 @@ class Util
         }
     }
 
+    public static void checkState(boolean condition, String reason)
+    {
+        if (!condition) {
+            throw new IllegalStateException(reason);
+        }
+    }
+
     public static MalformedInputException fail(long offset, String reason)
     {
         throw new MalformedInputException(offset, reason);
+    }
+
+    public static int cycleLog(int hashLog, CompressionParameters.Strategy strategy)
+    {
+        int cycleLog = hashLog;
+        if (strategy == CompressionParameters.Strategy.BTLAZY2 || strategy == CompressionParameters.Strategy.BTOPT || strategy == CompressionParameters.Strategy.BTULTRA) {
+            cycleLog = hashLog - 1;
+        }
+        return cycleLog;
     }
 
     public static void put24BitLittleEndian(Object outputBase, long outputAddress, int value)
     {
         UNSAFE.putShort(outputBase, outputAddress, (short) value);
         UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_SHORT, (byte) (value >>> Short.SIZE));
+    }
+
+    // provides the minimum logSize to safely represent a distribution
+    public static int minTableLog(int inputSize, int maxSymbolValue)
+    {
+        if (inputSize <= 1) {
+            throw new IllegalArgumentException("Not supported. RLE should be used instead"); // TODO
+        }
+
+        int minBitsSrc = highestBit((inputSize - 1)) + 1;
+        int minBitsSymbols = highestBit(maxSymbolValue) + 2;
+        return Math.min(minBitsSrc, minBitsSymbols);
     }
 }
