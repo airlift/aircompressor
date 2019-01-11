@@ -90,4 +90,24 @@ public class TestZstd
 
         getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
     }
+
+    @Test
+    public void testSmallLiteralsAfterIncompressibleLiterals()
+            throws IOException
+    {
+        // Ensure the compressor doesn't try to reuse a huffman table that was created speculatively for a previous block
+        // which ended up emitting raw literals due to insufficient gain
+        Compressor compressor = getCompressor();
+
+        byte[] original = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/small-literals-after-incompressible-literals"));
+        int maxCompressLength = compressor.maxCompressedLength(original.length);
+
+        byte[] compressed = new byte[maxCompressLength];
+        int compressedSize = compressor.compress(original, 0, original.length, compressed, 0, compressed.length);
+
+        byte[] decompressed = new byte[original.length];
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressedSize, decompressed, 0, decompressed.length);
+
+        assertByteArraysEqual(original, 0, original.length, decompressed, 0, decompressedSize);
+    }
 }

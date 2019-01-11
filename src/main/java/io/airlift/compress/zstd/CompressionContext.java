@@ -23,6 +23,8 @@ class CompressionContext
 
     public final SequenceEncodingContext sequenceEncodingContext = new SequenceEncodingContext();
 
+    public final HuffmanCompressionContext huffmanContext = new HuffmanCompressionContext();
+
     public CompressionContext(CompressionParameters parameters, long baseAddress, int inputSize)
     {
         int windowSize = Math.max(1, Math.min(1 << parameters.getWindowLog(), inputSize));
@@ -39,5 +41,6 @@ class CompressionContext
     public void commit()
     {
         offsets.commit();
+        huffmanContext.saveChanges();
     }
 }

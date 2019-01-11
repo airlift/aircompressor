@@ -19,15 +19,20 @@ import io.airlift.slice.UnsafeSliceFactory;
 import io.airlift.slice.XxHash64;
 
 import static io.airlift.compress.zstd.Constants.COMPRESSED_BLOCK;
+import static io.airlift.compress.zstd.Constants.COMPRESSED_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.Constants.MAGIC_NUMBER;
 import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.zstd.Constants.RAW_BLOCK;
 import static io.airlift.compress.zstd.Constants.RAW_LITERALS_BLOCK;
+import static io.airlift.compress.zstd.Constants.RLE_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_BLOCK_HEADER;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_INT;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
+import static io.airlift.compress.zstd.Constants.TREELESS_LITERALS_BLOCK;
+import static io.airlift.compress.zstd.Huffman.MAX_SYMBOL;
+import static io.airlift.compress.zstd.Huffman.MAX_SYMBOL_COUNT;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.checkArgument;
 import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
@@ -39,6 +44,11 @@ class ZstdFrameCompressor
 
     private static final int CHECKSUM_FLAG = 0b100;
     private static final int SINGLE_SEGMENT_FLAG = 0b100000;
+
+    private static final int MINIMUM_LITERALS_SIZE = 63;
+
+    // the maximum table log allowed for literal encoding per RFC 8478, section 4.2.1
+    private static final int MAX_HUFFMAN_TABLE_LOG = 11;
 
     private ZstdFrameCompressor()
     {
@@ -221,12 +231,19 @@ class ZstdFrameCompressor
         long outputLimit = outputAddress + outputSize;
         long output = outputAddress;
 
-        int literalsSize = rawLiterals(outputBase, output, (int) (outputLimit - output), context.sequenceStore.literalsBuffer, ARRAY_BYTE_BASE_OFFSET, context.sequenceStore.literalsLength);
-        output += literalsSize;
+        int compressedLiteralsSize = encodeLiterals(
+                context.huffmanContext,
+                parameters,
+                outputBase,
+                output,
+                (int) (outputLimit - output),
+                context.sequenceStore.literalsBuffer,
+                context.sequenceStore.literalsLength);
+        output += compressedLiteralsSize;
 
         int compressedSequencesSize = SequenceEncoder.compressSequences(outputBase, output, (int) (outputLimit - output), context.sequenceStore, parameters.getStrategy(), context.sequenceEncodingContext);
 
-        int compressedSize = literalsSize + compressedSequencesSize;
+        int compressedSize = compressedLiteralsSize + compressedSequencesSize;
         if (compressedSize == 0) {
             // not compressible
             return compressedSize;
@@ -242,6 +259,150 @@ class ZstdFrameCompressor
         context.commit();
 
         return compressedSize;
+    }
+
+    private static int encodeLiterals(
+            HuffmanCompressionContext context,
+            CompressionParameters parameters,
+            Object outputBase,
+            long outputAddress,
+            int outputSize,
+            byte[] literals,
+            int literalsSize)
+    {
+        // TODO: move this to Strategy
+        boolean bypassCompression = (parameters.getStrategy() == CompressionParameters.Strategy.FAST) && (parameters.getTargetLength() > 0);
+        if (bypassCompression | literalsSize <= MINIMUM_LITERALS_SIZE) {
+            return rawLiterals(outputBase, outputAddress, outputSize, literals, ARRAY_BYTE_BASE_OFFSET, literalsSize);
+        }
+
+        int headerSize = 3 + (literalsSize >= 1024 ? 1 : 0) + (literalsSize >= 16384 ? 1 : 0);
+
+        checkArgument(headerSize + 1 <= outputSize, "Output buffer too small");
+
+        int[] counts = new int[MAX_SYMBOL_COUNT]; // TODO: preallocate
+        Histogram.count(literals, literalsSize, counts);
+        int maxSymbol = Histogram.findMaxSymbol(counts, MAX_SYMBOL);
+        int largestCount = Histogram.findLargestCount(counts, maxSymbol);
+
+        long literalsAddress = ARRAY_BYTE_BASE_OFFSET;
+        if (largestCount == literalsSize) {
+            // all bytes in input are equal
+            return rleLiterals(outputBase, outputAddress, outputSize, literals, ARRAY_BYTE_BASE_OFFSET, literalsSize);
+        }
+        else if (largestCount <= (literalsSize >>> 7) + 4) {
+            // heuristic: probably not compressible enough
+            return rawLiterals(outputBase, outputAddress, outputSize, literals, ARRAY_BYTE_BASE_OFFSET, literalsSize);
+        }
+
+        HuffmanCompressionTable previousTable = context.getPreviousTable();
+        HuffmanCompressionTable table;
+        int serializedTableSize;
+        boolean reuseTable;
+
+        boolean canReuse = previousTable.isValid(counts, maxSymbol);
+
+        // heuristic: use existing table for small inputs if valid
+        // TODO: move to Strategy
+        boolean preferReuse = parameters.getStrategy().ordinal() < CompressionParameters.Strategy.LAZY.ordinal() && literalsSize <= 1024;
+        if (preferReuse && canReuse) {
+            table = previousTable;
+            reuseTable = true;
+            serializedTableSize = 0;
+        }
+        else {
+            HuffmanCompressionTable newTable = context.borrowTemporaryTable();
+
+            newTable.initialize(
+                    counts,
+                    maxSymbol,
+                    HuffmanCompressionTable.optimalNumberOfBits(MAX_HUFFMAN_TABLE_LOG, literalsSize, maxSymbol),
+                    context.getCompressionTableWorkspace());
+
+            serializedTableSize = newTable.write(outputBase, outputAddress + headerSize, outputSize - headerSize, context.getTableWriterWorkspace());
+
+            // Check if using previous huffman table is beneficial
+            if (canReuse && previousTable.estimateCompressedSize(counts, maxSymbol) <= serializedTableSize + newTable.estimateCompressedSize(counts, maxSymbol)) {
+                table = previousTable;
+                reuseTable = true;
+                serializedTableSize = 0;
+                context.discardTemporaryTable();
+            }
+            else {
+                table = newTable;
+                reuseTable = false;
+            }
+        }
+
+        int compressedSize;
+        boolean singleStream = literalsSize < 256;
+        if (singleStream) {
+            compressedSize = HuffmanCompressor.compressSingleStream(outputBase, outputAddress + headerSize + serializedTableSize, outputSize - headerSize - serializedTableSize, literals, literalsAddress, literalsSize, table);
+        }
+        else {
+            compressedSize = HuffmanCompressor.compress4streams(outputBase, outputAddress + headerSize + serializedTableSize, outputSize - headerSize - serializedTableSize, literals, literalsAddress, literalsSize, table);
+        }
+
+        int totalSize = serializedTableSize + compressedSize;
+        int minimumGain = calculateMinimumGain(literalsSize, parameters.getStrategy());
+
+        if (totalSize >= literalsSize - minimumGain) {
+            // incompressible or no savings
+
+            // discard any temporary table we might have borrowed above
+            context.discardTemporaryTable();
+
+            return rawLiterals(outputBase, outputAddress, outputSize, literals, ARRAY_BYTE_BASE_OFFSET, literalsSize);
+        }
+
+        int encodingType = reuseTable ? TREELESS_LITERALS_BLOCK : COMPRESSED_LITERALS_BLOCK;
+
+        // Build header
+        switch (headerSize) {
+            case 3: { // 2 - 2 - 10 - 10
+                int header = encodingType | ((singleStream ? 0 : 1) << 2) | (literalsSize << 4) | (totalSize << 14);
+                put24BitLittleEndian(outputBase, outputAddress, header);
+                break;
+            }
+            case 4: { // 2 - 2 - 14 - 14
+                int header = encodingType | (2 << 2) | (literalsSize << 4) | (totalSize << 18);
+                UNSAFE.putInt(outputBase, outputAddress, header);
+                break;
+            }
+            case 5: { // 2 - 2 - 18 - 18
+                int header = encodingType | (3 << 2) | (literalsSize << 4) | (totalSize << 22);
+                UNSAFE.putInt(outputBase, outputAddress, header);
+                UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_INT, (byte) (totalSize >>> 10));
+                break;
+            }
+            default:  // not possible : headerSize is {3,4,5}
+                throw new IllegalStateException();
+        }
+
+        return headerSize + totalSize;
+    }
+
+    private static int rleLiterals(Object outputBase, long outputAddress, int outputSize, Object inputBase, long inputAddress, int inputSize)
+    {
+        int headerSize = 1 + (inputSize > 31 ? 1 : 0) + (inputSize > 4095 ? 1 : 0);
+
+        switch (headerSize) {
+            case 1: // 2 - 1 - 5
+                UNSAFE.putByte(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (inputSize << 3)));
+                break;
+            case 2: // 2 - 2 - 12
+                UNSAFE.putShort(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
+                break;
+            case 3: // 2 - 2 - 20
+                UNSAFE.putInt(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (3 << 2) | (inputSize << 4)));
+                break;
+            default:   // impossible. headerSize is {1,2,3}
+                throw new IllegalStateException();
+        }
+
+        UNSAFE.putByte(outputBase, outputAddress + headerSize, UNSAFE.getByte(inputBase, inputAddress));
+
+        return headerSize + 1;
     }
 
     private static int calculateMinimumGain(int inputSize, CompressionParameters.Strategy strategy)
