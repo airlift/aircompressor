@@ -59,7 +59,7 @@ public enum Algorithm
     xerial_snappy(new XerialSnappyDecompressor(), new XerialSnappyCompressor()),
     iq80_snappy(new Iq80SnappyDecompressor(), new Iq80SnappyCompressor()),
     hadoop_lzo(new HadoopLzoDecompressor(), new HadoopLzoCompressor()),
-    zstd_jni(new ZstdJniDecompressor(), new ZstdJniCompressor(6)),
+    zstd_jni(new ZstdJniDecompressor(), new ZstdJniCompressor(3)),
 
     hadoop_lz4_stream(new org.apache.hadoop.io.compress.Lz4Codec(), new Lz4Compressor()),
     hadoop_snappy_stream(new org.apache.hadoop.io.compress.SnappyCodec(), new SnappyCompressor()),
