@@ -391,10 +391,10 @@ class ZstdFrameCompressor
                 UNSAFE.putByte(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (inputSize << 3)));
                 break;
             case 2: // 2 - 2 - 12
-                UNSAFE.putShort(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
+                UNSAFE.putShort(outputBase, outputAddress, (short) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
                 break;
             case 3: // 2 - 2 - 20
-                UNSAFE.putInt(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (3 << 2) | (inputSize << 4)));
+                UNSAFE.putInt(outputBase, outputAddress, RLE_LITERALS_BLOCK | 3 << 2 | inputSize << 4);
                 break;
             default:   // impossible. headerSize is {1,2,3}
                 throw new IllegalStateException();
