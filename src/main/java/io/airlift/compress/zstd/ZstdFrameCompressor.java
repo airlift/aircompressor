@@ -272,7 +272,7 @@ class ZstdFrameCompressor
     {
         // TODO: move this to Strategy
         boolean bypassCompression = (parameters.getStrategy() == CompressionParameters.Strategy.FAST) && (parameters.getTargetLength() > 0);
-        if (bypassCompression | literalsSize <= MINIMUM_LITERALS_SIZE) {
+        if (bypassCompression || literalsSize <= MINIMUM_LITERALS_SIZE) {
             return rawLiterals(outputBase, outputAddress, outputSize, literals, ARRAY_BYTE_BASE_OFFSET, literalsSize);
         }
 
