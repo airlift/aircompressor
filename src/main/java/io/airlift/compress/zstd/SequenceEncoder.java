@@ -94,7 +94,6 @@ class SequenceEncoder
         // flags for FSE encoding type
         long headerAddress = output++;
 
-        Histogram histogram;
         int maxSymbol;
         int largestCount;
 
