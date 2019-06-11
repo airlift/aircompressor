@@ -17,3 +17,6 @@ typically 300% faster than the JNI wrappers.
 
 This library requires a Java 1.8+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform.
 
+# Users
+
+This library is used in projects such as Presto (https://prestosql.io), a distributed SQL engine.
