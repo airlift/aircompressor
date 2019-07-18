@@ -13,11 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
-import io.airlift.slice.UnsafeSliceFactory;
-import io.airlift.slice.XxHash64;
-
 import static io.airlift.compress.zstd.Constants.COMPRESSED_BLOCK;
 import static io.airlift.compress.zstd.Constants.COMPRESSED_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.Constants.MAGIC_NUMBER;
@@ -130,12 +125,7 @@ class ZstdFrameCompressor
 
         int inputSize = (int) (inputLimit - inputAddress);
 
-        Slice slice = Slices.EMPTY_SLICE;
-        if (inputSize > 0) {
-            slice = UnsafeSliceFactory.getInstance().newSlice(inputBase, inputAddress, inputSize);
-        }
-
-        long hash = XxHash64.hash(0, slice);
+        long hash = XxHash64.hash(0, inputBase, inputAddress, inputSize);
 
         UNSAFE.putInt(outputBase, outputAddress, (int) hash);
 
