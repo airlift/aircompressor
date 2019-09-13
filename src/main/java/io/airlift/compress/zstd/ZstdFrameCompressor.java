@@ -38,7 +38,7 @@ import static io.airlift.compress.zstd.Util.checkArgument;
 import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-class ZstdFrameCompressor
+public class ZstdFrameCompressor
 {
     static final int MAX_FRAME_HEADER_SIZE = 14;
 
