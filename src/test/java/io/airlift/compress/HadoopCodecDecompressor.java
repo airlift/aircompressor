@@ -13,12 +13,12 @@
  */
 package io.airlift.compress;
 
-import com.google.common.base.Throwables;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 
 public class HadoopCodecDecompressor
@@ -52,7 +52,7 @@ public class HadoopCodecDecompressor
             return bytesRead;
         }
         catch (IOException e) {
-            throw Throwables.propagate(e);
+            throw new UncheckedIOException(e);
         }
     }
 

@@ -13,8 +13,6 @@
  */
 package io.airlift.compress;
 
-import com.google.common.base.Throwables;
-
 import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
@@ -34,7 +32,7 @@ public class InflateDecompressor
             return resultLength;
         }
         catch (DataFormatException e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
