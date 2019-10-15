@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.lzo;
 
+import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
@@ -22,6 +23,12 @@ import io.airlift.compress.HadoopNative;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
+
+import static java.lang.String.format;
+import static org.testng.Assert.assertEquals;
 
 public class TestLzopCodec
         extends AbstractTestCompression
@@ -67,5 +74,35 @@ public class TestLzopCodec
     protected Decompressor getVerifyDecompressor()
     {
         return new HadoopCodecDecompressor(verifyCodec);
+    }
+
+    @Test
+    public void testDecompressNewerVersion()
+            throws IOException
+    {
+        // lzop --no-checksum -o test-no-checksum.lzo test
+        // lzop -o test-adler32.lzo test
+        // lzop -CC -o test-adler32-both.lzo test
+        // lzop --crc32 -o test-crc32.lzo test
+        // lzop --crc32 -CC -o test-crc32-both.lzo test
+
+        assertDecompressed("no-checksum");
+        assertDecompressed("adler32");
+        assertDecompressed("adler32-both");
+        assertDecompressed("crc32");
+        assertDecompressed("crc32-both");
+    }
+
+    private void assertDecompressed(String variant)
+            throws IOException
+    {
+        byte[] compressed = Resources.toByteArray(Resources.getResource(getClass(), format("/data/lzo/test-%s.lzo", variant)));
+        byte[] uncompressed = Resources.toByteArray(Resources.getResource(getClass(), "/data/lzo/test"));
+
+        byte[] output = new byte[uncompressed.length];
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
+
+        assertEquals(decompressedSize, output.length);
+        assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
     }
 }

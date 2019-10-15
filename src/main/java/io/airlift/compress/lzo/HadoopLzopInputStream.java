@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.zip.Adler32;
+import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
-import static io.airlift.compress.lzo.LzopCodec.LZOP_IMPLEMENTATION_VERSION;
 import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
 import static io.airlift.compress.lzo.LzopCodec.LZO_1X_VARIANT;
 import static java.lang.String.format;
@@ -32,7 +32,18 @@ import static java.lang.String.format;
 class HadoopLzopInputStream
         extends CompressionInputStream
 {
-    private static final int LZO_IMPLEMENTATION_VERSION = 0x2060;
+    private static final int LZO_VERSION_MAX = 0x20A0;
+    private static final int LZOP_FILE_VERSION_MIN = 0x0940;
+    private static final int LZOP_FORMAT_VERSION_MAX = 0x1010;
+
+    private static final int LZOP_FLAG_ADLER32_DECOMPRESSED = 0x0000_0001;
+    private static final int LZOP_FLAG_ADLER32_COMPRESSED = 0x0000_0002;
+    private static final int LZOP_FLAG_CRC32_DECOMPRESSED = 0x0000_0100;
+    private static final int LZOP_FLAG_CRC32_COMPRESSED = 0x0000_0200;
+    private static final int LZOP_FLAG_CRC32_HEADER = 0x0000_1000;
+    private static final int LZOP_FLAG_IO_MASK = 0x0000_000c;
+    private static final int LZOP_FLAG_OPERATING_SYSTEM_MASK = 0xff00_0000;
+    private static final int LZOP_FLAG_CHARACTER_SET_MASK = 0x00f0_0000;
 
     private final LzoDecompressor decompressor = new LzoDecompressor();
     private final InputStream in;
@@ -44,6 +55,10 @@ class HadoopLzopInputStream
     private boolean finished;
 
     private byte[] compressed = new byte[0];
+    private final boolean adler32Decompressed;
+    private final boolean adler32Compressed;
+    private final boolean crc32Decompressed;
+    private final boolean crc32Compressed;
 
     public HadoopLzopInputStream(InputStream in, int maxUncompressedLength)
             throws IOException
@@ -64,18 +79,21 @@ class HadoopLzopInputStream
         ByteArrayInputStream headerStream = new ByteArrayInputStream(header);
 
         // lzop version: ignored
-        readBigEndianShort(headerStream);
+        int lzopFileVersion = readBigEndianShort(headerStream);
+        if (lzopFileVersion < LZOP_FILE_VERSION_MIN) {
+            throw new IOException(format("Unsupported LZOP file version 0x%08X", lzopFileVersion));
+        }
 
         // lzo version
         int lzoVersion = readBigEndianShort(headerStream);
-        if (lzoVersion > LZO_IMPLEMENTATION_VERSION) {
+        if (lzoVersion > LZO_VERSION_MAX) {
             throw new IOException(format("Unsupported LZO version 0x%08X", lzoVersion));
         }
 
         // lzop version of the format
-        int lzopCompatibility = readBigEndianShort(headerStream);
-        if (lzopCompatibility > LZOP_IMPLEMENTATION_VERSION) {
-            throw new IOException(format("Unsupported LZOP version 0x%08X", lzopCompatibility));
+        int lzopFormatVersion = readBigEndianShort(headerStream);
+        if (lzopFormatVersion > LZOP_FORMAT_VERSION_MAX) {
+            throw new IOException(format("Unsupported LZOP format version 0x%08X", lzopFormatVersion));
         }
 
         // variant: must be LZO 1X
@@ -87,10 +105,30 @@ class HadoopLzopInputStream
         // level: ignored
         headerStream.read();
 
-        // flags: none supported
+        // flags
         int flags = readBigEndianInt(headerStream);
+
+        // ignore flags about the compression environment
+        flags &= ~LZOP_FLAG_IO_MASK;
+        flags &= ~LZOP_FLAG_OPERATING_SYSTEM_MASK;
+        flags &= ~LZOP_FLAG_CHARACTER_SET_MASK;
+
+        // checksum flags
+        adler32Decompressed = (flags & LZOP_FLAG_ADLER32_DECOMPRESSED) != 0;
+        adler32Compressed = (flags & LZOP_FLAG_ADLER32_COMPRESSED) != 0;
+        crc32Decompressed = (flags & LZOP_FLAG_CRC32_DECOMPRESSED) != 0;
+        crc32Compressed = (flags & LZOP_FLAG_CRC32_COMPRESSED) != 0;
+        boolean crc32Header = (flags & LZOP_FLAG_CRC32_HEADER) != 0;
+
+        flags &= ~LZOP_FLAG_ADLER32_DECOMPRESSED;
+        flags &= ~LZOP_FLAG_ADLER32_COMPRESSED;
+        flags &= ~LZOP_FLAG_CRC32_DECOMPRESSED;
+        flags &= ~LZOP_FLAG_CRC32_COMPRESSED;
+        flags &= ~LZOP_FLAG_CRC32_HEADER;
+
+        // no other flags are supported
         if (flags != 0) {
-            throw new IOException(format("Unsupported LZO flags %s", flags));
+            throw new IOException(format("Unsupported LZO flags 0x%08X", flags));
         }
 
         // output file mode: ignored
@@ -110,7 +148,7 @@ class HadoopLzopInputStream
         // verify header checksum
         int headerChecksumValue = readBigEndianInt(in);
 
-        Checksum headerChecksum = new Adler32();
+        Checksum headerChecksum = crc32Header ? new CRC32() : new Adler32();
         headerChecksum.update(header, 0, header.length);
         headerChecksum.update(fileName, 0, fileName.length);
         if (headerChecksumValue != (int) headerChecksum.getValue()) {
@@ -194,7 +232,26 @@ class HadoopLzopInputStream
             throw new EOFException("encountered EOF while reading block data");
         }
 
+        skipChecksums(compressedLength < uncompressedLength);
+
         return compressedLength;
+    }
+
+    private void skipChecksums(boolean compressed)
+            throws IOException
+    {
+        if (adler32Decompressed) {
+            readBigEndianInt(in);
+        }
+        if (crc32Decompressed) {
+            readBigEndianInt(in);
+        }
+        if (compressed && adler32Compressed) {
+            readBigEndianInt(in);
+        }
+        if (compressed && crc32Compressed) {
+            readBigEndianInt(in);
+        }
     }
 
     private void decompress(int compressedLength, byte[] output, int outputOffset, int outputLength)

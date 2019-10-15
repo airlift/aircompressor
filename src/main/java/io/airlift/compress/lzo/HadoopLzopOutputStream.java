@@ -22,13 +22,13 @@ import java.io.OutputStream;
 import java.util.zip.Adler32;
 
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
-import static io.airlift.compress.lzo.LzopCodec.LZOP_IMPLEMENTATION_VERSION;
 import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
 import static io.airlift.compress.lzo.LzopCodec.LZO_1X_VARIANT;
 
 class HadoopLzopOutputStream
         extends CompressionOutputStream
 {
+    private static final int LZOP_FILE_VERSION = 0x1010;
     private static final int LZOP_FORMAT_VERSION = 0x0940;
     private static final int LZO_FORMAT_VERSION = 0x2050;
     private static final int LEVEL = 5;
@@ -54,7 +54,7 @@ class HadoopLzopOutputStream
 
         ByteArrayOutputStream headerOut = new ByteArrayOutputStream(25);
         DataOutputStream headerDataOut = new DataOutputStream(headerOut);
-        headerDataOut.writeShort(LZOP_IMPLEMENTATION_VERSION);
+        headerDataOut.writeShort(LZOP_FILE_VERSION);
         headerDataOut.writeShort(LZO_FORMAT_VERSION);
         headerDataOut.writeShort(LZOP_FORMAT_VERSION);
         headerDataOut.writeByte(LZO_1X_VARIANT);
