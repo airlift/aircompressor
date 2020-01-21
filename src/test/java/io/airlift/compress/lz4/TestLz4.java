@@ -18,6 +18,7 @@ import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniCompressor;
 import io.airlift.compress.thirdparty.JPountzLz4JniDecompressor;
+import net.jpountz.lz4.LZ4Factory;
 
 public class TestLz4
         extends AbstractTestCompression
@@ -37,12 +38,12 @@ public class TestLz4
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new JPountzLz4JniCompressor();
+        return new JPountzLz4JniCompressor(LZ4Factory.fastestInstance());
     }
 
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new JPountzLz4JniDecompressor();
+        return new JPountzLz4JniDecompressor(LZ4Factory.fastestInstance());
     }
 }

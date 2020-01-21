@@ -15,6 +15,7 @@ package io.airlift.compress.thirdparty;
 
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
+import org.xerial.snappy.Snappy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,6 +39,11 @@ public class XerialSnappyDecompressor
     public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        try {
+            org.xerial.snappy.Snappy.uncompress(input, output);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

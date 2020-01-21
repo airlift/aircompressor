@@ -17,7 +17,6 @@ import com.github.luben.zstd.Zstd;
 import io.airlift.compress.Compressor;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 public class ZstdJniCompressor
         implements Compressor
@@ -38,23 +37,12 @@ public class ZstdJniCompressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
-        byte[] uncompressed = Arrays.copyOfRange(input, inputOffset, inputLength);
-        byte[] compressed = Zstd.compress(uncompressed, level);
-
-        System.arraycopy(compressed, 0, output, outputOffset, compressed.length);
-
-        return compressed.length;
+        return (int) Zstd.compressByteArray(output, outputOffset, maxOutputLength, input, inputOffset, inputLength, level);
     }
 
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
     {
-        byte[] uncompressed = new byte[input.remaining()];
-        input.get(uncompressed);
-
-        byte[] compressed = new byte[output.remaining()];
-
-        int compressedSize = compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
-        output.put(compressed, 0, compressedSize);
+        Zstd.compress(input, output, level);
     }
 }
