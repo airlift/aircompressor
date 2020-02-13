@@ -18,7 +18,6 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 public class ZstdJniDecompressor
         implements Decompressor
@@ -27,18 +26,13 @@ public class ZstdJniDecompressor
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
-        byte[] compressed = Arrays.copyOfRange(input, inputOffset, inputLength);
-        byte[] uncompressed = Zstd.decompress(compressed, maxOutputLength);
-
-        System.arraycopy(uncompressed, 0, output, outputOffset, uncompressed.length);
-
-        return uncompressed.length;
+        return (int) Zstd.decompressByteArray(output, outputOffset, maxOutputLength, input, inputOffset, inputLength);
     }
 
     @Override
     public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        Zstd.decompress(output, input);
     }
 }

@@ -19,10 +19,15 @@ import net.jpountz.lz4.LZ4Factory;
 
 import java.nio.ByteBuffer;
 
-public class JPountzLz4JniCompressor
+public class JPountzLz4Compressor
         implements Compressor
 {
-    private final LZ4Compressor compressor = LZ4Factory.fastestInstance().fastCompressor();
+    private final LZ4Compressor compressor;
+
+    public JPountzLz4Compressor(LZ4Factory factory)
+    {
+        compressor = factory.fastCompressor();
+    }
 
     @Override
     public int maxCompressedLength(int uncompressedSize)
@@ -39,6 +44,6 @@ public class JPountzLz4JniCompressor
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        compressor.compress(input, output);
     }
 }

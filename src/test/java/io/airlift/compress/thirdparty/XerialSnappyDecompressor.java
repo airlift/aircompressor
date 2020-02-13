@@ -38,6 +38,11 @@ public class XerialSnappyDecompressor
     public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        try {
+            org.xerial.snappy.Snappy.uncompress(input, output);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

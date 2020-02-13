@@ -42,6 +42,11 @@ public class XerialSnappyCompressor
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        try {
+            org.xerial.snappy.Snappy.compress(input, output);
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

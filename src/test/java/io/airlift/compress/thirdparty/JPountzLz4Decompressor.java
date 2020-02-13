@@ -20,10 +20,15 @@ import net.jpountz.lz4.LZ4SafeDecompressor;
 
 import java.nio.ByteBuffer;
 
-public class JPountzLz4JniDecompressor
+public class JPountzLz4Decompressor
         implements Decompressor
 {
-    private final LZ4SafeDecompressor decompressor = LZ4Factory.fastestInstance().safeDecompressor();
+    private final LZ4SafeDecompressor decompressor;
+
+    public JPountzLz4Decompressor(LZ4Factory factory)
+    {
+        decompressor = factory.safeDecompressor();
+    }
 
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
@@ -36,6 +41,6 @@ public class JPountzLz4JniDecompressor
     public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        decompressor.decompress(input, output);
     }
 }

@@ -64,6 +64,8 @@ public class CompressionBenchmark
             "iq80_snappy",
             "xerial_snappy",
             "jpountz_lz4_jni",
+            "jpountz_lz4_safe",
+            "jpountz_lz4_unsafe",
             "hadoop_lzo",
             "zstd_jni",
 

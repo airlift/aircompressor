@@ -375,6 +375,7 @@ public final class SnappyRawCompressor
     }
 
     private static final int HIGH_BIT_MASK = 0x80;
+
     /**
      * Writes the uncompressed length as variable length integer.
      */
