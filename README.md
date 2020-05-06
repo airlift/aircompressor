@@ -12,7 +12,7 @@ typically 10-40% faster than the JNI wrapper for the native libraries.
 # Hadoop CompressionCodec
 
 In addition to the raw block encoders, there are implementations of the
-Hadoop CompressionCodec for each algorithm. They are
+Hadoop CompressionCodec for each algorithm (except Zstandard, see [issue #109](https://github.com/airlift/aircompressor/issues/109)). They are
 typically 300% faster than the JNI wrappers.
 
 # Requirements
