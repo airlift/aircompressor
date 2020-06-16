@@ -24,6 +24,8 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 
+import static org.testng.Assert.assertEquals;
+
 public class TestZstd
         extends AbstractTestCompression
 {
@@ -129,5 +131,14 @@ public class TestZstd
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressedSize, decompressed, 0, decompressed.length);
 
         assertByteArraysEqual(original, 0, original.length, decompressed, 0, decompressedSize);
+    }
+
+    @Test
+    public void testMaxCompressedSize()
+    {
+        assertEquals(new ZstdCompressor().maxCompressedLength(0), 64);
+        assertEquals(new ZstdCompressor().maxCompressedLength(64 * 1024), 65_824);
+        assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024), 131_584);
+        assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024 + 1), 131_585);
     }
 }
