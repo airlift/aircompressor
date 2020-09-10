@@ -15,17 +15,27 @@ package io.airlift.compress.snappy;
 
 import io.airlift.compress.MalformedInputException;
 
+import java.nio.ByteOrder;
+
 import static io.airlift.compress.snappy.SnappyConstants.LITERAL;
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
+import static java.lang.Integer.reverseBytes;
 
 public final class SnappyRawDecompressor
 {
     private static final int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
+    private static final ByteOrder byteOrder = ByteOrder.nativeOrder();
+
     private SnappyRawDecompressor() {}
+
+    private static int littleEndian(int i)
+    {
+        return (byteOrder == ByteOrder.LITTLE_ENDIAN) ? i : reverseBytes(i);
+    }
 
     public static int getUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
     {
@@ -87,7 +97,7 @@ public final class SnappyRawDecompressor
             int trailerBytes = entry >>> 11;
             int trailer = 0;
             if (input + SIZE_OF_INT < inputLimit) {
-                trailer = UNSAFE.getInt(inputBase, input) & wordmask[trailerBytes];
+                trailer = littleEndian(UNSAFE.getInt(inputBase, input)) & wordmask[trailerBytes];
             }
             else {
                 if (input + trailerBytes > inputLimit) {
