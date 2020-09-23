@@ -17,7 +17,7 @@ typically 300% faster than the JNI wrappers.
 
 # Requirements
 
-This library requires a Java 1.8+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform.
+This library requires a Java 1.8+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform (Snappy also works on big endian platform, producing identical output as little endian).
 
 # Users
 
