@@ -21,4 +21,4 @@ This library requires a Java 1.8+ virtual machine containing the `sun.misc.Unsaf
 
 # Users
 
-This library is used in projects such as Presto (https://prestosql.io), a distributed SQL engine.
+This library is used in projects such as Trino (https://trino.io), a distributed SQL engine.
