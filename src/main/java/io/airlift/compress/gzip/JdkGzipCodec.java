@@ -152,19 +152,13 @@ public class JdkGzipCodec
         }
 
         @Override
-        public void reset()
-        {
-        }
+        public void reset() {}
 
         @Override
-        public void end()
-        {
-        }
+        public void end() {}
 
         @Override
-        public void reinit(Configuration conf)
-        {
-        }
+        public void reinit(Configuration conf) {}
     }
 
     /**
@@ -213,19 +207,15 @@ public class JdkGzipCodec
         }
 
         @Override
-        public void reset()
-        {
-        }
-
-        @Override
         public int getRemaining()
         {
             throw new UnsupportedOperationException("Gzip block decompressor is not supported");
         }
 
         @Override
-        public void end()
-        {
-        }
+        public void reset() {}
+
+        @Override
+        public void end() {}
     }
 }
