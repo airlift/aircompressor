@@ -196,7 +196,6 @@ public class LzoCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("LZO block compressor is not supported");
         }
 
         @Override
@@ -266,7 +265,6 @@ public class LzoCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("LZO block decompressor is not supported");
         }
     }
 }

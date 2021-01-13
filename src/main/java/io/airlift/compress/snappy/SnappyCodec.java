@@ -190,7 +190,6 @@ public class SnappyCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("Snappy block compressor is not supported");
         }
 
         @Override
@@ -258,7 +257,6 @@ public class SnappyCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("Snappy block decompressor is not supported");
         }
     }
 }

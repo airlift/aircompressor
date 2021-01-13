@@ -159,7 +159,6 @@ public class JdkGzipCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("Gzip block compressor is not supported");
         }
 
         @Override
@@ -227,7 +226,6 @@ public class JdkGzipCodec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("Gzip block decompressor is not supported");
         }
     }
 }

@@ -194,7 +194,6 @@ public class Lz4Codec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("LZ4 block compressor is not supported");
         }
 
         @Override
@@ -264,7 +263,6 @@ public class Lz4Codec
         @Override
         public void end()
         {
-            throw new UnsupportedOperationException("LZ4 block decompressor is not supported");
         }
     }
 }
