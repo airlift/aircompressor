@@ -5,7 +5,7 @@
 
     <groupId>io.airlift</groupId>
     <artifactId>aircompressor</artifactId>
-    <version>0.18</version>
+    <version>0.19-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>aircompressor</name>
@@ -33,7 +33,7 @@
         <connection>scm:git:git://github.com/airlift/aircompressor.git</connection>
         <developerConnection>scm:git:git@github.com:airlift/aircompressor.git</developerConnection>
         <url>http://github.com/airlift/aircompressor/tree/master</url>
-      <tag>0.18</tag>
+      <tag>HEAD</tag>
   </scm>
 
     <properties>
