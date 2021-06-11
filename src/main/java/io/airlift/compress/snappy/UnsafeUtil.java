@@ -17,7 +17,6 @@ import io.airlift.compress.IncompatibleJvmException;
 import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
-import java.nio.Buffer;
 import java.nio.ByteOrder;
 
 import static java.lang.String.format;
@@ -25,7 +24,6 @@ import static java.lang.String.format;
 final class UnsafeUtil
 {
     public static final Unsafe UNSAFE;
-    private static final Field ADDRESS_ACCESSOR;
 
     private UnsafeUtil() {}
 
@@ -42,25 +40,6 @@ final class UnsafeUtil
         }
         catch (Exception e) {
             throw new IncompatibleJvmException("Snappy requires access to sun.misc.Unsafe");
-        }
-
-        try {
-            Field field = Buffer.class.getDeclaredField("address");
-            field.setAccessible(true);
-            ADDRESS_ACCESSOR = field;
-        }
-        catch (Exception e) {
-            throw new IncompatibleJvmException("Snappy requires access to java.nio.Buffer raw address field");
-        }
-    }
-
-    public static long getAddress(Buffer buffer)
-    {
-        try {
-            return (long) ADDRESS_ACCESSOR.get(buffer);
-        }
-        catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
         }
     }
 }

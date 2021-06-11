@@ -161,63 +161,6 @@ public abstract class AbstractTestCompression
     }
 
     @Test(dataProvider = "data")
-    public void testDecompressByteBufferHeapToDirect(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        ByteBuffer compressed = ByteBuffer.wrap(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
-
-        getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
-    }
-
-    @Test(dataProvider = "data")
-    public void testDecompressByteBufferDirectToHeap(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        ByteBuffer compressed = toDirectBuffer(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocate(uncompressedOriginal.length);
-
-        getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
-    }
-
-    @Test(dataProvider = "data")
-    public void testDecompressByteBufferDirectToDirect(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        ByteBuffer compressed = toDirectBuffer(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
-
-        getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
-    }
-
-    @Test(dataProvider = "data")
     public void testCompress(DataSet testCase)
             throws Exception
     {
@@ -260,60 +203,6 @@ public abstract class AbstractTestCompression
                 compressor,
                 ByteBuffer.wrap(uncompressedOriginal),
                 ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
-    }
-
-    @Test(dataProvider = "data")
-    public void testCompressByteBufferHeapToDirect(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        Compressor compressor = getCompressor();
-
-        verifyCompressByteBuffer(
-                compressor,
-                ByteBuffer.wrap(uncompressedOriginal),
-                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
-    }
-
-    @Test(dataProvider = "data")
-    public void testCompressByteBufferDirectToHeap(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        Compressor compressor = getCompressor();
-
-        verifyCompressByteBuffer(
-                compressor,
-                toDirectBuffer(uncompressedOriginal),
-                ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
-    }
-
-    @Test(dataProvider = "data")
-    public void testCompressByteBufferDirectToDirect(DataSet dataSet)
-            throws Exception
-    {
-        if (!isByteBufferSupported()) {
-            return;
-        }
-
-        byte[] uncompressedOriginal = dataSet.getUncompressed();
-
-        Compressor compressor = getCompressor();
-
-        verifyCompressByteBuffer(
-                compressor,
-                toDirectBuffer(uncompressedOriginal),
-                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
     }
 
     private void verifyCompressByteBuffer(Compressor compressor, ByteBuffer expected, ByteBuffer compressed)
@@ -418,13 +307,6 @@ public abstract class AbstractTestCompression
         }
 
         assertEquals(left.remaining(), right.remaining(), String.format("Buffer lengths differ: %s vs %s", left.remaining(), left.remaining()));
-    }
-
-    private static ByteBuffer toDirectBuffer(byte[] data)
-    {
-        ByteBuffer direct = ByteBuffer.allocateDirect(data.length);
-        direct.put(data).flip();
-        return direct;
     }
 
     private byte[] prepareCompressedData(byte[] uncompressed)

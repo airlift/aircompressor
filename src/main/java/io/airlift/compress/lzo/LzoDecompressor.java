@@ -18,7 +18,6 @@ import io.airlift.compress.MalformedInputException;
 
 import java.nio.ByteBuffer;
 
-import static io.airlift.compress.lzo.UnsafeUtil.getAddress;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class LzoDecompressor
@@ -43,13 +42,7 @@ public class LzoDecompressor
         Object inputBase;
         long inputAddress;
         long inputLimit;
-        if (input.isDirect()) {
-            inputBase = null;
-            long address = getAddress(input);
-            inputAddress = address + input.position();
-            inputLimit = address + input.limit();
-        }
-        else if (input.hasArray()) {
+        if (input.hasArray()) {
             inputBase = input.array();
             inputAddress = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.position();
             inputLimit = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.limit();
@@ -61,13 +54,7 @@ public class LzoDecompressor
         Object outputBase;
         long outputAddress;
         long outputLimit;
-        if (output.isDirect()) {
-            outputBase = null;
-            long address = getAddress(output);
-            outputAddress = address + output.position();
-            outputLimit = address + output.limit();
-        }
-        else if (output.hasArray()) {
+        if (output.hasArray()) {
             outputBase = output.array();
             outputAddress = ARRAY_BYTE_BASE_OFFSET + output.arrayOffset() + output.position();
             outputLimit = ARRAY_BYTE_BASE_OFFSET + output.arrayOffset() + output.limit();
