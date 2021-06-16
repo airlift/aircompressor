@@ -25,7 +25,7 @@ import static java.lang.String.format;
 final class UnsafeUtil
 {
     public static final Unsafe UNSAFE;
-    private static final Field ADDRESS_ACCESSOR;
+    private static final long ADDRESS_OFFSET;
 
     private UnsafeUtil() {}
 
@@ -45,22 +45,20 @@ final class UnsafeUtil
         }
 
         try {
-            Field field = Buffer.class.getDeclaredField("address");
-            field.setAccessible(true);
-            ADDRESS_ACCESSOR = field;
+            // fetch the address field for direct buffers
+            ADDRESS_OFFSET = UNSAFE.objectFieldOffset(Buffer.class.getDeclaredField("address"));
         }
-        catch (Exception e) {
+        catch (NoSuchFieldException e) {
             throw new IncompatibleJvmException("LZO requires access to java.nio.Buffer raw address field");
         }
     }
 
     public static long getAddress(Buffer buffer)
     {
-        try {
-            return (long) ADDRESS_ACCESSOR.get(buffer);
+        if (!buffer.isDirect()) {
+            throw new IllegalArgumentException("buffer is not direct");
         }
-        catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
+
+        return UNSAFE.getLong(buffer, ADDRESS_OFFSET);
     }
 }
