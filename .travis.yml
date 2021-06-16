@@ -1,9 +1,0 @@
-language: java
-
-jdk:
-  - openjdk8
-  - openjdk11
-  - openjdk16
-
-script:
-  - travis_wait 20 mvn test
