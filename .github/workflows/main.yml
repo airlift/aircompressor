@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: ['8', '9', '11', '13']
+        java: ['8', '11', '15', '16']
     steps:
       - uses: actions/checkout@v1
       - name: Setup JDK ${{ matrix.java }}
