@@ -53,6 +53,7 @@ public final class HadoopNative
             loadLibrary("gplcompression");
             loadLibrary("lzo2");
             loadLibrary("snappy");
+            loadLibrary("zstd");
 
             // verify that all configured codec classes can be loaded
             loadAllCodecs();
