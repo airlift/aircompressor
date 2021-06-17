@@ -16,7 +16,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>95</version>
+        <version>112</version>
     </parent>
 
     <inceptionYear>2011</inceptionYear>
@@ -37,6 +37,7 @@
   </scm>
 
     <properties>
+        <air.java.version>1.8</air.java.version>
         <project.build.targetJdk>1.8</project.build.targetJdk>
         <air.check.skip-extended>true</air.check.skip-extended>
         <air.check.skip-license>false</air.check.skip-license>
@@ -151,4 +152,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <target>${project.build.targetJdk}</target>
+                        <release combine.self="override" />
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 </project>
