@@ -24,6 +24,8 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 public class ZstdCompressor
         implements Compressor
 {
+    private int compressionLevel = CompressionParameters.DEFAULT_COMPRESSION_LEVEL;
+
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
@@ -42,7 +44,7 @@ public class ZstdCompressor
         long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
-        return ZstdFrameCompressor.compress(input, inputAddress, inputAddress + inputLength, output, outputAddress, outputAddress + maxOutputLength, CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
+        return ZstdFrameCompressor.compress(input, inputAddress, inputAddress + inputLength, output, outputAddress, outputAddress + maxOutputLength, compressionLevel);
     }
 
     @Override
@@ -97,9 +99,14 @@ public class ZstdCompressor
                         outputBase,
                         outputAddress,
                         outputLimit,
-                        CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
+                        compressionLevel);
                 output.position(output.position() + written);
             }
         }
+    }
+
+    public void setCompressionLevel(int compressionLevel)
+    {
+        this.compressionLevel = compressionLevel;
     }
 }
