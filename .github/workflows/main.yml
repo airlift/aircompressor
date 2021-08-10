@@ -10,9 +10,14 @@ jobs:
         java: ['8', '11', '15', '16']
     steps:
       - uses: actions/checkout@v1
-      - name: Setup JDK ${{ matrix.java }}
+      - name: Setup test JDK ${{ matrix.java }}
         uses: actions/setup-java@v1
         with:
           java-version: ${{ matrix.java }}
+      - run: echo "test_java_home=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Setup build JDK 16
+        uses: actions/setup-java@v1
+        with:
+          java-version: 16
       - name: Maven Test
-        run: mvn install -B
+        run: mvn install -V -P ci -B -Dtest_java_home=${{ env.test_java_home }}

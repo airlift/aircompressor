@@ -15,6 +15,7 @@ package io.airlift.compress.lzo;
 
 import io.airlift.compress.Compressor;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static io.airlift.compress.lzo.LzoRawCompressor.MAX_TABLE_SIZE;
@@ -45,8 +46,15 @@ public class LzoCompressor
     }
 
     @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
+    public void compress(ByteBuffer inputBuffer, ByteBuffer outputBuffer)
     {
+        // Java 9+ added an overload of various methods in ByteBuffer. When compiling with Java 11+ and targeting Java 8 bytecode
+        // the resulting signatures are invalid for JDK 8, so accesses below result in NoSuchMethodError. Accessing the
+        // methods through the interface class works around the problem
+        // Sidenote: we can't target "javac --release 8" because Unsafe is not available in the signature data for that profile
+        Buffer input = inputBuffer;
+        Buffer output = outputBuffer;
+
         Object inputBase;
         long inputAddress;
         long inputLimit;
