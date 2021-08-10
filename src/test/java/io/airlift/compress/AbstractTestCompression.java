@@ -22,6 +22,7 @@ import org.testng.annotations.Test;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -155,7 +156,7 @@ public abstract class AbstractTestCompression
         ByteBuffer uncompressed = ByteBuffer.allocate(uncompressedOriginal.length);
 
         getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
+        ((Buffer) uncompressed).flip();
 
         assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
     }
@@ -174,7 +175,7 @@ public abstract class AbstractTestCompression
         ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
 
         getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
+        ((Buffer) uncompressed).flip();
 
         assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
     }
@@ -193,7 +194,7 @@ public abstract class AbstractTestCompression
         ByteBuffer uncompressed = ByteBuffer.allocate(uncompressedOriginal.length);
 
         getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
+        ((Buffer) uncompressed).flip();
 
         assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
     }
@@ -212,7 +213,7 @@ public abstract class AbstractTestCompression
         ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
 
         getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
+        ((Buffer) uncompressed).flip();
 
         assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
     }
@@ -323,17 +324,17 @@ public abstract class AbstractTestCompression
         if (expected.remaining() > 1) {
             ByteBuffer duplicate = expected.duplicate();
             duplicate.get(); // skip one byte
-            compressor.compress(duplicate, ByteBuffer.allocate(compressed.remaining()));
+            compressor.compress(duplicate, ByteBuffer.allocate(((Buffer) compressed).remaining()));
         }
 
         compressor.compress(expected.duplicate(), compressed);
-        compressed.flip();
+        ((Buffer) compressed).flip();
 
-        ByteBuffer uncompressed = ByteBuffer.allocate(expected.remaining());
+        ByteBuffer uncompressed = ByteBuffer.allocate(((Buffer) expected).remaining());
 
         // TODO: validate with "control" decompressor
         getDecompressor().decompress(compressed, uncompressed);
-        uncompressed.flip();
+        ((Buffer) uncompressed).flip();
 
         assertByteBufferEqual(expected.duplicate(), uncompressed);
     }
@@ -409,21 +410,27 @@ public abstract class AbstractTestCompression
 
     private static void assertByteBufferEqual(ByteBuffer left, ByteBuffer right)
     {
-        int leftPosition = left.position();
-        int rightPosition = right.position();
-        for (int i = 0; i < Math.min(left.remaining(), right.remaining()); i++) {
+        Buffer leftBuffer = left;
+        Buffer rightBuffer = right;
+
+        int leftPosition = leftBuffer.position();
+        int rightPosition = rightBuffer.position();
+        for (int i = 0; i < Math.min(leftBuffer.remaining(), rightBuffer.remaining()); i++) {
             if (left.get(leftPosition + i) != right.get(rightPosition + i)) {
                 fail(String.format("Byte buffers differ at position %s: 0x%02X vs 0x%02X", i, left.get(leftPosition + i), right.get(rightPosition + i)));
             }
         }
 
-        assertEquals(left.remaining(), right.remaining(), String.format("Buffer lengths differ: %s vs %s", left.remaining(), left.remaining()));
+        assertEquals(leftBuffer.remaining(), rightBuffer.remaining(), String.format("Buffer lengths differ: %s vs %s", leftBuffer.remaining(), leftBuffer.remaining()));
     }
 
     private static ByteBuffer toDirectBuffer(byte[] data)
     {
         ByteBuffer direct = ByteBuffer.allocateDirect(data.length);
-        direct.put(data).flip();
+        direct.put(data);
+
+        ((Buffer) direct).flip();
+
         return direct;
     }
 
