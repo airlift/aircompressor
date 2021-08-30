@@ -83,6 +83,10 @@ class HuffmanCompressor
 
     public static int compressSingleStream(Object outputBase, long outputAddress, int outputSize, Object inputBase, long inputAddress, int inputSize, HuffmanCompressionTable table)
     {
+        if (outputSize < SIZE_OF_LONG) {
+            return 0;
+        }
+
         BitOutputStream bitstream = new BitOutputStream(outputBase, outputAddress, outputSize);
         long input = inputAddress;
 

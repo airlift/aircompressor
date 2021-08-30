@@ -336,7 +336,7 @@ class ZstdFrameCompressor
         int totalSize = serializedTableSize + compressedSize;
         int minimumGain = calculateMinimumGain(literalsSize, parameters.getStrategy());
 
-        if (totalSize >= literalsSize - minimumGain) {
+        if (compressedSize == 0 || totalSize >= literalsSize - minimumGain) {
             // incompressible or no savings
 
             // discard any temporary table we might have borrowed above

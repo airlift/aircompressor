@@ -134,6 +134,26 @@ public class TestZstd
     }
 
     @Test
+    public void testIncompressibleData()
+            throws IOException
+    {
+        // Incompressible data that would require more than maxCompressedLength(...) to store
+
+        Compressor compressor = getCompressor();
+
+        byte[] original = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/incompressible"));
+        int maxCompressLength = compressor.maxCompressedLength(original.length);
+
+        byte[] compressed = new byte[maxCompressLength];
+        int compressedSize = compressor.compress(original, 0, original.length, compressed, 0, compressed.length);
+
+        byte[] decompressed = new byte[original.length];
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressedSize, decompressed, 0, decompressed.length);
+
+        assertByteArraysEqual(original, 0, original.length, decompressed, 0, decompressedSize);
+    }
+
+    @Test
     public void testMaxCompressedSize()
     {
         assertEquals(new ZstdCompressor().maxCompressedLength(0), 64);
