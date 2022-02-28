@@ -25,8 +25,6 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 public class ZstdDecompressor
         implements Decompressor
 {
-    private final ZstdFrameDecompressor decompressor = new ZstdFrameDecompressor();
-
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
@@ -36,7 +34,7 @@ public class ZstdDecompressor
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
-        return decompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return new ZstdFrameDecompressor().decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override
