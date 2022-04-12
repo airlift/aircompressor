@@ -15,6 +15,7 @@ package io.airlift.compress;
 
 import com.google.common.primitives.Bytes;
 import io.airlift.compress.benchmark.DataSet;
+import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
@@ -236,7 +237,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -255,7 +256,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -274,7 +275,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -293,7 +294,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -422,7 +423,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -440,7 +441,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -458,7 +459,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
@@ -476,7 +477,7 @@ public abstract class AbstractTestCompression
             throws Exception
     {
         if (!isByteBufferSupported()) {
-            return;
+            throw new SkipException("ByteBuffer not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
