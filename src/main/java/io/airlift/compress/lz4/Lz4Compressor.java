@@ -20,6 +20,8 @@ import java.nio.ByteBuffer;
 
 import static io.airlift.compress.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
 import static io.airlift.compress.lz4.UnsafeUtil.getAddress;
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 /**
@@ -39,6 +41,9 @@ public class Lz4Compressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
+        verifyRange(input, inputOffset, inputLength);
+        verifyRange(output, outputOffset, maxOutputLength);
+
         long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
@@ -107,6 +112,14 @@ public class Lz4Compressor
                         table);
                 output.position(output.position() + written);
             }
+        }
+    }
+
+    private static void verifyRange(byte[] data, int offset, int length)
+    {
+        requireNonNull(data, "data is null");
+        if (offset < 0 || length < 0 || offset + length > data.length) {
+            throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }
 }

@@ -22,15 +22,21 @@ import org.testng.annotations.Test;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Preconditions.checkPositionIndexes;
+import static java.lang.System.arraycopy;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
@@ -142,6 +148,89 @@ public abstract class AbstractTestCompression
         assertByteArraysEqual(padding, 0, padding.length, uncompressed, uncompressed.length - padding.length, padding.length);
     }
 
+    @Test
+    public void testDecompressInputBoundsChecks()
+    {
+        byte[] data = new byte[1024];
+        new Random(1234).nextBytes(data);
+        Compressor compressor = getCompressor();
+        byte[] compressed = new byte[compressor.maxCompressedLength(data.length)];
+        int compressedLength = compressor.compress(data, 0, data.length, compressed, 0, compressed.length);
+
+        Decompressor decompressor = getDecompressor();
+        Throwable throwable;
+
+        // null input buffer
+        assertThatThrownBy(() -> decompressor.decompress(null, 0, compressedLength, data, 0, data.length))
+                .isInstanceOf(NullPointerException.class);
+
+        // mis-declared buffer size
+        byte[] compressedChoppedOff = Arrays.copyOf(compressed, compressedLength - 1);
+        throwable = catchThrowable(() -> decompressor.decompress(compressedChoppedOff, 0, compressedLength, data, 0, data.length));
+        if (throwable instanceof UncheckedIOException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+
+        // overrun because of offset
+        byte[] compressedWithPadding = new byte[10 + compressedLength - 1];
+        arraycopy(compressed, 0, compressedWithPadding, 10, compressedLength - 1);
+
+        throwable = catchThrowable(() -> decompressor.decompress(compressedWithPadding, 10, compressedLength, data, 0, data.length));
+        if (throwable instanceof UncheckedIOException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+    }
+
+    @Test
+    public void testDecompressOutputBoundsChecks()
+    {
+        byte[] data = new byte[1024];
+        new Random(1234).nextBytes(data);
+        Compressor compressor = getCompressor();
+        byte[] compressed = new byte[compressor.maxCompressedLength(data.length)];
+        int compressedLength = compressor.compress(data, 0, data.length, compressed, 0, compressed.length);
+        byte[] input = Arrays.copyOf(compressed, compressedLength);
+
+        Decompressor decompressor = getDecompressor();
+        Throwable throwable;
+
+        // null output buffer
+        assertThatThrownBy(() -> decompressor.decompress(input, 0, input.length, null, 0, data.length))
+                .isInstanceOf(NullPointerException.class);
+
+        // small buffer
+        assertThatThrownBy(() -> decompressor.decompress(input, 0, input.length, new byte[1], 0, 1))
+                .hasMessageMatching("All input was not consumed|attempt to write.* outside of destination buffer.*|Malformed input.*|Uncompressed length 1024 must be less than 1|Output buffer too small.*");
+
+        // mis-declared buffer size
+        throwable = catchThrowable(() -> decompressor.decompress(input, 0, input.length, new byte[1], 0, data.length));
+        if (throwable instanceof IndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+
+        // mis-declared buffer size with greater buffer
+        throwable = catchThrowable(() -> decompressor.decompress(input, 0, input.length, new byte[data.length - 1], 0, data.length));
+        if (throwable instanceof IndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+    }
+
     @Test(dataProvider = "data")
     public void testDecompressByteBufferHeapToHeap(DataSet dataSet)
             throws Exception
@@ -243,6 +332,89 @@ public abstract class AbstractTestCompression
                 compressed.length);
 
         verifyCompressedData(originalUncompressed, compressed, compressedLength);
+    }
+
+    @Test
+    public void testCompressInputBoundsChecks()
+    {
+        Compressor compressor = getCompressor();
+        int declaredInputLength = 1024;
+        int maxCompressedLength = compressor.maxCompressedLength(1024);
+        byte[] output = new byte[maxCompressedLength];
+        Throwable throwable;
+
+        // null input buffer
+        assertThatThrownBy(() -> compressor.compress(null, 0, declaredInputLength, output, 0, output.length))
+                .isInstanceOf(NullPointerException.class);
+
+        // mis-declared buffer size
+        throwable = catchThrowable(() -> compressor.compress(new byte[1], 0, declaredInputLength, output, 0, output.length));
+        if (throwable instanceof IndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+
+        // max too small
+        throwable = catchThrowable(() -> compressor.compress(new byte[declaredInputLength - 1], 0, declaredInputLength, output, 0, output.length));
+        if (throwable instanceof IndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+
+        // overrun because of offset
+        throwable = catchThrowable(() -> compressor.compress(new byte[declaredInputLength + 10], 11, declaredInputLength, output, 0, output.length));
+        if (throwable instanceof IndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+    }
+
+    @Test
+    public void testCompressOutputBoundsChecks()
+    {
+        Compressor compressor = getCompressor();
+        int minCompressionOverhead = compressor.maxCompressedLength(0);
+        byte[] input = new byte[minCompressionOverhead * 4 + 1024];
+        new Random(1234).nextBytes(input);
+        int maxCompressedLength = compressor.maxCompressedLength(input.length);
+        Throwable throwable;
+
+        // null output buffer
+        assertThatThrownBy(() -> compressor.compress(input, 0, input.length, null, 0, maxCompressedLength))
+                .isInstanceOf(NullPointerException.class);
+
+        // small buffer
+        assertThatThrownBy(() -> compressor.compress(input, 0, input.length, new byte[1], 0, 1))
+                .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*|Max output length must be larger than .*|Output buffer must be at least.*|Output buffer too small");
+
+        // mis-declared buffer size
+        throwable = catchThrowable(() -> compressor.compress(input, 0, input.length, new byte[1], 0, maxCompressedLength));
+        if (throwable instanceof ArrayIndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
+
+        // mis-declared buffer size with buffer large enough to hold compression frame header (if any)
+        throwable = catchThrowable(() -> compressor.compress(input, 0, input.length, new byte[minCompressionOverhead * 2], 0, maxCompressedLength));
+        if (throwable instanceof ArrayIndexOutOfBoundsException) {
+            // OK
+        }
+        else {
+            assertThat(throwable)
+                    .hasMessageMatching(".*must not be greater than size.*|Invalid offset or length.*");
+        }
     }
 
     @Test(dataProvider = "data")
