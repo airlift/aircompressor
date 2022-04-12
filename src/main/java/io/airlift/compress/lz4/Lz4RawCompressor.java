@@ -40,7 +40,7 @@ public final class Lz4RawCompressor
     private static final int RUN_BITS = 8 - ML_BITS;
     private static final int RUN_MASK = (1 << RUN_BITS) - 1;
 
-    private static final int MAX_DISTANCE = ((1 << 16) - 1);
+    static final int MAX_DISTANCE = ((1 << 16) - 1);
 
     private static final int SKIP_TRIGGER = 6;  /* Increase this value ==> compression run slower on incompressible data */
 
