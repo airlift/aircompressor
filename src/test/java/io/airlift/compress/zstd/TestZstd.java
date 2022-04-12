@@ -65,7 +65,7 @@ public class TestZstd
         byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/with-checksum"));
 
         byte[] output = new byte[uncompressed.length + padding * 2]; // pre + post padding
-        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, padding, output.length);
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, padding, output.length - padding);
 
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, padding, decompressedSize);
     }
