@@ -106,8 +106,8 @@
         <dependency>
             <groupId>org.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.7.1</version>
-            <scope>test</scope>
+            <version>1.8.0</version>
+            <!-- TODO move to test scope once we have XxHash32 -->
         </dependency>
 
         <dependency>
