@@ -18,11 +18,13 @@ import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.benchmark.DataSet;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import static org.testng.Assert.assertEquals;
 
@@ -160,5 +162,24 @@ public class TestZstd
         assertEquals(new ZstdCompressor().maxCompressedLength(64 * 1024), 65_824);
         assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024), 131_584);
         assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024 + 1), 131_585);
+    }
+
+    // test over data sets, should the result depend on input size or its compressibility
+    @Test(dataProvider = "data")
+    public void testGetDecompressedSize(DataSet dataSet)
+    {
+        Compressor compressor = getCompressor();
+        byte[] originalUncompressed = dataSet.getUncompressed();
+        byte[] compressed = new byte[compressor.maxCompressedLength(originalUncompressed.length)];
+
+        int compressedLength = compressor.compress(originalUncompressed, 0, originalUncompressed.length, compressed, 0, compressed.length);
+
+        assertEquals(ZstdDecompressor.getDecompressedSize(compressed, 0, compressedLength), originalUncompressed.length);
+
+        int padding = 10;
+        byte[] compressedWithPadding = new byte[compressedLength + padding];
+        Arrays.fill(compressedWithPadding, (byte) 42);
+        System.arraycopy(compressed, 0, compressedWithPadding, padding, compressedLength);
+        assertEquals(ZstdDecompressor.getDecompressedSize(compressedWithPadding, padding, compressedLength), originalUncompressed.length);
     }
 }
