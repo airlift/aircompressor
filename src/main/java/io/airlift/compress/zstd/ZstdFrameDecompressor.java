@@ -148,7 +148,7 @@ class ZstdFrameDecompressor
         while (input < inputLimit) {
             reset();
             long outputStart = output;
-            input += verifyMagic(inputBase, inputAddress, inputLimit);
+            input += verifyMagic(inputBase, input, inputLimit);
 
             FrameHeader frameHeader = readFrameHeader(inputBase, input, inputLimit);
             input += frameHeader.headerSize;

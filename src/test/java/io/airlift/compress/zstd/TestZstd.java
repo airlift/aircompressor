@@ -26,6 +26,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.util.Arrays;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 
 public class TestZstd
@@ -181,5 +182,18 @@ public class TestZstd
         Arrays.fill(compressedWithPadding, (byte) 42);
         System.arraycopy(compressed, 0, compressedWithPadding, padding, compressedLength);
         assertEquals(ZstdDecompressor.getDecompressedSize(compressedWithPadding, padding, compressedLength), originalUncompressed.length);
+    }
+
+    @Test
+    public void testVerifyMagicInAllFrames()
+            throws IOException
+    {
+        Compressor compressor = getCompressor();
+        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/bad-second-frame.zst"));
+        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames"));
+        byte[] output = new byte[uncompressed.length];
+        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageStartingWith("Invalid magic prefix");
     }
 }
