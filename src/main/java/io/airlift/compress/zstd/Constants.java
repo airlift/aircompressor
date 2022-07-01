@@ -21,6 +21,8 @@ class Constants
     public static final int SIZE_OF_LONG = 8;
 
     public static final int MAGIC_NUMBER = 0xFD2FB528;
+    public static final int MAGIC_SKIPFRAME_MIN = 0x184D2A50;
+    public static final int MAGIC_SKIPFRAME_MAX = 0x184D2A5F;
 
     public static final int MIN_WINDOW_LOG = 10;
     public static final int MAX_WINDOW_LOG = 31;
