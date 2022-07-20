@@ -86,14 +86,16 @@ public class TestZstd
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
     }
 
-    @Test(expectedExceptions = MalformedInputException.class, expectedExceptionsMessageRegExp = "Input is corrupted: offset=894")
+    @Test
     public void testInvalidSequenceOffset()
             throws IOException
     {
         byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/offset-before-start.zst"));
         byte[] output = new byte[compressed.length * 10];
 
-        getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
+        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageStartingWith("Input is corrupted: offset=894");
     }
 
     @Test
