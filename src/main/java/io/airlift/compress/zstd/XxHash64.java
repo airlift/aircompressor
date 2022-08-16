@@ -13,8 +13,15 @@
  */
 package io.airlift.compress.zstd;
 
+import java.io.IOException;
+import java.io.InputStream;
+
+import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
+import static io.airlift.compress.zstd.Util.checkPositionIndexes;
 import static java.lang.Long.rotateLeft;
+import static java.lang.Math.min;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 // forked from https://github.com/airlift/slice
 final class XxHash64
@@ -25,7 +32,150 @@ final class XxHash64
     private static final long PRIME64_4 = 0x85EBCA77C2b2AE63L;
     private static final long PRIME64_5 = 0x27D4EB2F165667C5L;
 
-    private XxHash64() {}
+    private static final long DEFAULT_SEED = 0;
+
+    private final long seed;
+
+    private static final long BUFFER_ADDRESS = ARRAY_BYTE_BASE_OFFSET;
+    private final byte[] buffer = new byte[32];
+    private int bufferSize;
+
+    private long bodyLength;
+
+    private long v1;
+    private long v2;
+    private long v3;
+    private long v4;
+
+    public XxHash64()
+    {
+        this(DEFAULT_SEED);
+    }
+
+    private XxHash64(long seed)
+    {
+        this.seed = seed;
+        this.v1 = seed + PRIME64_1 + PRIME64_2;
+        this.v2 = seed + PRIME64_2;
+        this.v3 = seed;
+        this.v4 = seed - PRIME64_1;
+    }
+
+    public XxHash64 update(byte[] data)
+    {
+        return update(data, 0, data.length);
+    }
+
+    public XxHash64 update(byte[] data, int offset, int length)
+    {
+        checkPositionIndexes(offset, offset + length, data.length);
+        updateHash(data, ARRAY_BYTE_BASE_OFFSET + offset, length);
+        return this;
+    }
+
+    public long hash()
+    {
+        long hash;
+        if (bodyLength > 0) {
+            hash = computeBody();
+        }
+        else {
+            hash = seed + PRIME64_5;
+        }
+
+        hash += bodyLength + bufferSize;
+
+        return updateTail(hash, buffer, BUFFER_ADDRESS, 0, bufferSize);
+    }
+
+    private long computeBody()
+    {
+        long hash = rotateLeft(v1, 1) + rotateLeft(v2, 7) + rotateLeft(v3, 12) + rotateLeft(v4, 18);
+
+        hash = update(hash, v1);
+        hash = update(hash, v2);
+        hash = update(hash, v3);
+        hash = update(hash, v4);
+
+        return hash;
+    }
+
+    private void updateHash(Object base, long address, int length)
+    {
+        if (bufferSize > 0) {
+            int available = min(32 - bufferSize, length);
+
+            UNSAFE.copyMemory(base, address, buffer, BUFFER_ADDRESS + bufferSize, available);
+
+            bufferSize += available;
+            address += available;
+            length -= available;
+
+            if (bufferSize == 32) {
+                updateBody(buffer, BUFFER_ADDRESS, bufferSize);
+                bufferSize = 0;
+            }
+        }
+
+        if (length >= 32) {
+            int index = updateBody(base, address, length);
+            address += index;
+            length -= index;
+        }
+
+        if (length > 0) {
+            UNSAFE.copyMemory(base, address, buffer, BUFFER_ADDRESS, length);
+            bufferSize = length;
+        }
+    }
+
+    private int updateBody(Object base, long address, int length)
+    {
+        int remaining = length;
+        while (remaining >= 32) {
+            v1 = mix(v1, UNSAFE.getLong(base, address));
+            v2 = mix(v2, UNSAFE.getLong(base, address + 8));
+            v3 = mix(v3, UNSAFE.getLong(base, address + 16));
+            v4 = mix(v4, UNSAFE.getLong(base, address + 24));
+
+            address += 32;
+            remaining -= 32;
+        }
+
+        int index = length - remaining;
+        bodyLength += index;
+        return index;
+    }
+
+    public static long hash(long value)
+    {
+        long hash = DEFAULT_SEED + PRIME64_5 + SIZE_OF_LONG;
+        hash = updateTail(hash, value);
+        hash = finalShuffle(hash);
+
+        return hash;
+    }
+
+    public static long hash(InputStream in)
+            throws IOException
+    {
+        return hash(DEFAULT_SEED, in);
+    }
+
+    public static long hash(long seed, InputStream in)
+            throws IOException
+    {
+        XxHash64 hash = new XxHash64(seed);
+        byte[] buffer = new byte[8192];
+        while (true) {
+            int length = in.read(buffer);
+            if (length == -1) {
+                break;
+            }
+            hash.update(buffer, 0, length);
+        }
+        return hash.hash();
+    }
 
     public static long hash(long seed, Object base, long address, int length)
     {

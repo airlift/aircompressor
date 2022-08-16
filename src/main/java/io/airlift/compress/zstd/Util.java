@@ -53,6 +53,39 @@ final class Util
         }
     }
 
+    static void checkPositionIndexes(int start, int end, int size)
+    {
+        // Carefully optimized for execution by hotspot (explanatory comment above)
+        if (start < 0 || end < start || end > size) {
+            throw new IndexOutOfBoundsException(badPositionIndexes(start, end, size));
+        }
+    }
+
+    private static String badPositionIndexes(int start, int end, int size)
+    {
+        if (start < 0 || start > size) {
+            return badPositionIndex(start, size, "start index");
+        }
+        if (end < 0 || end > size) {
+            return badPositionIndex(end, size, "end index");
+        }
+        // end < start
+        return String.format("end index (%s) must not be less than start index (%s)", end, start);
+    }
+
+    private static String badPositionIndex(int index, int size, String desc)
+    {
+        if (index < 0) {
+            return String.format("%s (%s) must not be negative", desc, index);
+        }
+        else if (size < 0) {
+            throw new IllegalArgumentException("negative size: " + size);
+        }
+        else { // index > size
+            return String.format("%s (%s) must not be greater than size (%s)", desc, index, size);
+        }
+    }
+
     public static void checkState(boolean condition, String reason)
     {
         if (!condition) {
