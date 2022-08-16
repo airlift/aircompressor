@@ -240,6 +240,9 @@ class CompressionParameters
     public static CompressionParameters compute(int compressionLevel, int estimatedInputSize)
     {
         CompressionParameters defaultParameters = getDefaultParameters(compressionLevel, estimatedInputSize);
+        if (estimatedInputSize < 0) {
+            return defaultParameters;
+        }
 
         int targetLength = defaultParameters.targetLength;
         int windowLog = defaultParameters.windowLog;
@@ -283,7 +286,7 @@ class CompressionParameters
     {
         int table = 0;
 
-        if (estimatedInputSize != 0) {
+        if (estimatedInputSize >= 0) {
             if (estimatedInputSize <= 16 * 1024) {
                 table = 3;
             }
