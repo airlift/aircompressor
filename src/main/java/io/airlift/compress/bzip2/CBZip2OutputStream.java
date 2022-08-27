@@ -29,6 +29,15 @@ import org.apache.hadoop.io.IOUtils;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static io.airlift.compress.bzip2.BZip2Constants.G_SIZE;
+import static io.airlift.compress.bzip2.BZip2Constants.MAX_ALPHA_SIZE;
+import static io.airlift.compress.bzip2.BZip2Constants.MAX_SELECTORS;
+import static io.airlift.compress.bzip2.BZip2Constants.NUM_OVERSHOOT_BYTES;
+import static io.airlift.compress.bzip2.BZip2Constants.N_GROUPS;
+import static io.airlift.compress.bzip2.BZip2Constants.N_ITERS;
+import static io.airlift.compress.bzip2.BZip2Constants.RUN_A;
+import static io.airlift.compress.bzip2.BZip2Constants.RUN_B;
+
 /**
  * An output stream that compresses into the BZip2 format (without the file
  * header chars) into another stream.
@@ -136,7 +145,6 @@ import java.io.OutputStream;
  */
 class CBZip2OutputStream
         extends OutputStream
-        implements BZip2Constants
 {
     /**
      * The minimum supported blocksize <tt> == 1</tt>.
@@ -793,7 +801,7 @@ class CBZip2OutputStream
         }
 
         /* 20 is just a paranoia constant */
-        this.allowableBlockSize = (this.blockSize100k * BZip2Constants.baseBlockSize) - 20;
+        this.allowableBlockSize = (this.blockSize100k * BZip2Constants.BASE_BLOCK_SIZE) - 20;
     }
 
     private void endBlock()
@@ -2006,7 +2014,7 @@ class CBZip2OutputStream
         int rTPos = 0;
         for (int i = 0, j = 1; i <= lastShadow; i = j, j++) {
             if (rNToGo == 0) {
-                rNToGo = (char) BZip2Constants.rNums[rTPos];
+                rNToGo = (char) BZip2Constants.R_NUMS[rTPos];
                 if (++rTPos == 512) {
                     rTPos = 0;
                 }
@@ -2078,14 +2086,14 @@ class CBZip2OutputStream
                     zPend--;
                     while (true) {
                         if ((zPend & 1) == 0) {
-                            sfmap[wr] = RUNA;
+                            sfmap[wr] = RUN_A;
                             wr++;
-                            mtfFreq[RUNA]++;
+                            mtfFreq[RUN_A]++;
                         }
                         else {
-                            sfmap[wr] = RUNB;
+                            sfmap[wr] = RUN_B;
                             wr++;
-                            mtfFreq[RUNB]++;
+                            mtfFreq[RUN_B]++;
                         }
 
                         if (zPend >= 2) {
@@ -2107,14 +2115,14 @@ class CBZip2OutputStream
             zPend--;
             while (true) {
                 if ((zPend & 1) == 0) {
-                    sfmap[wr] = RUNA;
+                    sfmap[wr] = RUN_A;
                     wr++;
-                    mtfFreq[RUNA]++;
+                    mtfFreq[RUN_A]++;
                 }
                 else {
-                    sfmap[wr] = RUNB;
+                    sfmap[wr] = RUN_B;
                     wr++;
-                    mtfFreq[RUNB]++;
+                    mtfFreq[RUN_B]++;
                 }
 
                 if (zPend >= 2) {
@@ -2184,7 +2192,7 @@ class CBZip2OutputStream
 
         Data(int blockSize100k)
         {
-            final int n = blockSize100k * BZip2Constants.baseBlockSize;
+            final int n = blockSize100k * BZip2Constants.BASE_BLOCK_SIZE;
             this.block = new byte[(n + 1 + NUM_OVERSHOOT_BYTES)];
             this.fmap = new int[n];
             this.sfmap = new char[2 * n];

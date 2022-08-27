@@ -29,6 +29,16 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static io.airlift.compress.bzip2.BZip2Constants.END_OF_BLOCK;
+import static io.airlift.compress.bzip2.BZip2Constants.END_OF_STREAM;
+import static io.airlift.compress.bzip2.BZip2Constants.G_SIZE;
+import static io.airlift.compress.bzip2.BZip2Constants.MAX_ALPHA_SIZE;
+import static io.airlift.compress.bzip2.BZip2Constants.MAX_CODE_LEN;
+import static io.airlift.compress.bzip2.BZip2Constants.MAX_SELECTORS;
+import static io.airlift.compress.bzip2.BZip2Constants.N_GROUPS;
+import static io.airlift.compress.bzip2.BZip2Constants.RUN_A;
+import static io.airlift.compress.bzip2.BZip2Constants.RUN_B;
+
 /**
  * An input stream that decompresses from the BZip2 format (without the file
  * header chars) to be read as any other stream.
@@ -74,7 +84,6 @@ import java.io.InputStream;
  */
 class CBZip2InputStream
         extends InputStream
-        implements BZip2Constants
 {
     public static final long BLOCK_DELIMITER = 0X314159265359L;// start of block
     public static final long EOS_DELIMITER = 0X177245385090L;// end of bzip2 stream
@@ -888,14 +897,14 @@ class CBZip2InputStream
         int minLens_zt = minLens[zt];
 
         while (nextSym != eob) {
-            if ((nextSym == RUNA) || (nextSym == RUNB)) {
+            if ((nextSym == RUN_A) || (nextSym == RUN_B)) {
                 int s = -1;
 
                 for (int n = 1; true; n <<= 1) {
-                    if (nextSym == RUNA) {
+                    if (nextSym == RUN_A) {
                         s += n;
                     }
-                    else if (nextSym == RUNB) {
+                    else if (nextSym == RUN_B) {
                         s += n << 1;
                     }
                     else {
@@ -1304,7 +1313,7 @@ class CBZip2InputStream
         {
             super();
 
-            this.ll8 = new byte[blockSize100k * BZip2Constants.baseBlockSize];
+            this.ll8 = new byte[blockSize100k * BZip2Constants.BASE_BLOCK_SIZE];
         }
 
         /**
