@@ -127,6 +127,14 @@ public class ZstdOutputStream
         }
     }
 
+    // visible for Hadoop stream
+    void finishWithoutClosingSource()
+            throws IOException
+    {
+        writeChunk(true);
+        closed = true;
+    }
+
     @Override
     public void close()
             throws IOException
