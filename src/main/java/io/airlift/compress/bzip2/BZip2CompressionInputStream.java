@@ -25,7 +25,7 @@ import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
 
 /**
  * This class is capable to de-compress BZip2 data in two modes;
- * CONTINOUS and BYBLOCK.  BYBLOCK mode makes it possible to
+ * CONTINUOUS and BYBLOCK.  BYBLOCK mode makes it possible to
  * do decompression starting any arbitrary position in the stream.
  * <p>
  * So this facility can easily be used to parallelize decompression
@@ -33,10 +33,11 @@ import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
  * done so for Hadoop framework.  See LineRecordReader for an
  * example).  So one can break the file (of course logically) into
  * chunks for parallel processing.  These "splits" should be like
- * default Hadoop splits (e.g as in FileInputFormat getSplit metod).
+ * default Hadoop splits (e.g as in FileInputFormat getSplit method).
  * So this code is designed and tested for FileInputFormat's way
  * of splitting only.
  */
+// forked from Apache Hadoop
 class BZip2CompressionInputStream
         extends SplitCompressionInputStream
 {
@@ -45,7 +46,7 @@ class BZip2CompressionInputStream
     private static final int SUB_HEADER_LEN = SUB_HEADER.length();
 
     private CBZip2InputStream input;
-    boolean needsReset;
+    private boolean needsReset;
     private BufferedInputStream bufferedIn;
     private boolean isHeaderStripped;
     private boolean isSubHeaderStripped;
@@ -57,13 +58,13 @@ class BZip2CompressionInputStream
     // HOLD : Don't advertise compressed stream position
     // ADVERTISE : Read 1 more character and advertise stream position
     // See more comments about it before updatePos method.
-    private enum POS_ADVERTISEMENT_STATE_MACHINE
+    private enum PosAdvertisementStateMachine
     {
         HOLD, ADVERTISE
     }
 
-    POS_ADVERTISEMENT_STATE_MACHINE posSM = POS_ADVERTISEMENT_STATE_MACHINE.HOLD;
-    long compressedStreamPosition = 0;
+    private PosAdvertisementStateMachine posSM = PosAdvertisementStateMachine.HOLD;
+    private long compressedStreamPosition;
 
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
@@ -71,12 +72,12 @@ class BZip2CompressionInputStream
         this(in, 0L, Long.MAX_VALUE, READ_MODE.CONTINUOUS);
     }
 
-    public BZip2CompressionInputStream(InputStream in, long start, long end, READ_MODE readMode)
+    private BZip2CompressionInputStream(InputStream in, long start, long end, READ_MODE readMode)
             throws IOException
     {
         super(in, start, end);
         needsReset = false;
-        bufferedIn = new BufferedInputStream(super.in);
+        bufferedIn = new BufferedInputStream(in);
         this.startingPos = super.getPos();
         this.readMode = readMode;
         long numSkipped = 0;
@@ -163,6 +164,7 @@ class BZip2CompressionInputStream
         return bufferedIn;
     }
 
+    @Override
     public void close()
             throws IOException
     {
@@ -211,29 +213,28 @@ class BZip2CompressionInputStream
             internalReset();
         }
 
-        int result = 0;
+        int result;
         result = this.input.read(b, off, len);
         if (result == CBZip2InputStream.END_OF_BLOCK) {
-            this.posSM = POS_ADVERTISEMENT_STATE_MACHINE.ADVERTISE;
+            this.posSM = PosAdvertisementStateMachine.ADVERTISE;
         }
 
-        if (this.posSM == POS_ADVERTISEMENT_STATE_MACHINE.ADVERTISE) {
+        if (this.posSM == PosAdvertisementStateMachine.ADVERTISE) {
             result = this.input.read(b, off, off + 1);
             // This is the precise time to update compressed stream position
             // to the client of this code.
             this.updatePos(true);
-            this.posSM = POS_ADVERTISEMENT_STATE_MACHINE.HOLD;
+            this.posSM = PosAdvertisementStateMachine.HOLD;
         }
 
         return result;
-
     }
 
     @Override
     public int read()
             throws IOException
     {
-        byte b[] = new byte[1];
+        byte[] b = new byte[1];
         int result = this.read(b, 0, 1);
         return (result < 0) ? result : (b[0] & 0xff);
     }
