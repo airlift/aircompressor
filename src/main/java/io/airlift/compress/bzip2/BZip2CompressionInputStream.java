@@ -213,7 +213,7 @@ class BZip2CompressionInputStream
 
         int result = 0;
         result = this.input.read(b, off, len);
-        if (result == BZip2Constants.END_OF_BLOCK) {
+        if (result == CBZip2InputStream.END_OF_BLOCK) {
             this.posSM = POS_ADVERTISEMENT_STATE_MACHINE.ADVERTISE;
         }
 

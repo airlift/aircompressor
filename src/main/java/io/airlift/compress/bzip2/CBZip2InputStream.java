@@ -29,11 +29,8 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static io.airlift.compress.bzip2.BZip2Constants.END_OF_BLOCK;
-import static io.airlift.compress.bzip2.BZip2Constants.END_OF_STREAM;
 import static io.airlift.compress.bzip2.BZip2Constants.G_SIZE;
 import static io.airlift.compress.bzip2.BZip2Constants.MAX_ALPHA_SIZE;
-import static io.airlift.compress.bzip2.BZip2Constants.MAX_CODE_LEN;
 import static io.airlift.compress.bzip2.BZip2Constants.MAX_SELECTORS;
 import static io.airlift.compress.bzip2.BZip2Constants.N_GROUPS;
 import static io.airlift.compress.bzip2.BZip2Constants.RUN_A;
@@ -85,8 +82,16 @@ import static io.airlift.compress.bzip2.BZip2Constants.RUN_B;
 class CBZip2InputStream
         extends InputStream
 {
-    public static final long BLOCK_DELIMITER = 0X314159265359L;// start of block
-    public static final long EOS_DELIMITER = 0X177245385090L;// end of bzip2 stream
+    private static final long BLOCK_DELIMITER = 0X314159265359L;// start of block
+    private static final int MAX_CODE_LEN = 23;
+    /**
+     * End of a BZip2 block
+     */
+    public static final int END_OF_BLOCK = -2;
+    /**
+     * End of BZip2 stream.
+     */
+    private static final int END_OF_STREAM = -1;
     private static final int DELIMITER_BIT_LENGTH = 48;
     READ_MODE readMode = READ_MODE.CONTINUOUS;
     // The variable records the current advertised position of the stream.
