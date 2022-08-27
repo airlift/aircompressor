@@ -31,28 +31,28 @@ package io.airlift.compress.bzip2;
  * use it.
  * </p>
  */
-interface BZip2Constants
+final class BZip2Constants
 {
-    String HEADER = "BZ";
+    public static final String HEADER = "BZ";
 
-    int baseBlockSize = 100000;
-    int MAX_ALPHA_SIZE = 258;
-    int MAX_CODE_LEN = 23;
-    int RUNA = 0;
-    int RUNB = 1;
-    int N_GROUPS = 6;
-    int G_SIZE = 50;
-    int N_ITERS = 4;
-    int MAX_SELECTORS = (2 + (900000 / G_SIZE));
-    int NUM_OVERSHOOT_BYTES = 20;
+    public static final int BASE_BLOCK_SIZE = 100000;
+    public static final int MAX_ALPHA_SIZE = 258;
+    public static final int MAX_CODE_LEN = 23;
+    public static final int RUN_A = 0;
+    public static final int RUN_B = 1;
+    public static final int N_GROUPS = 6;
+    public static final int G_SIZE = 50;
+    public static final int N_ITERS = 4;
+    public static final int MAX_SELECTORS = (2 + (900000 / G_SIZE));
+    public static final int NUM_OVERSHOOT_BYTES = 20;
     /**
      * End of a BZip2 block
      */
-    int END_OF_BLOCK = -2;
+    public static final int END_OF_BLOCK = -2;
     /**
      * End of BZip2 stream.
      */
-    int END_OF_STREAM = -1;
+    public static final int END_OF_STREAM = -1;
 
     /**
      * This array really shouldn't be here. Again, for historical purposes it
@@ -63,7 +63,7 @@ interface BZip2Constants
      * since it could be modified by malicious code.
      * </p>
      */
-    int[] rNums = {619, 720, 127, 481, 931, 816, 813, 233, 566, 247,
+    public static final int[] R_NUMS = {619, 720, 127, 481, 931, 816, 813, 233, 566, 247,
             985, 724, 205, 454, 863, 491, 741, 242, 949, 214, 733, 859, 335,
             708, 621, 574, 73, 654, 730, 472, 419, 436, 278, 496, 867, 210,
             399, 680, 480, 51, 878, 465, 811, 169, 869, 675, 611, 697, 867,
@@ -103,4 +103,6 @@ interface BZip2Constants
             635, 389, 707, 100, 626, 958, 165, 504, 920, 176, 193, 713, 857,
             265, 203, 50, 668, 108, 645, 990, 626, 197, 510, 357, 358, 850,
             858, 364, 936, 638};
+
+    private BZip2Constants() {}
 }
