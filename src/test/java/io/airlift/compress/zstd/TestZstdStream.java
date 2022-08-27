@@ -17,6 +17,7 @@ import com.google.common.io.Resources;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.benchmark.DataSet;
 
 import java.io.IOException;
 
@@ -35,7 +36,7 @@ public class TestZstdStream
     @Override
     protected Compressor getCompressor()
     {
-        return new ZstdCompressor();
+        return new ZstdStreamCompressor();
     }
 
     @Override
@@ -66,5 +67,11 @@ public class TestZstdStream
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
                 .isInstanceOf(MalformedInputException.class)
                 .hasMessageStartingWith("Input is corrupted: offset=");
+    }
+
+    @Override
+    public void testGetDecompressedSize(DataSet dataSet)
+    {
+        // streaming does not publish the size
     }
 }

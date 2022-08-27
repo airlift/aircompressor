@@ -32,6 +32,22 @@ class BlockCompressionState
         chainTable = new int[1 << parameters.getChainLog()]; // TODO: chain table not used by Strategy.FAST
     }
 
+    public void slideWindow(int slideWindowSize)
+    {
+        for (int i = 0; i < hashTable.length; i++) {
+            int newValue = hashTable[i] - slideWindowSize;
+            // if new value is negative, set it to zero branchless
+            newValue = newValue & (~(newValue >> 31));
+            hashTable[i] = newValue;
+        }
+        for (int i = 0; i < chainTable.length; i++) {
+            int newValue = chainTable[i] - slideWindowSize;
+            // if new value is negative, set it to zero branchless
+            newValue = newValue & (~(newValue >> 31));
+            chainTable[i] = newValue;
+        }
+    }
+
     public void reset()
     {
         Arrays.fill(hashTable, 0);
