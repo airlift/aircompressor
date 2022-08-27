@@ -20,24 +20,32 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.util.function.IntUnaryOperator;
+
+import static java.util.Objects.requireNonNull;
 
 public class HadoopCodecCompressor
         implements Compressor
 {
     private final CompressionCodec codec;
-    private final Compressor blockCompressorForSizeCalculation;
+    private final IntUnaryOperator blockCompressorMaxCompressedLength;
 
     public HadoopCodecCompressor(CompressionCodec codec, Compressor blockCompressorForSizeCalculation)
     {
-        this.codec = codec;
-        this.blockCompressorForSizeCalculation = blockCompressorForSizeCalculation;
+        this(codec, blockCompressorForSizeCalculation::maxCompressedLength);
+    }
+
+    public HadoopCodecCompressor(CompressionCodec codec, IntUnaryOperator blockCompressorMaxCompressedLength)
+    {
+        this.codec = requireNonNull(codec, "codec is null");
+        this.blockCompressorMaxCompressedLength = requireNonNull(blockCompressorMaxCompressedLength, "blockCompressorMaxCompressedLength is null");
     }
 
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
         // assume hadoop stream encoder won't increase size by more than 10% over the block encoder
-        return (int) ((blockCompressorForSizeCalculation.maxCompressedLength(uncompressedSize) * 1.1) + 8);
+        return (int) ((blockCompressorMaxCompressedLength.applyAsInt(uncompressedSize) * 1.1) + 8);
     }
 
     @Override
