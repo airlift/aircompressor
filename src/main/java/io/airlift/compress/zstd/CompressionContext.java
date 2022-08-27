@@ -27,7 +27,7 @@ class CompressionContext
 
     public CompressionContext(CompressionParameters parameters, long baseAddress, int inputSize)
     {
-        int windowSize = Math.max(1, Math.min(1 << parameters.getWindowLog(), inputSize));
+        int windowSize = Math.max(1, Math.min(parameters.getWindowSize(), inputSize));
         int blockSize = Math.min(MAX_BLOCK_SIZE, windowSize);
         int divider = (parameters.getSearchLength() == 3) ? 3 : 4;
 

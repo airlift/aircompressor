@@ -16,7 +16,6 @@ package io.airlift.compress.zstd;
 import static io.airlift.compress.zstd.Constants.COMPRESSED_BLOCK;
 import static io.airlift.compress.zstd.Constants.COMPRESSED_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.Constants.MAGIC_NUMBER;
-import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.zstd.Constants.RAW_BLOCK;
@@ -141,7 +140,7 @@ class ZstdFrameCompressor
         long output = outputAddress;
 
         output += writeMagic(outputBase, output, outputLimit);
-        output += writeFrameHeader(outputBase, output, outputLimit, inputSize, 1 << parameters.getWindowLog());
+        output += writeFrameHeader(outputBase, output, outputLimit, inputSize, parameters.getWindowSize());
         output += compressFrame(inputBase, inputAddress, inputLimit, outputBase, output, outputLimit, parameters);
         output += writeChecksum(outputBase, output, outputLimit, inputBase, inputAddress, inputLimit);
 
@@ -150,8 +149,7 @@ class ZstdFrameCompressor
 
     private static int compressFrame(Object inputBase, long inputAddress, long inputLimit, Object outputBase, long outputAddress, long outputLimit, CompressionParameters parameters)
     {
-        int windowSize = 1 << parameters.getWindowLog(); // TODO: store window size in parameters directly?
-        int blockSize = Math.min(MAX_BLOCK_SIZE, windowSize);
+        int blockSize = parameters.getBlockSize();
 
         int outputSize = (int) (outputLimit - outputAddress);
         int remaining = (int) (inputLimit - inputAddress);
@@ -203,7 +201,7 @@ class ZstdFrameCompressor
             return 0;
         }
 
-        context.blockCompressionState.enforceMaxDistance(inputAddress + inputSize, 1 << parameters.getWindowLog());
+        context.blockCompressionState.enforceMaxDistance(inputAddress + inputSize, parameters.getWindowSize());
         context.sequenceStore.reset();
 
         int lastLiteralsSize = parameters.getStrategy()
