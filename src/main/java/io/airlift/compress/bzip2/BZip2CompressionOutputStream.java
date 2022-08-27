@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 
 import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
 
+// forked from Apache Hadoop
 class BZip2CompressionOutputStream
         extends CompressionOutputStream
 {

@@ -15,13 +15,6 @@
  *  limitations under the License.
  *
  */
-
-/*
- * This package is based on the work done by Keiron Liddle, Aftex Software
- * <keiron@aftexsw.com> to whom the Ant project is very grateful for his
- * great code.
- */
-
 package io.airlift.compress.bzip2;
 
 import org.apache.hadoop.io.IOUtils;
@@ -134,21 +127,21 @@ import static io.airlift.compress.bzip2.BZip2Constants.RUN_B;
  * </p>
  *
  * <p>
- * Instances of this class are not threadsafe.
+ * Instances of this class are not thread safe.
  * </p>
  *
  * <p>
  * TODO: Update to BZip2 1.0.1
  * </p>
  */
+// forked from Apache Hadoop
 class CBZip2OutputStream
         extends OutputStream
 {
-
     /**
-     * The maximum supported blocksize <tt> == 9</tt>.
+     * The maximum supported block size <tt> == 9</tt>.
      */
-    private static final int MAX_BLOCKSIZE = 9;
+    private static final int MAX_BLOCK_SIZE = 9;
     private static final int[] R_NUMS = {619, 720, 127, 481, 931, 816, 813, 233, 566, 247,
             985, 724, 205, 454, 863, 491, 741, 242, 949, 214, 733, 859, 335,
             708, 621, 574, 73, 654, 730, 472, 419, 436, 278, 496, 867, 210,
@@ -196,13 +189,13 @@ class CBZip2OutputStream
      * This constant is accessible by subclasses for historical purposes. If you
      * don't know what it means then you don't need it.
      */
-    private static final int SETMASK = (1 << 21);
+    private static final int SET_MASK = (1 << 21);
 
     /**
      * This constant is accessible by subclasses for historical purposes. If you
      * don't know what it means then you don't need it.
      */
-    private static final int CLEARMASK = (~SETMASK);
+    private static final int CLEAR_MASK = (~SET_MASK);
 
     /**
      * This constant is accessible by subclasses for historical purposes. If you
@@ -251,163 +244,7 @@ class CBZip2OutputStream
      * Possibly because the number of elems to sort is usually small, typically
      * &lt;= 20.
      */
-    private static final int[] INCS = {1, 4, 13, 40, 121, 364, 1093, 3280,
-            9841, 29524, 88573, 265720, 797161, 2391484};
-
-    /**
-     * This method is accessible by subclasses for historical purposes. If you
-     * don't know what it does then you don't need it.
-     */
-    protected static void hbMakeCodeLengths(char[] len, int[] freq,
-            int alphaSize, int maxLen)
-    {
-        /*
-         * Nodes and heap entries run from 1. Entry 0 for both the heap and
-         * nodes is a sentinel.
-         */
-        final int[] heap = new int[MAX_ALPHA_SIZE * 2];
-        final int[] weight = new int[MAX_ALPHA_SIZE * 2];
-        final int[] parent = new int[MAX_ALPHA_SIZE * 2];
-
-        for (int i = alphaSize; --i >= 0; ) {
-            weight[i + 1] = (freq[i] == 0 ? 1 : freq[i]) << 8;
-        }
-
-        for (boolean tooLong = true; tooLong; ) {
-            tooLong = false;
-
-            int nNodes = alphaSize;
-            int nHeap = 0;
-            heap[0] = 0;
-            weight[0] = 0;
-            parent[0] = -2;
-
-            for (int i = 1; i <= alphaSize; i++) {
-                parent[i] = -1;
-                nHeap++;
-                heap[nHeap] = i;
-
-                int zz = nHeap;
-                int tmp = heap[zz];
-                while (weight[tmp] < weight[heap[zz >> 1]]) {
-                    heap[zz] = heap[zz >> 1];
-                    zz >>= 1;
-                }
-                heap[zz] = tmp;
-            }
-
-            // assert (nHeap < (MAX_ALPHA_SIZE + 2)) : nHeap;
-
-            while (nHeap > 1) {
-                int n1 = heap[1];
-                heap[1] = heap[nHeap];
-                nHeap--;
-
-                int yy = 0;
-                int zz = 1;
-                int tmp = heap[1];
-
-                while (true) {
-                    yy = zz << 1;
-
-                    if (yy > nHeap) {
-                        break;
-                    }
-
-                    if ((yy < nHeap)
-                            && (weight[heap[yy + 1]] < weight[heap[yy]])) {
-                        yy++;
-                    }
-
-                    if (weight[tmp] < weight[heap[yy]]) {
-                        break;
-                    }
-
-                    heap[zz] = heap[yy];
-                    zz = yy;
-                }
-
-                heap[zz] = tmp;
-
-                int n2 = heap[1];
-                heap[1] = heap[nHeap];
-                nHeap--;
-
-                yy = 0;
-                zz = 1;
-                tmp = heap[1];
-
-                while (true) {
-                    yy = zz << 1;
-
-                    if (yy > nHeap) {
-                        break;
-                    }
-
-                    if ((yy < nHeap)
-                            && (weight[heap[yy + 1]] < weight[heap[yy]])) {
-                        yy++;
-                    }
-
-                    if (weight[tmp] < weight[heap[yy]]) {
-                        break;
-                    }
-
-                    heap[zz] = heap[yy];
-                    zz = yy;
-                }
-
-                heap[zz] = tmp;
-                nNodes++;
-                parent[n1] = parent[n2] = nNodes;
-
-                final int weight_n1 = weight[n1];
-                final int weight_n2 = weight[n2];
-                weight[nNodes] = (((weight_n1 & 0xffffff00) + (weight_n2 & 0xffffff00)) | (1 + (((weight_n1 & 0x000000ff) > (weight_n2 & 0x000000ff)) ? (weight_n1 & 0x000000ff)
-                        : (weight_n2 & 0x000000ff))));
-
-                parent[nNodes] = -1;
-                nHeap++;
-                heap[nHeap] = nNodes;
-
-                tmp = 0;
-                zz = nHeap;
-                tmp = heap[zz];
-                final int weight_tmp = weight[tmp];
-                while (weight_tmp < weight[heap[zz >> 1]]) {
-                    heap[zz] = heap[zz >> 1];
-                    zz >>= 1;
-                }
-                heap[zz] = tmp;
-
-            }
-
-            // assert (nNodes < (MAX_ALPHA_SIZE * 2)) : nNodes;
-
-            for (int i = 1; i <= alphaSize; i++) {
-                int j = 0;
-                int k = i;
-
-                for (int parent_k; (parent_k = parent[k]) >= 0; ) {
-                    k = parent_k;
-                    j++;
-                }
-
-                len[i - 1] = (char) j;
-                if (j > maxLen) {
-                    tooLong = true;
-                }
-            }
-
-            if (tooLong) {
-                for (int i = 1; i < alphaSize; i++) {
-                    int j = weight[i] >> 8;
-                    j = 1 + (j >> 1);
-                    weight[i] = j << 8;
-                }
-            }
-        }
-    }
+    private static final int[] INCS = {1, 4, 13, 40, 121, 364, 1093, 3280, 9841, 29524, 88573, 265720, 797161, 2391484};
 
     private static void hbMakeCodeLengths(final byte[] len, final int[] freq,
             final Data dat, final int alphaSize, final int maxLen)
@@ -452,7 +289,7 @@ class CBZip2OutputStream
                 heap[1] = heap[nHeap];
                 nHeap--;
 
-                int yy = 0;
+                int yy;
                 int zz = 1;
                 int tmp = heap[1];
 
@@ -482,7 +319,6 @@ class CBZip2OutputStream
                 heap[1] = heap[nHeap];
                 nHeap--;
 
-                yy = 0;
                 zz = 1;
                 tmp = heap[1];
 
@@ -508,36 +344,34 @@ class CBZip2OutputStream
 
                 heap[zz] = tmp;
                 nNodes++;
-                parent[n1] = parent[n2] = nNodes;
+                parent[n1] = nNodes;
+                parent[n2] = nNodes;
 
-                final int weight_n1 = weight[n1];
-                final int weight_n2 = weight[n2];
-                weight[nNodes] = ((weight_n1 & 0xffffff00) + (weight_n2 & 0xffffff00))
-                        | (1 + (((weight_n1 & 0x000000ff) > (weight_n2 & 0x000000ff)) ? (weight_n1 & 0x000000ff)
-                        : (weight_n2 & 0x000000ff)));
+                final int weightN1 = weight[n1];
+                final int weightN2 = weight[n2];
+                weight[nNodes] = ((weightN1 & 0xffffff00) + (weightN2 & 0xffffff00))
+                        | (1 + (Math.max((weightN1 & 0x000000ff), (weightN2 & 0x000000ff))));
 
                 parent[nNodes] = -1;
                 nHeap++;
                 heap[nHeap] = nNodes;
 
-                tmp = 0;
                 zz = nHeap;
                 tmp = heap[zz];
-                final int weight_tmp = weight[tmp];
-                while (weight_tmp < weight[heap[zz >> 1]]) {
+                final int weightTmp = weight[tmp];
+                while (weightTmp < weight[heap[zz >> 1]]) {
                     heap[zz] = heap[zz >> 1];
                     zz >>= 1;
                 }
                 heap[zz] = tmp;
-
             }
 
             for (int i = 1; i <= alphaSize; i++) {
                 int j = 0;
                 int k = i;
 
-                for (int parent_k; (parent_k = parent[k]) >= 0; ) {
-                    k = parent_k;
+                for (int parentK; (parentK = parent[k]) >= 0; ) {
+                    k = parentK;
                     j++;
                 }
 
@@ -592,9 +426,8 @@ class CBZip2OutputStream
     private boolean firstAttempt;
 
     private int currentChar = -1;
-    private int runLength = 0;
+    private int runLength;
 
-    private int blockCRC;
     private int combinedCRC;
     private int allowableBlockSize;
 
@@ -605,17 +438,11 @@ class CBZip2OutputStream
 
     private OutputStream out;
 
-    public static int chooseBlockSize(long inputLength)
-    {
-        return (inputLength > 0) ? (int) Math
-                .min((inputLength / 132000) + 1, 9) : MAX_BLOCKSIZE;
-    }
-
     /**
-     * Constructs a new <tt>CBZip2OutputStream</tt> with a blocksize of 900k.
+     * Constructs a new <tt>CBZip2OutputStream</tt> with a block size of 900k.
      *
      * <p>
-     * <b>Attention: </b>The caller is resonsible to write the two BZip2 magic
+     * <b>Attention: </b>The caller is responsible to write the two BZip2 magic
      * bytes <tt>"BZ"</tt> to the specified stream prior to calling this
      * constructor.
      * </p>
@@ -628,14 +455,14 @@ class CBZip2OutputStream
     public CBZip2OutputStream(final OutputStream out)
             throws IOException
     {
-        this(out, MAX_BLOCKSIZE);
+        this(out, MAX_BLOCK_SIZE);
     }
 
     /**
-     * Constructs a new <tt>CBZip2OutputStream</tt> with specified blocksize.
+     * Constructs a new <tt>CBZip2OutputStream</tt> with specified block size.
      *
      * <p>
-     * <b>Attention: </b>The caller is resonsible to write the two BZip2 magic
+     * <b>Attention: </b>The caller is responsible to write the two BZip2 magic
      * bytes <tt>"BZ"</tt> to the specified stream prior to calling this
      * constructor.
      * </p>
@@ -645,13 +472,11 @@ class CBZip2OutputStream
      * @throws IOException if an I/O error occurs in the specified stream.
      * @throws IllegalArgumentException if <code>(blockSize < 1) || (blockSize > 9)</code>.
      * @throws NullPointerException if <code>out == null</code>.
-     * @see #MAX_BLOCKSIZE
+     * @see #MAX_BLOCK_SIZE
      */
-    public CBZip2OutputStream(final OutputStream out, final int blockSize)
+    private CBZip2OutputStream(final OutputStream out, final int blockSize)
             throws IOException
     {
-        super();
-
         if (blockSize < 1) {
             throw new IllegalArgumentException("blockSize(" + blockSize
                     + ") < 1");
@@ -725,7 +550,6 @@ class CBZip2OutputStream
                     this.last = lastShadow + 5;
                 }
                 break;
-
             }
         }
         else {
@@ -736,7 +560,7 @@ class CBZip2OutputStream
     }
 
     /**
-     * Overriden to close the stream.
+     * Overridden to close the stream.
      */
     @Override
     protected void finalize()
@@ -745,7 +569,6 @@ class CBZip2OutputStream
         finish();
         super.finalize();
     }
-
 
     public void finish()
             throws IOException
@@ -807,7 +630,7 @@ class CBZip2OutputStream
          * by a digit indicating blockSize100k.
          */
         bsPutUByte('h');
-        bsPutUByte('0' + this.blockSize100k);
+        bsPutUByte((int) '0' + this.blockSize100k);
 
         this.combinedCRC = 0;
         initBlock();
@@ -832,9 +655,9 @@ class CBZip2OutputStream
     private void endBlock()
             throws IOException
     {
-        this.blockCRC = this.crc32.getFinalCRC();
+        int blockCRC = this.crc32.getFinalCRC();
         this.combinedCRC = (this.combinedCRC << 1) | (this.combinedCRC >>> 31);
-        this.combinedCRC ^= this.blockCRC;
+        this.combinedCRC ^= blockCRC;
 
         // empty block at end of file
         if (this.last == -1) {
@@ -848,11 +671,11 @@ class CBZip2OutputStream
          * A 6-byte block header, the value chosen arbitrarily as 0x314159265359
          * :-). A 32 bit value does not really give a strong enough guarantee
          * that the value will not appear by chance in the compressed
-         * datastream. Worst-case probability of this event, for a 900k block,
+         * data stream. Worst-case probability of this event, for a 900k block,
          * is about 2.0e-3 for 32 bits, 1.0e-5 for 40 bits and 4.0e-8 for 48
          * bits. For a compressed file of size 100Gb -- about 100000 blocks --
          * only a 48-bit marker will do. NB: normal compression/ decompression
-         * donot rely on these statistical properties. They are only important
+         * do not rely on these statistical properties. They are only important
          * when trying to recover blocks from damaged files.
          */
         bsPutUByte(0x31);
@@ -863,7 +686,7 @@ class CBZip2OutputStream
         bsPutUByte(0x59);
 
         /* Now the block's CRC, so it is in a known place. */
-        bsPutInt(this.blockCRC);
+        bsPutInt(blockCRC);
 
         /* Now a single bit indicating randomisation. */
         if (this.blockRandomised) {
@@ -895,14 +718,6 @@ class CBZip2OutputStream
 
         bsPutInt(this.combinedCRC);
         bsFinishedWithStream();
-    }
-
-    /**
-     * Returns the blocksize parameter specified at construction time.
-     */
-    public final int getBlockSize()
-    {
-        return this.blockSize100k;
     }
 
     @Override
@@ -1014,13 +829,13 @@ class CBZip2OutputStream
     private void sendMTFValues()
             throws IOException
     {
-        final byte[][] len = this.data.sendMTFValues_len;
+        final byte[][] len = this.data.sendMTFValuesLen;
         final int alphaSize = this.nInUse + 2;
 
         for (int t = N_GROUPS; --t >= 0; ) {
-            byte[] len_t = len[t];
+            byte[] lenT = len[t];
             for (int v = alphaSize; --v >= 0; ) {
-                len_t[v] = GREATER_ICOST;
+                lenT[v] = GREATER_ICOST;
             }
         }
 
@@ -1053,12 +868,12 @@ class CBZip2OutputStream
         sendMTFValues6(nGroups, alphaSize);
 
         /* And finally, the block data proper */
-        sendMTFValues7(nSelectors);
+        sendMTFValues7();
     }
 
     private void sendMTFValues0(final int nGroups, final int alphaSize)
     {
-        final byte[][] len = this.data.sendMTFValues_len;
+        final byte[][] len = this.data.sendMTFValuesLen;
         final int[] mtfFreq = this.data.mtfFreq;
 
         int remF = this.nMTF;
@@ -1078,13 +893,13 @@ class CBZip2OutputStream
                 aFreq -= mtfFreq[ge--];
             }
 
-            final byte[] len_np = len[nPart - 1];
+            final byte[] lenNp = len[nPart - 1];
             for (int v = alphaSize; --v >= 0; ) {
                 if ((v >= gs) && (v <= ge)) {
-                    len_np[v] = LESSER_ICOST;
+                    lenNp[v] = LESSER_ICOST;
                 }
                 else {
-                    len_np[v] = GREATER_ICOST;
+                    lenNp[v] = GREATER_ICOST;
                 }
             }
 
@@ -1096,18 +911,18 @@ class CBZip2OutputStream
     private int sendMTFValues1(final int nGroups, final int alphaSize)
     {
         final Data dataShadow = this.data;
-        final int[][] rfreq = dataShadow.sendMTFValues_rfreq;
-        final int[] fave = dataShadow.sendMTFValues_fave;
-        final short[] cost = dataShadow.sendMTFValues_cost;
+        final int[][] rfreq = dataShadow.sendMTFValuesRfreq;
+        final int[] fave = dataShadow.sendMTFValuesFave;
+        final short[] cost = dataShadow.sendMTFValuesCost;
         final char[] sfmap = dataShadow.sfmap;
         final byte[] selector = dataShadow.selector;
-        final byte[][] len = dataShadow.sendMTFValues_len;
-        final byte[] len_0 = len[0];
-        final byte[] len_1 = len[1];
-        final byte[] len_2 = len[2];
-        final byte[] len_3 = len[3];
-        final byte[] len_4 = len[4];
-        final byte[] len_5 = len[5];
+        final byte[][] len = dataShadow.sendMTFValuesLen;
+        final byte[] len0 = len[0];
+        final byte[] len1 = len[1];
+        final byte[] len2 = len[2];
+        final byte[] len3 = len[3];
+        final byte[] len4 = len[4];
+        final byte[] len5 = len[5];
         final int nMTFShadow = this.nMTF;
 
         int nSelectors = 0;
@@ -1145,12 +960,12 @@ class CBZip2OutputStream
 
                     for (int i = gs; i <= ge; i++) {
                         final int icv = sfmap[i];
-                        cost0 += len_0[icv] & 0xff;
-                        cost1 += len_1[icv] & 0xff;
-                        cost2 += len_2[icv] & 0xff;
-                        cost3 += len_3[icv] & 0xff;
-                        cost4 += len_4[icv] & 0xff;
-                        cost5 += len_5[icv] & 0xff;
+                        cost0 += len0[icv] & 0xff;
+                        cost1 += len1[icv] & 0xff;
+                        cost2 += len2[icv] & 0xff;
+                        cost3 += len3[icv] & 0xff;
+                        cost4 += len4[icv] & 0xff;
+                        cost5 += len5[icv] & 0xff;
                     }
 
                     cost[0] = cost0;
@@ -1159,7 +974,6 @@ class CBZip2OutputStream
                     cost[3] = cost3;
                     cost[4] = cost4;
                     cost[5] = cost5;
-
                 }
                 else {
                     for (int t = nGroups; --t >= 0; ) {
@@ -1180,9 +994,9 @@ class CBZip2OutputStream
                  */
                 int bt = -1;
                 for (int t = nGroups, bc = 999999999; --t >= 0; ) {
-                    final int cost_t = cost[t];
-                    if (cost_t < bc) {
-                        bc = cost_t;
+                    final int costT = cost[t];
+                    if (costT < bc) {
+                        bc = costT;
                         bt = t;
                     }
                 }
@@ -1194,9 +1008,9 @@ class CBZip2OutputStream
                 /*
                  * Increment the symbol frequencies for the selected table.
                  */
-                final int[] rfreq_bt = rfreq[bt];
+                final int[] rfreqBt = rfreq[bt];
                 for (int i = gs; i <= ge; i++) {
-                    rfreq_bt[sfmap[i]]++;
+                    rfreqBt[sfmap[i]]++;
                 }
 
                 gs = ge + 1;
@@ -1218,18 +1032,18 @@ class CBZip2OutputStream
         // assert (nGroups < 8) : nGroups;
 
         final Data dataShadow = this.data;
-        byte[] pos = dataShadow.sendMTFValues2_pos;
+        byte[] pos = dataShadow.sendMTFValues2Pos;
 
         for (int i = nGroups; --i >= 0; ) {
             pos[i] = (byte) i;
         }
 
         for (int i = 0; i < nSelectors; i++) {
-            final byte ll_i = dataShadow.selector[i];
+            final byte llI = dataShadow.selector[i];
             byte tmp = pos[0];
             int j = 0;
 
-            while (ll_i != tmp) {
+            while (llI != tmp) {
                 j++;
                 byte tmp2 = tmp;
                 tmp = pos[j];
@@ -1243,15 +1057,15 @@ class CBZip2OutputStream
 
     private void sendMTFValues3(final int nGroups, final int alphaSize)
     {
-        int[][] code = this.data.sendMTFValues_code;
-        byte[][] len = this.data.sendMTFValues_len;
+        int[][] code = this.data.sendMTFValuesCode;
+        byte[][] len = this.data.sendMTFValuesLen;
 
         for (int t = 0; t < nGroups; t++) {
             int minLen = 32;
             int maxLen = 0;
-            final byte[] len_t = len[t];
+            final byte[] lenT = len[t];
             for (int i = alphaSize; --i >= 0; ) {
-                final int l = len_t[i] & 0xff;
+                final int l = lenT[i] & 0xff;
                 if (l > maxLen) {
                     maxLen = l;
                 }
@@ -1271,7 +1085,7 @@ class CBZip2OutputStream
             throws IOException
     {
         final boolean[] inUse = this.data.inUse;
-        final boolean[] inUse16 = this.data.sentMTFValues4_inUse16;
+        final boolean[] inUse16 = this.data.sentMTFValues4InUse16;
 
         for (int i = 16; --i >= 0; ) {
             inUse16[i] = false;
@@ -1279,6 +1093,7 @@ class CBZip2OutputStream
             for (int j = 16; --j >= 0; ) {
                 if (inUse[i16 + j]) {
                     inUse16[i] = true;
+                    break;
                 }
             }
         }
@@ -1354,15 +1169,15 @@ class CBZip2OutputStream
     private void sendMTFValues6(final int nGroups, final int alphaSize)
             throws IOException
     {
-        final byte[][] len = this.data.sendMTFValues_len;
+        final byte[][] len = this.data.sendMTFValuesLen;
         final OutputStream outShadow = this.out;
 
         int bsLiveShadow = this.bsLive;
         int bsBuffShadow = this.bsBuff;
 
         for (int t = 0; t < nGroups; t++) {
-            byte[] len_t = len[t];
-            int curr = len_t[0] & 0xff;
+            byte[] lenT = len[t];
+            int curr = lenT[0] & 0xff;
 
             // inlined: bsW(5, curr);
             while (bsLiveShadow >= 8) {
@@ -1374,7 +1189,7 @@ class CBZip2OutputStream
             bsLiveShadow += 5;
 
             for (int i = 0; i < alphaSize; i++) {
-                int lti = len_t[i] & 0xff;
+                int lti = lenT[i] & 0xff;
                 while (curr < lti) {
                     // inlined: bsW(2, 2);
                     while (bsLiveShadow >= 8) {
@@ -1416,12 +1231,12 @@ class CBZip2OutputStream
         this.bsLive = bsLiveShadow;
     }
 
-    private void sendMTFValues7(final int nSelectors)
+    private void sendMTFValues7()
             throws IOException
     {
         final Data dataShadow = this.data;
-        final byte[][] len = dataShadow.sendMTFValues_len;
-        final int[][] code = dataShadow.sendMTFValues_code;
+        final byte[][] len = dataShadow.sendMTFValuesLen;
+        final int[][] code = dataShadow.sendMTFValuesCode;
         final OutputStream outShadow = this.out;
         final byte[] selector = dataShadow.selector;
         final char[] sfmap = dataShadow.sfmap;
@@ -1434,24 +1249,22 @@ class CBZip2OutputStream
 
         for (int gs = 0; gs < nMTFShadow; ) {
             final int ge = Math.min(gs + G_SIZE - 1, nMTFShadow - 1);
-            final int selector_selCtr = selector[selCtr] & 0xff;
-            final int[] code_selCtr = code[selector_selCtr];
-            final byte[] len_selCtr = len[selector_selCtr];
+            final int selectorSelCtr = selector[selCtr] & 0xff;
+            final int[] codeSelCtr = code[selectorSelCtr];
+            final byte[] lenSelCtr = len[selectorSelCtr];
 
             while (gs <= ge) {
-                final int sfmap_i = sfmap[gs];
+                final int sfmapI = sfmap[gs];
 
-                //
-                // inlined: bsW(len_selCtr[sfmap_i] & 0xff,
-                // code_selCtr[sfmap_i]);
-                //
+                // inlined: bsW(lenSelCtr[sfmapI] & 0xff,
+                // codeSelCtr[sfmapI]);
                 while (bsLiveShadow >= 8) {
                     outShadow.write(bsBuffShadow >> 24);
                     bsBuffShadow <<= 8;
                     bsLiveShadow -= 8;
                 }
-                final int n = len_selCtr[sfmap_i] & 0xFF;
-                bsBuffShadow |= code_selCtr[sfmap_i] << (32 - bsLiveShadow - n);
+                final int n = lenSelCtr[sfmapI] & 0xFF;
+                bsBuffShadow |= codeSelCtr[sfmapI] << (32 - bsLiveShadow - n);
                 bsLiveShadow += n;
 
                 gs++;
@@ -1478,11 +1291,12 @@ class CBZip2OutputStream
      *
      * <p>
      * This is the version using unrolled loops. Normally I never use such ones
-     * in Java code. The unrolling has shown a noticable performance improvement
+     * in Java code. The unrolling has shown a noticeable performance improvement
      * on JRE 1.4.2 (Linux i586 / HotSpot Client). Of course it depends on the
      * JIT compiler of the vm.
      * </p>
      */
+    @SuppressWarnings("checkstyle:InnerAssignment")
     private boolean mainSimpleSort(final Data dataShadow, final int lo,
             final int hi, final int d)
     {
@@ -1538,7 +1352,7 @@ class CBZip2OutputStream
                         if (onceRunned) {
                             fmap[j] = a;
                             if ((j -= h) <= mj) {
-                                break HAMMER;
+                                break;
                             }
                         }
                         else {
@@ -1558,7 +1372,6 @@ class CBZip2OutputStream
                                         if (block[i1 + 5] == block[i2 + 5]) {
                                             if (block[(i1 += 6)] == block[(i2 += 6)]) {
                                                 int x = lastShadow;
-                                                X:
                                                 while (x > 0) {
                                                     x -= 4;
 
@@ -1577,7 +1390,6 @@ class CBZip2OutputStream
                                                                                         i2 -= lastPlus1;
                                                                                     }
                                                                                     workDoneShadow++;
-                                                                                    continue X;
                                                                                 }
                                                                                 else if ((quadrant[i1 + 3] > quadrant[i2 + 3])) {
                                                                                     continue HAMMER;
@@ -1634,56 +1446,50 @@ class CBZip2OutputStream
                                                     else {
                                                         break HAMMER;
                                                     }
-
                                                 }
-                                                break HAMMER;
+                                                break;
                                             } // while x > 0
                                             else {
-                                                if ((block[i1] & 0xff) > (block[i2] & 0xff)) {
-                                                    continue HAMMER;
-                                                }
-                                                else {
-                                                    break HAMMER;
+                                                if ((block[i1] & 0xff) <= (block[i2] & 0xff)) {
+                                                    break;
                                                 }
                                             }
                                         }
                                         else if ((block[i1 + 5] & 0xff) > (block[i2 + 5] & 0xff)) {
-                                            continue HAMMER;
+                                            // ignored
                                         }
                                         else {
-                                            break HAMMER;
+                                            break;
                                         }
                                     }
                                     else if ((block[i1 + 4] & 0xff) > (block[i2 + 4] & 0xff)) {
-                                        continue HAMMER;
+                                        // ignored
                                     }
                                     else {
-                                        break HAMMER;
+                                        break;
                                     }
                                 }
                                 else if ((block[i1 + 3] & 0xff) > (block[i2 + 3] & 0xff)) {
-                                    continue HAMMER;
+                                    // ignored
                                 }
                                 else {
-                                    break HAMMER;
+                                    break;
                                 }
                             }
                             else if ((block[i1 + 2] & 0xff) > (block[i2 + 2] & 0xff)) {
-                                continue HAMMER;
+                                // ignored
                             }
                             else {
-                                break HAMMER;
+                                break;
                             }
                         }
                         else if ((block[i1 + 1] & 0xff) > (block[i2 + 1] & 0xff)) {
-                            continue HAMMER;
+                            // ignored
                         }
                         else {
-                            break HAMMER;
+                            break;
                         }
-
-                    } // HAMMER
-                    // end inline mainGTU
+                    }
 
                     fmap[j] = v;
                 }
@@ -1711,8 +1517,7 @@ class CBZip2OutputStream
 
     private static byte med3(byte a, byte b, byte c)
     {
-        return (a < b) ? (b < c ? b : a < c ? c : a) : (b > c ? b : a > c ? c
-                : a);
+        return (a < b) ? (b < c ? b : a < c ? c : a) : (b > c ? b : a > c ? c : a);
     }
 
     private void blockSort()
@@ -1725,7 +1530,8 @@ class CBZip2OutputStream
 
         if (this.firstAttempt && (this.workDone > this.workLimit)) {
             randomiseBlock();
-            this.workLimit = this.workDone = 0;
+            this.workLimit = 0;
+            this.workDone = 0;
             this.firstAttempt = false;
             mainSort();
         }
@@ -1738,30 +1544,27 @@ class CBZip2OutputStream
                 break;
             }
         }
-
-        // assert (this.origPtr != -1) : this.origPtr;
     }
 
     /**
      * Method "mainQSort3", file "blocksort.c", BZip2 1.0.2
      */
-    private void mainQSort3(final Data dataShadow, final int loSt,
-            final int hiSt, final int dSt)
+    private void mainQSort3(final Data dataShadow, final int loSt, final int hiSt, final int dSt)
     {
-        final int[] stack_ll = dataShadow.stack_ll;
-        final int[] stack_hh = dataShadow.stack_hh;
-        final int[] stack_dd = dataShadow.stack_dd;
+        final int[] stackLl = dataShadow.stackLl;
+        final int[] stackHh = dataShadow.stackHh;
+        final int[] stackDd = dataShadow.stackDd;
         final int[] fmap = dataShadow.fmap;
         final byte[] block = dataShadow.block;
 
-        stack_ll[0] = loSt;
-        stack_hh[0] = hiSt;
-        stack_dd[0] = dSt;
+        stackLl[0] = loSt;
+        stackHh[0] = hiSt;
+        stackDd[0] = dSt;
 
         for (int sp = 1; --sp >= 0; ) {
-            final int lo = stack_ll[sp];
-            final int hi = stack_hh[sp];
-            final int d = stack_dd[sp];
+            final int lo = stackLl[sp];
+            final int hi = stackHh[sp];
+            final int d = stackDd[sp];
 
             if ((hi - lo < SMALL_THRESH) || (d > DEPTH_THRESH)) {
                 if (mainSimpleSort(dataShadow, lo, hi, d)) {
@@ -1770,8 +1573,7 @@ class CBZip2OutputStream
             }
             else {
                 final int d1 = d + 1;
-                final int med = med3(block[fmap[lo] + d1],
-                        block[fmap[hi] + d1], block[fmap[(lo + hi) >>> 1] + d1]) & 0xff;
+                final int med = med3(block[fmap[lo] + d1], block[fmap[hi] + d1], block[fmap[(lo + hi) >>> 1] + d1]) & 0xff;
 
                 int unLo = lo;
                 int unHi = hi;
@@ -1780,8 +1582,7 @@ class CBZip2OutputStream
 
                 while (true) {
                     while (unLo <= unHi) {
-                        final int n = ((int) block[fmap[unLo] + d1] & 0xff)
-                                - med;
+                        final int n = ((int) block[fmap[unLo] + d1] & 0xff) - med;
                         if (n == 0) {
                             final int temp = fmap[unLo];
                             fmap[unLo++] = fmap[ltLo];
@@ -1796,8 +1597,7 @@ class CBZip2OutputStream
                     }
 
                     while (unLo <= unHi) {
-                        final int n = ((int) block[fmap[unHi] + d1] & 0xff)
-                                - med;
+                        final int n = ((int) block[fmap[unHi] + d1] & 0xff) - med;
                         if (n == 0) {
                             final int temp = fmap[unHi];
                             fmap[unHi--] = fmap[gtHi];
@@ -1822,35 +1622,33 @@ class CBZip2OutputStream
                 }
 
                 if (gtHi < ltLo) {
-                    stack_ll[sp] = lo;
-                    stack_hh[sp] = hi;
-                    stack_dd[sp] = d1;
+                    stackLl[sp] = lo;
+                    stackHh[sp] = hi;
+                    stackDd[sp] = d1;
                     sp++;
                 }
                 else {
-                    int n = ((ltLo - lo) < (unLo - ltLo)) ? (ltLo - lo)
-                            : (unLo - ltLo);
+                    int n = Math.min((ltLo - lo), (unLo - ltLo));
                     vswap(fmap, lo, unLo - n, n);
-                    int m = ((hi - gtHi) < (gtHi - unHi)) ? (hi - gtHi)
-                            : (gtHi - unHi);
+                    int m = Math.min((hi - gtHi), (gtHi - unHi));
                     vswap(fmap, unLo, hi - m + 1, m);
 
                     n = lo + unLo - ltLo - 1;
                     m = hi - (gtHi - unHi) + 1;
 
-                    stack_ll[sp] = lo;
-                    stack_hh[sp] = n;
-                    stack_dd[sp] = d;
+                    stackLl[sp] = lo;
+                    stackHh[sp] = n;
+                    stackDd[sp] = d;
                     sp++;
 
-                    stack_ll[sp] = n + 1;
-                    stack_hh[sp] = m - 1;
-                    stack_dd[sp] = d1;
+                    stackLl[sp] = n + 1;
+                    stackHh[sp] = m - 1;
+                    stackDd[sp] = d1;
                     sp++;
 
-                    stack_ll[sp] = m;
-                    stack_hh[sp] = hi;
-                    stack_dd[sp] = d;
+                    stackLl[sp] = m;
+                    stackHh[sp] = hi;
+                    stackDd[sp] = d;
                     sp++;
                 }
             }
@@ -1860,9 +1658,9 @@ class CBZip2OutputStream
     private void mainSort()
     {
         final Data dataShadow = this.data;
-        final int[] runningOrder = dataShadow.mainSort_runningOrder;
-        final int[] copy = dataShadow.mainSort_copy;
-        final boolean[] bigDone = dataShadow.mainSort_bigDone;
+        final int[] runningOrder = dataShadow.mainSortRunningOrder;
+        final int[] copy = dataShadow.mainSortCopy;
+        final boolean[] bigDone = dataShadow.mainSortBigDone;
         final int[] ftab = dataShadow.ftab;
         final byte[] block = dataShadow.block;
         final int[] fmap = dataShadow.fmap;
@@ -1898,9 +1696,9 @@ class CBZip2OutputStream
             c1 = c2;
         }
 
-      for (int i = 1; i <= 65536; i++) {
-        ftab[i] += ftab[i - 1];
-      }
+        for (int i = 1; i <= 65536; i++) {
+            ftab[i] += ftab[i - 1];
+        }
 
         c1 = block[1] & 0xff;
         for (int i = 0; i < lastShadow; i++) {
@@ -1927,8 +1725,7 @@ class CBZip2OutputStream
                 final int a = ftab[(vv + 1) << 8] - ftab[vv << 8];
                 final int b = h - 1;
                 int j = i;
-                for (int ro = runningOrder[j - h]; (ftab[(ro + 1) << 8] - ftab[ro << 8]) > a; ro = runningOrder[j
-                        - h]) {
+                for (int ro = runningOrder[j - h]; (ftab[(ro + 1) << 8] - ftab[ro << 8]) > a; ro = runningOrder[j - h]) {
                     runningOrder[j] = ro;
                     j -= h;
                     if (j <= b) {
@@ -1950,17 +1747,17 @@ class CBZip2OutputStream
 
             // Step 1:
             /*
-             * Complete the big bucket [ss] by quicksorting any unsorted small
+             * Complete the big bucket [ss] by quick sorting any unsorted small
              * buckets [ss, j]. Hopefully previous pointer-scanning phases have
              * already completed many of the small buckets [ss, j], so we don't
              * have to sort them at all.
              */
             for (int j = 0; j <= 255; j++) {
                 final int sb = (ss << 8) + j;
-                final int ftab_sb = ftab[sb];
-                if ((ftab_sb & SETMASK) != SETMASK) {
-                    final int lo = ftab_sb & CLEARMASK;
-                    final int hi = (ftab[sb + 1] & CLEARMASK) - 1;
+                final int ftabSb = ftab[sb];
+                if ((ftabSb & SET_MASK) != SET_MASK) {
+                    final int lo = ftabSb & CLEAR_MASK;
+                    final int hi = (ftab[sb + 1] & CLEAR_MASK) - 1;
                     if (hi > lo) {
                         mainQSort3(dataShadow, lo, hi, 2);
                         if (firstAttemptShadow
@@ -1968,30 +1765,30 @@ class CBZip2OutputStream
                             return;
                         }
                     }
-                    ftab[sb] = ftab_sb | SETMASK;
+                    ftab[sb] = ftabSb | SET_MASK;
                 }
             }
 
             // Step 2:
-            // Now scan this big bucket so as to synthesise the
+            // Now scan this big bucket to synthesise the
             // sorted order for small buckets [t, ss] for all t != ss.
 
             for (int j = 0; j <= 255; j++) {
-                copy[j] = ftab[(j << 8) + ss] & CLEARMASK;
+                copy[j] = ftab[(j << 8) + ss] & CLEAR_MASK;
             }
 
-            for (int j = ftab[ss << 8] & CLEARMASK, hj = (ftab[(ss + 1) << 8] & CLEARMASK); j < hj; j++) {
-                final int fmap_j = fmap[j];
-                c1 = block[fmap_j] & 0xff;
+            for (int j = ftab[ss << 8] & CLEAR_MASK, hj = (ftab[(ss + 1) << 8] & CLEAR_MASK); j < hj; j++) {
+                final int fmapJ = fmap[j];
+                c1 = block[fmapJ] & 0xff;
                 if (!bigDone[c1]) {
-                    fmap[copy[c1]] = (fmap_j == 0) ? lastShadow : (fmap_j - 1);
+                    fmap[copy[c1]] = (fmapJ == 0) ? lastShadow : (fmapJ - 1);
                     copy[c1]++;
                 }
             }
 
-          for (int j = 256; --j >= 0; ) {
-            ftab[(j << 8) + ss] |= SETMASK;
-          }
+            for (int j = 256; --j >= 0; ) {
+                ftab[(j << 8) + ss] |= SET_MASK;
+            }
 
             // Step 3:
             /*
@@ -2004,8 +1801,8 @@ class CBZip2OutputStream
             bigDone[ss] = true;
 
             if (i < 255) {
-                final int bbStart = ftab[ss << 8] & CLEARMASK;
-                final int bbSize = (ftab[(ss + 1) << 8] & CLEARMASK) - bbStart;
+                final int bbStart = ftab[ss << 8] & CLEAR_MASK;
+                final int bbSize = (ftab[(ss + 1) << 8] & CLEAR_MASK) - bbStart;
                 int shifts = 0;
 
                 while ((bbSize >> shifts) > 65534) {
@@ -2021,7 +1818,6 @@ class CBZip2OutputStream
                     }
                 }
             }
-
         }
     }
 
@@ -2031,9 +1827,9 @@ class CBZip2OutputStream
         final byte[] block = this.data.block;
         final int lastShadow = this.last;
 
-      for (int i = 256; --i >= 0; ) {
-        inUse[i] = false;
-      }
+        for (int i = 256; --i >= 0; ) {
+            inUse[i] = false;
+        }
 
         int rNToGo = 0;
         int rTPos = 0;
@@ -2065,7 +1861,7 @@ class CBZip2OutputStream
         final char[] sfmap = dataShadow.sfmap;
         final int[] mtfFreq = dataShadow.mtfFreq;
         final byte[] unseqToSeq = dataShadow.unseqToSeq;
-        final byte[] yy = dataShadow.generateMTFValues_yy;
+        final byte[] yy = dataShadow.generateMTFValuesYy;
 
         // make maps
         int nInUseShadow = 0;
@@ -2091,11 +1887,11 @@ class CBZip2OutputStream
         int zPend = 0;
 
         for (int i = 0; i <= lastShadow; i++) {
-            final byte ll_i = unseqToSeq[block[fmap[i]] & 0xff];
+            final byte llI = unseqToSeq[block[fmap[i]] & 0xff];
             byte tmp = yy[0];
             int j = 0;
 
-            while (ll_i != tmp) {
+            while (llI != tmp) {
                 j++;
                 byte tmp2 = tmp;
                 tmp = yy[j];
@@ -2165,7 +1961,6 @@ class CBZip2OutputStream
     }
 
     private static final class Data
-            extends Object
     {
         // with blockSize 900k
         final boolean[] inUse = new boolean[256]; // 256 byte
@@ -2174,25 +1969,25 @@ class CBZip2OutputStream
         final byte[] selector = new byte[MAX_SELECTORS]; // 18002 byte
         final byte[] selectorMtf = new byte[MAX_SELECTORS]; // 18002 byte
 
-        final byte[] generateMTFValues_yy = new byte[256]; // 256 byte
-        final byte[][] sendMTFValues_len = new byte[N_GROUPS][MAX_ALPHA_SIZE]; // 1548
+        final byte[] generateMTFValuesYy = new byte[256]; // 256 byte
+        final byte[][] sendMTFValuesLen = new byte[N_GROUPS][MAX_ALPHA_SIZE]; // 1548
         // byte
-        final int[][] sendMTFValues_rfreq = new int[N_GROUPS][MAX_ALPHA_SIZE]; // 6192
+        final int[][] sendMTFValuesRfreq = new int[N_GROUPS][MAX_ALPHA_SIZE]; // 6192
         // byte
-        final int[] sendMTFValues_fave = new int[N_GROUPS]; // 24 byte
-        final short[] sendMTFValues_cost = new short[N_GROUPS]; // 12 byte
-        final int[][] sendMTFValues_code = new int[N_GROUPS][MAX_ALPHA_SIZE]; // 6192
+        final int[] sendMTFValuesFave = new int[N_GROUPS]; // 24 byte
+        final short[] sendMTFValuesCost = new short[N_GROUPS]; // 12 byte
+        final int[][] sendMTFValuesCode = new int[N_GROUPS][MAX_ALPHA_SIZE]; // 6192
         // byte
-        final byte[] sendMTFValues2_pos = new byte[N_GROUPS]; // 6 byte
-        final boolean[] sentMTFValues4_inUse16 = new boolean[16]; // 16 byte
+        final byte[] sendMTFValues2Pos = new byte[N_GROUPS]; // 6 byte
+        final boolean[] sentMTFValues4InUse16 = new boolean[16]; // 16 byte
 
-        final int[] stack_ll = new int[QSORT_STACK_SIZE]; // 4000 byte
-        final int[] stack_hh = new int[QSORT_STACK_SIZE]; // 4000 byte
-        final int[] stack_dd = new int[QSORT_STACK_SIZE]; // 4000 byte
+        final int[] stackLl = new int[QSORT_STACK_SIZE]; // 4000 byte
+        final int[] stackHh = new int[QSORT_STACK_SIZE]; // 4000 byte
+        final int[] stackDd = new int[QSORT_STACK_SIZE]; // 4000 byte
 
-        final int[] mainSort_runningOrder = new int[256]; // 1024 byte
-        final int[] mainSort_copy = new int[256]; // 1024 byte
-        final boolean[] mainSort_bigDone = new boolean[256]; // 256 byte
+        final int[] mainSortRunningOrder = new int[256]; // 1024 byte
+        final int[] mainSortCopy = new int[256]; // 1024 byte
+        final boolean[] mainSortBigDone = new boolean[256]; // 256 byte
 
         final int[] heap = new int[MAX_ALPHA_SIZE + 2]; // 1040 byte
         final int[] weight = new int[MAX_ALPHA_SIZE * 2]; // 2064 byte
@@ -2211,7 +2006,7 @@ class CBZip2OutputStream
 
         /**
          * Array instance identical to sfmap, both are used only temporarily and
-         * indepently, so we do not need to allocate additional memory.
+         * independently, so we do not need to allocate additional memory.
          */
         final char[] quadrant;
 
@@ -2223,7 +2018,5 @@ class CBZip2OutputStream
             this.sfmap = new char[2 * n];
             this.quadrant = this.sfmap;
         }
-
     }
-
 }
