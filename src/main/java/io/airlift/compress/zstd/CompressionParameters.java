@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.zstd;
 
+import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.zstd.Constants.MAX_WINDOW_LOG;
 import static io.airlift.compress.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.zstd.Util.cycleLog;
@@ -26,6 +27,8 @@ class CompressionParameters
     private static final int MAX_COMPRESSION_LEVEL = 22;
 
     private final int windowLog; // largest match distance : larger == more compression, more memory needed during decompression
+    private final int windowSize; // computed: 1 << windowLog
+    private final int blockSize; // computed: min(MAX_BLOCK_SIZE, windowSize)
     private final int chainLog;  // fully searched segment : larger == more compression, slower, more memory (useless for fast)
     private final int hashLog;   // dispatch table : larger == faster, more memory
     private final int searchLog; // nb of searches : larger == more compression, slower
@@ -194,6 +197,8 @@ class CompressionParameters
     public CompressionParameters(int windowLog, int chainLog, int hashLog, int searchLog, int searchLength, int targetLength, Strategy strategy)
     {
         this.windowLog = windowLog;
+        this.windowSize = 1 << windowLog;
+        this.blockSize = Math.min(MAX_BLOCK_SIZE, windowSize);
         this.chainLog = chainLog;
         this.hashLog = hashLog;
         this.searchLog = searchLog;
@@ -205,6 +210,16 @@ class CompressionParameters
     public int getWindowLog()
     {
         return windowLog;
+    }
+
+    public int getWindowSize()
+    {
+        return windowSize;
+    }
+
+    public int getBlockSize()
+    {
+        return blockSize;
     }
 
     public int getSearchLength()
