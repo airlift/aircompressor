@@ -16,17 +16,12 @@
  *
  */
 
-/*
- * This package is based on the work done by Keiron Liddle, Aftex Software
- * <keiron@aftexsw.com> to whom the Ant project is very grateful for his
- * great code.
- */
-
 package io.airlift.compress.bzip2;
 
-final class CRC
+// forked from Apache Hadoop
+final class Crc32
 {
-    static final int crc32Table[] = {0x00000000, 0x04c11db7, 0x09823b6e,
+    private static final int[] CRC_32_TABLE = {0x00000000, 0x04c11db7, 0x09823b6e,
             0x0d4326d9, 0x130476dc, 0x17c56b6b, 0x1a864db2, 0x1e475005,
             0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61, 0x350c9b64,
             0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
@@ -79,7 +74,9 @@ final class CRC
             0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668, 0xbcb4666d,
             0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
-    CRC()
+    private int globalCrc;
+
+    Crc32()
     {
         initialiseCRC();
     }
@@ -94,35 +91,22 @@ final class CRC
         return ~globalCrc;
     }
 
-    int getGlobalCRC()
+    void updateCRC(int value)
     {
-        return globalCrc;
-    }
-
-    void setGlobalCRC(int newCrc)
-    {
-        globalCrc = newCrc;
-    }
-
-    void updateCRC(int inCh)
-    {
-        int temp = (globalCrc >> 24) ^ inCh;
+        int temp = (globalCrc >> 24) ^ value;
         if (temp < 0) {
             temp = 256 + temp;
         }
-        globalCrc = (globalCrc << 8) ^ CRC.crc32Table[temp];
+        globalCrc = (globalCrc << 8) ^ CRC_32_TABLE[temp];
     }
 
-    void updateCRC(int inCh, int repeat)
+    void updateCRC(int value, int repeat)
     {
         int globalCrcShadow = this.globalCrc;
         while (repeat-- > 0) {
-            int temp = (globalCrcShadow >> 24) ^ inCh;
-            globalCrcShadow = (globalCrcShadow << 8)
-                    ^ crc32Table[(temp >= 0) ? temp : (temp + 256)];
+            int temp = (globalCrcShadow >> 24) ^ value;
+            globalCrcShadow = (globalCrcShadow << 8) ^ CRC_32_TABLE[(temp >= 0) ? temp : (temp + 256)];
         }
         this.globalCrc = globalCrcShadow;
     }
-
-    int globalCrc;
 }

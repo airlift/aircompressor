@@ -533,7 +533,7 @@ class CBZip2OutputStream
 
     private int bsBuff;
     private int bsLive;
-    private final CRC crc = new CRC();
+    private final Crc32 crc32 = new Crc32();
 
     private int nInUse;
 
@@ -657,7 +657,7 @@ class CBZip2OutputStream
             final byte ch = (byte) currentCharShadow;
 
             int runLengthShadow = this.runLength;
-            this.crc.updateCRC(currentCharShadow, runLengthShadow);
+            this.crc32.updateCRC(currentCharShadow, runLengthShadow);
 
             switch (runLengthShadow) {
                 case 1:
@@ -783,7 +783,7 @@ class CBZip2OutputStream
     private void initBlock()
     {
         // blockNo++;
-        this.crc.initialiseCRC();
+        this.crc32.initialiseCRC();
         this.last = -1;
         // ch = 0;
 
@@ -799,7 +799,7 @@ class CBZip2OutputStream
     private void endBlock()
             throws IOException
     {
-        this.blockCRC = this.crc.getFinalCRC();
+        this.blockCRC = this.crc32.getFinalCRC();
         this.combinedCRC = (this.combinedCRC << 1) | (this.combinedCRC >>> 31);
         this.combinedCRC ^= this.blockCRC;
 

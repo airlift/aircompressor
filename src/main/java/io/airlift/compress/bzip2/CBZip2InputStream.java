@@ -107,7 +107,7 @@ class CBZip2InputStream
 
     private long bsBuff;
     private long bsLive;
-    private final CRC crc = new CRC();
+    private final Crc32 crc32 = new Crc32();
 
     private int nInUse;
 
@@ -531,7 +531,7 @@ class CBZip2InputStream
             // currBlockNo++;
             getAndMoveToFrontDecode();
 
-            this.crc.initialiseCRC();
+            this.crc32.initialiseCRC();
             this.currentState = STATE.START_BLOCK_STATE;
             return;
         }
@@ -572,7 +572,7 @@ class CBZip2InputStream
             // currBlockNo++;
             getAndMoveToFrontDecode();
 
-            this.crc.initialiseCRC();
+            this.crc32.initialiseCRC();
             this.currentState = STATE.START_BLOCK_STATE;
         }
     }
@@ -580,7 +580,7 @@ class CBZip2InputStream
     private void endBlock()
             throws IOException
     {
-        int computedBlockCRC = this.crc.getFinalCRC();
+        int computedBlockCRC = this.crc32.getFinalCRC();
 
         // A bad CRC is considered a fatal error.
         if (this.storedBlockCRC != computedBlockCRC) {
@@ -1139,7 +1139,7 @@ class CBZip2InputStream
             this.su_i2++;
             this.currentChar = su_ch2Shadow;
             this.currentState = STATE.RAND_PART_B_STATE;
-            this.crc.updateCRC(su_ch2Shadow);
+            this.crc32.updateCRC(su_ch2Shadow);
         }
         else {
             endBlock();
@@ -1164,7 +1164,7 @@ class CBZip2InputStream
             this.su_i2++;
             this.currentChar = su_ch2Shadow;
             this.currentState = STATE.NO_RAND_PART_B_STATE;
-            this.crc.updateCRC(su_ch2Shadow);
+            this.crc32.updateCRC(su_ch2Shadow);
         }
         else {
             this.currentState = STATE.NO_RAND_PART_A_STATE;
@@ -1217,7 +1217,7 @@ class CBZip2InputStream
     {
         if (this.su_j2 < this.su_z) {
             this.currentChar = this.su_ch2;
-            this.crc.updateCRC(this.su_ch2);
+            this.crc32.updateCRC(this.su_ch2);
             this.su_j2++;
         }
         else {
@@ -1252,7 +1252,7 @@ class CBZip2InputStream
         if (this.su_j2 < this.su_z) {
             int su_ch2Shadow = this.su_ch2;
             this.currentChar = su_ch2Shadow;
-            this.crc.updateCRC(su_ch2Shadow);
+            this.crc32.updateCRC(su_ch2Shadow);
             this.su_j2++;
             this.currentState = STATE.NO_RAND_PART_C_STATE;
         }
