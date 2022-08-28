@@ -198,4 +198,14 @@ public class TestZstd
                 .isInstanceOf(MalformedInputException.class)
                 .hasMessageStartingWith("Invalid magic prefix");
     }
+
+    @Test
+    public void testDecompressIsMissingData()
+    {
+        byte[] input = new byte[]{40, -75, 47, -3, 32, 0, 1, 0};
+        byte[] output = new byte[1024];
+        assertThatThrownBy(() -> getDecompressor().decompress(input, 0, input.length, output, 0, output.length))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageStartingWith("Not enough input bytes");
+    }
 }

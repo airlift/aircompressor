@@ -74,6 +74,12 @@ final class Util
         return cycleLog;
     }
 
+    public static int get24BitLittleEndian(Object inputBase, long inputAddress)
+    {
+        return (UNSAFE.getShort(inputBase, inputAddress) & 0xFFFF)
+                | ((UNSAFE.getByte(inputBase, inputAddress + SIZE_OF_SHORT) & 0xFF) << Short.SIZE);
+    }
+
     public static void put24BitLittleEndian(Object outputBase, long outputAddress, int value)
     {
         UNSAFE.putShort(outputBase, outputAddress, (short) value);

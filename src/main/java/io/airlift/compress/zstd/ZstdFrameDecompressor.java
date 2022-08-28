@@ -50,6 +50,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.zstd.Constants.TREELESS_LITERALS_BLOCK;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.fail;
+import static io.airlift.compress.zstd.Util.get24BitLittleEndian;
 import static io.airlift.compress.zstd.Util.mask;
 import static io.airlift.compress.zstd.Util.verify;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
@@ -158,7 +159,7 @@ class ZstdFrameDecompressor
                 verify(input + SIZE_OF_BLOCK_HEADER <= inputLimit, input, "Not enough input bytes");
 
                 // read block header
-                int header = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
+                int header = get24BitLittleEndian(inputBase, input);
                 input += SIZE_OF_BLOCK_HEADER;
 
                 lastBlock = (header & 1) != 0;
