@@ -17,6 +17,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import static io.airlift.compress.zstd.Util.get24BitLittleEndian;
+import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
 import static org.testng.Assert.assertEquals;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -40,5 +41,14 @@ public class TestUtil
     {
         long inputAddress = ARRAY_BYTE_BASE_OFFSET + offset;
         assertEquals(get24BitLittleEndian(bytes, inputAddress), value);
+    }
+
+    @Test(dataProvider = "test24bitIntegers")
+    public void testPut24BitLittleEndian(byte[] bytes, int offset, int value)
+    {
+        Object outputBase = new byte[bytes.length];
+        long outputAddress = ARRAY_BYTE_BASE_OFFSET + offset;
+        put24BitLittleEndian(outputBase, outputAddress, value);
+        assertEquals(outputBase, bytes);
     }
 }
