@@ -594,7 +594,7 @@ public abstract class AbstractTestCompression
             }
         }
 
-        assertEquals(leftBuffer.remaining(), rightBuffer.remaining(), String.format("Buffer lengths differ: %s vs %s", leftBuffer.remaining(), leftBuffer.remaining()));
+        assertEquals(leftBuffer.remaining(), rightBuffer.remaining(), String.format("Buffer lengths differ: %s vs %s", leftBuffer.remaining(), rightBuffer.remaining()));
     }
 
     private static ByteBuffer toDirectBuffer(byte[] data)
