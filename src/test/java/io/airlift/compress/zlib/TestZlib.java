@@ -31,7 +31,7 @@ public class TestZlib
     @Override
     protected Decompressor getDecompressor()
     {
-        return new JdkInflateDecompressor();
+        return new InflateDecompressor();
     }
 
     @Override
