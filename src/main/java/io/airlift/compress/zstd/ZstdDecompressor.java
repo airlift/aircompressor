@@ -97,7 +97,7 @@ public class ZstdDecompressor
         // collected in a block, and technically, the JVM is allowed to eliminate these locks.
         synchronized (input) {
             synchronized (output) {
-                int written = new ZstdFrameDecompressor().decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
+                int written = decompressor.decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
                 output.position(output.position() + written);
             }
         }
