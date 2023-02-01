@@ -154,6 +154,7 @@ public class ZstdInputStream
         ensureInputSpace(1024);
         int got = inputStream.read(inputBuffer, inputEnd, inputSpace());
         if (got == -1) {
+            inputStream.close();
             seenEof = true;
         }
         else {
