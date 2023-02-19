@@ -24,6 +24,7 @@ import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -205,7 +206,7 @@ public class TestZstd
         byte[] input = new byte[]{40, -75, 47, -3, 32, 0, 1, 0};
         byte[] output = new byte[1024];
         assertThatThrownBy(() -> getDecompressor().decompress(input, 0, input.length, output, 0, output.length))
-                .isInstanceOf(MalformedInputException.class)
-                .hasMessageStartingWith("Not enough input bytes");
+                .matches(e -> e instanceof MalformedInputException || e instanceof UncheckedIOException)
+                .hasMessageContaining("Not enough input bytes");
     }
 }

@@ -16,6 +16,10 @@ package io.airlift.compress.zstd;
 import java.util.Objects;
 import java.util.StringJoiner;
 
+import static io.airlift.compress.zstd.Util.checkState;
+import static java.lang.Math.min;
+import static java.lang.Math.toIntExact;
+
 class FrameHeader
 {
     final long headerSize;
@@ -26,11 +30,23 @@ class FrameHeader
 
     public FrameHeader(long headerSize, int windowSize, long contentSize, long dictionaryId, boolean hasChecksum)
     {
+        checkState(windowSize >= 0 || contentSize >= 0, "Invalid frame header: contentSize or windowSize must be set");
         this.headerSize = headerSize;
         this.windowSize = windowSize;
         this.contentSize = contentSize;
         this.dictionaryId = dictionaryId;
         this.hasChecksum = hasChecksum;
+    }
+
+    public int computeRequiredOutputBufferLookBackSize()
+    {
+        if (contentSize < 0) {
+            return windowSize;
+        }
+        if (windowSize < 0) {
+            return toIntExact(contentSize);
+        }
+        return toIntExact(min(windowSize, contentSize));
     }
 
     @Override
