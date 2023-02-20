@@ -23,8 +23,6 @@
  */
 package io.airlift.compress.bzip2;
 
-import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE;
-
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -79,6 +77,7 @@ import static io.airlift.compress.bzip2.BZip2Constants.RUN_B;
  * Instances of this class are not thread safe.
  * </p>
  */
+@SuppressWarnings({ "AssignmentToForLoopParameter", "SpellCheckingInspection"})
 class CBZip2InputStream
         extends InputStream
 {
@@ -95,7 +94,6 @@ class CBZip2InputStream
     private static final int END_OF_STREAM = -1;
     private static final int DELIMITER_BIT_LENGTH = 48;
 
-    private final READ_MODE readMode;
     // The variable records the current advertised position of the stream.
     private long reportedBytesReadFromCompressedStream;
     // The following variable keep record of compressed bytes read.
@@ -181,32 +179,22 @@ class CBZip2InputStream
      * @throws IOException if the stream content is malformed or an I/O error occurs.
      * @throws NullPointerException if <tt>in == null</tt>
      */
-    public CBZip2InputStream(final InputStream in, READ_MODE readMode)
+    public CBZip2InputStream(final InputStream in)
             throws IOException
     {
-        this(in, readMode, false);
+        this(in, false);
     }
 
-    private CBZip2InputStream(final InputStream in, READ_MODE readMode, boolean skipDecompression)
+    private CBZip2InputStream(final InputStream in, boolean skipDecompression)
             throws IOException
     {
         int blockSize = 0X39; // i.e 9
         this.blockSize100k = blockSize - (int) '0';
         this.in = new BufferedInputStream(in, 1024 * 9); // >1 MB buffer
-        this.readMode = readMode;
         this.skipDecompression = skipDecompression;
-        if (readMode == READ_MODE.CONTINUOUS) {
-            lazyInitialization = in.available() == 0;
-            if (!lazyInitialization) {
-                init();
-            }
-        }
-        else if (readMode == READ_MODE.BYBLOCK) {
-            this.currentState = STATE.NO_PROCESS_STATE;
-            skipResult = this.skipToNextMarker(BLOCK_DELIMITER, DELIMITER_BIT_LENGTH);
-            if (!skipDecompression) {
-                changeStateToProcessABlock();
-            }
+        lazyInitialization = in.available() == 0;
+        if (!lazyInitialization) {
+            init();
         }
     }
 
@@ -498,25 +486,6 @@ class CBZip2InputStream
     private void initBlock()
             throws IOException
     {
-        if (this.readMode == READ_MODE.BYBLOCK) {
-            // this.checkBlockIntegrity();
-            this.storedBlockCRC = bsGetInt();
-            this.blockRandomised = bsR(1) == 1;
-
-            // Allocate data here instead in constructor, so we do not allocate
-            // it if the input file is empty.
-            if (this.data == null) {
-                this.data = new Data(this.blockSize100k);
-            }
-
-            // currBlockNo++;
-            getAndMoveToFrontDecode();
-
-            this.crc32.initialiseCRC();
-            this.currentState = STATE.START_BLOCK_STATE;
-            return;
-        }
-
         char magic0 = bsGetUByte();
         char magic1 = bsGetUByte();
         char magic2 = bsGetUByte();
@@ -957,6 +926,7 @@ class CBZip2InputStream
                     }
                 }
                 else {
+                    //noinspection SuspiciousSystemArraycopy
                     System.arraycopy(yy, 0, yy, 1, nextSym - 1);
                 }
 
@@ -1115,13 +1085,8 @@ class CBZip2InputStream
         }
         else {
             endBlock();
-            if (readMode == READ_MODE.CONTINUOUS) {
-                initBlock();
-                setupBlock();
-            }
-            else if (readMode == READ_MODE.BYBLOCK) {
-                this.currentState = STATE.NO_PROCESS_STATE;
-            }
+            initBlock();
+            setupBlock();
         }
     }
 
@@ -1141,13 +1106,8 @@ class CBZip2InputStream
         else {
             this.currentState = STATE.NO_RAND_PART_A_STATE;
             endBlock();
-            if (readMode == READ_MODE.CONTINUOUS) {
-                initBlock();
-                setupBlock();
-            }
-            else if (readMode == READ_MODE.BYBLOCK) {
-                this.currentState = STATE.NO_PROCESS_STATE;
-            }
+            initBlock();
+            setupBlock();
         }
     }
 
