@@ -31,7 +31,6 @@ class BZip2CompressionInputStream
     private CBZip2InputStream input;
     private boolean needsReset;
     private BufferedInputStream bufferedIn;
-    private boolean isHeaderStripped;
     private final long startingPos;
 
     // Following state machine handles different states of compressed stream
@@ -59,9 +58,6 @@ class BZip2CompressionInputStream
             bufferedIn = readStreamHeader();
         }
         input = new CBZip2InputStream(bufferedIn);
-        if (this.isHeaderStripped) {
-            input.updateReportedByteCount(HEADER_LEN);
-        }
 
         this.updatePos(false);
     }
@@ -80,9 +76,6 @@ class BZip2CompressionInputStream
                 String header = new String(headerBytes, StandardCharsets.UTF_8);
                 if (header.compareTo(HEADER) != 0) {
                     bufferedIn.reset();
-                }
-                else {
-                    this.isHeaderStripped = true;
                 }
             }
         }
