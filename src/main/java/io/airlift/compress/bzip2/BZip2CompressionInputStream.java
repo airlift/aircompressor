@@ -29,17 +29,13 @@ class BZip2CompressionInputStream
     private static final int HEADER_LEN = HEADER.length();
 
     private CBZip2InputStream input;
-    private boolean needsReset;
     private final BufferedInputStream bufferedIn;
 
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
     {
         super(requireNonNull(in, "in is null"));
-        needsReset = false;
         bufferedIn = new BufferedInputStream(in);
-        trySkipMagic();
-        input = new CBZip2InputStream(bufferedIn);
     }
 
     private void trySkipMagic()
@@ -56,15 +52,8 @@ class BZip2CompressionInputStream
     public void close()
             throws IOException
     {
-        if (!needsReset) {
-            try {
-                input.close();
-                needsReset = true;
-            }
-            finally {
-                super.close();
-            }
-        }
+        input = null;
+        super.close();
     }
 
     @Override
@@ -75,8 +64,7 @@ class BZip2CompressionInputStream
             return 0;
         }
 
-        if (needsReset) {
-            needsReset = false;
+        if (input == null) {
             trySkipMagic();
             input = new CBZip2InputStream(bufferedIn);
         }
@@ -105,9 +93,7 @@ class BZip2CompressionInputStream
     @Override
     public void resetState()
     {
-        // Cannot read from bufferedIn at this point because bufferedIn
-        // might not be ready
-        // yet, as in SequenceFile.Reader implementation.
-        needsReset = true;
+        // drop the current compression stream, and new one will be created during the next read
+        input = null;
     }
 }
