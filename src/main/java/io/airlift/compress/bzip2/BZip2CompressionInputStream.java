@@ -14,7 +14,6 @@
 package io.airlift.compress.bzip2;
 
 import org.apache.hadoop.io.compress.SplitCompressionInputStream;
-import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -23,34 +22,16 @@ import java.nio.charset.StandardCharsets;
 
 import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
 
-/**
- * This class is capable to de-compress BZip2 data in two modes;
- * CONTINUOUS and BYBLOCK.  BYBLOCK mode makes it possible to
- * do decompression starting any arbitrary position in the stream.
- * <p>
- * So this facility can easily be used to parallelize decompression
- * of a large BZip2 file for performance reasons.  (It is exactly
- * done so for Hadoop framework.  See LineRecordReader for an
- * example).  So one can break the file (of course logically) into
- * chunks for parallel processing.  These "splits" should be like
- * default Hadoop splits (e.g as in FileInputFormat getSplit method).
- * So this code is designed and tested for FileInputFormat's way
- * of splitting only.
- */
 // forked from Apache Hadoop
 class BZip2CompressionInputStream
         extends SplitCompressionInputStream
 {
     private static final int HEADER_LEN = HEADER.length();
-    private static final String SUB_HEADER = "h9";
-    private static final int SUB_HEADER_LEN = SUB_HEADER.length();
 
     private CBZip2InputStream input;
     private boolean needsReset;
     private BufferedInputStream bufferedIn;
     private boolean isHeaderStripped;
-    private boolean isSubHeaderStripped;
-    private final READ_MODE readMode;
     private final long startingPos;
 
     // Following state machine handles different states of compressed stream
@@ -69,62 +50,26 @@ class BZip2CompressionInputStream
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
     {
-        this(in, 0L, Long.MAX_VALUE, READ_MODE.CONTINUOUS);
+        this(in, 0L, Long.MAX_VALUE);
     }
 
-    private BZip2CompressionInputStream(InputStream in, long start, long end, READ_MODE readMode)
+    private BZip2CompressionInputStream(InputStream in, long start, long end)
             throws IOException
     {
         super(in, start, end);
         needsReset = false;
         bufferedIn = new BufferedInputStream(in);
         this.startingPos = super.getPos();
-        this.readMode = readMode;
-        long numSkipped = 0;
         if (this.startingPos == 0) {
             // We only strip header if it is start of file
             bufferedIn = readStreamHeader();
         }
-        else if (this.readMode == READ_MODE.BYBLOCK &&
-                this.startingPos <= HEADER_LEN + SUB_HEADER_LEN) {
-            // When we're in BYBLOCK mode and the start position is >=0
-            // and < HEADER_LEN + SUB_HEADER_LEN, we should skip to after
-            // start of the first bz2 block to avoid duplicated records
-            numSkipped = HEADER_LEN + SUB_HEADER_LEN + 1 - this.startingPos;
-            long skipBytes = numSkipped;
-            while (skipBytes > 0) {
-                long s = bufferedIn.skip(skipBytes);
-                if (s > 0) {
-                    skipBytes -= s;
-                }
-                else {
-                    if (bufferedIn.read() == -1) {
-                        break; // end of the split
-                    }
-                    else {
-                        skipBytes--;
-                    }
-                }
-            }
-        }
-        input = new CBZip2InputStream(bufferedIn, readMode);
+        input = new CBZip2InputStream(bufferedIn);
         if (this.isHeaderStripped) {
             input.updateReportedByteCount(HEADER_LEN);
         }
 
-        if (this.isSubHeaderStripped) {
-            input.updateReportedByteCount(SUB_HEADER_LEN);
-        }
-
-        if (numSkipped > 0) {
-            input.updateReportedByteCount((int) numSkipped);
-        }
-
-        // To avoid dropped records, not advertising a new byte position
-        // when we are in BYBLOCK mode and the start position is 0
-        if (!(this.readMode == READ_MODE.BYBLOCK && this.startingPos == 0)) {
-            this.updatePos(false);
-        }
+        this.updatePos(false);
     }
 
     private BufferedInputStream readStreamHeader()
@@ -144,15 +89,6 @@ class BZip2CompressionInputStream
                 }
                 else {
                     this.isHeaderStripped = true;
-                    // In case of BYBLOCK mode, we also want to strip off
-                    // remaining two character of the header.
-                    if (this.readMode == READ_MODE.BYBLOCK) {
-                        actualRead = bufferedIn.read(headerBytes, 0,
-                                SUB_HEADER_LEN);
-                        if (actualRead != -1) {
-                            this.isSubHeaderStripped = true;
-                        }
-                    }
                 }
             }
         }
@@ -249,7 +185,7 @@ class BZip2CompressionInputStream
         if (needsReset) {
             needsReset = false;
             BufferedInputStream bufferedIn = readStreamHeader();
-            input = new CBZip2InputStream(bufferedIn, this.readMode);
+            input = new CBZip2InputStream(bufferedIn);
         }
     }
 
