@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.bzip2;
 
-import org.apache.hadoop.io.compress.SplitCompressionInputStream;
+import org.apache.hadoop.io.compress.CompressionInputStream;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -24,7 +24,7 @@ import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
 
 // forked from Apache Hadoop
 class BZip2CompressionInputStream
-        extends SplitCompressionInputStream
+        extends CompressionInputStream
 {
     private static final int HEADER_LEN = HEADER.length();
 
@@ -50,13 +50,7 @@ class BZip2CompressionInputStream
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
     {
-        this(in, 0L, Long.MAX_VALUE);
-    }
-
-    private BZip2CompressionInputStream(InputStream in, long start, long end)
-            throws IOException
-    {
-        super(in, start, end);
+        super(in);
         needsReset = false;
         bufferedIn = new BufferedInputStream(in);
         this.startingPos = super.getPos();
