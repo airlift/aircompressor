@@ -31,20 +31,6 @@ class BZip2CompressionInputStream
     private CBZip2InputStream input;
     private boolean needsReset;
     private final BufferedInputStream bufferedIn;
-    private final long startingPos;
-
-    // Following state machine handles different states of compressed stream
-    // position
-    // HOLD : Don't advertise compressed stream position
-    // ADVERTISE : Read 1 more character and advertise stream position
-    // See more comments about it before updatePos method.
-    private enum PosAdvertisementStateMachine
-    {
-        HOLD, ADVERTISE
-    }
-
-    private PosAdvertisementStateMachine posSM = PosAdvertisementStateMachine.HOLD;
-    private long compressedStreamPosition;
 
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
@@ -52,13 +38,8 @@ class BZip2CompressionInputStream
         super(requireNonNull(in, "in is null"));
         needsReset = false;
         bufferedIn = new BufferedInputStream(in);
-        this.startingPos = super.getPos();
-        if (this.startingPos == 0) {
-            trySkipMagic();
-        }
+        trySkipMagic();
         input = new CBZip2InputStream(bufferedIn);
-
-        this.updatePos(false);
     }
 
     private void trySkipMagic()
@@ -86,32 +67,6 @@ class BZip2CompressionInputStream
         }
     }
 
-    /**
-     * This method updates compressed stream position exactly when the
-     * client of this code has read off at least one byte passed any BZip2
-     * end of block marker.
-     * <p>
-     * This mechanism is very helpful to deal with data level record
-     * boundaries. Please see constructor and next methods of
-     * org.apache.hadoop.mapred.LineRecordReader as an example usage of this
-     * feature.  We elaborate it with an example in the following:
-     * <p>
-     * Assume two different scenarios of the BZip2 compressed stream, where
-     * [m] represent end of block, \n is line delimiter and . represent compressed
-     * data.
-     * <p>
-     * ............[m]......\n.......
-     * <p>
-     * ..........\n[m]......\n.......
-     * <p>
-     * Assume that end is right after [m].  In the first case the reading
-     * will stop at \n and there is no need to read one more line.  (To see the
-     * reason of reading one more line in the next() method is explained in LineRecordReader.)
-     * While in the second example LineRecordReader needs to read one more line
-     * (till the second \n).  Now since BZip2Codecs only update position
-     * at least one byte passed a maker, so it is straight forward to differentiate
-     * between the two cases mentioned.
-     */
     @Override
     public int read(byte[] b, int off, int len)
             throws IOException
@@ -128,16 +83,11 @@ class BZip2CompressionInputStream
 
         int result;
         result = this.input.read(b, off, len);
-        if (result == CBZip2InputStream.END_OF_BLOCK) {
-            this.posSM = PosAdvertisementStateMachine.ADVERTISE;
-        }
 
-        if (this.posSM == PosAdvertisementStateMachine.ADVERTISE) {
+        // if the result is the end of block marker, no data was read
+        if (result == CBZip2InputStream.END_OF_BLOCK) {
+            // read one byte into the new block and update the position.
             result = this.input.read(b, off, 1);
-            // This is the precise time to update compressed stream position
-            // to the client of this code.
-            this.updatePos(true);
-            this.posSM = PosAdvertisementStateMachine.HOLD;
         }
 
         return result;
@@ -159,27 +109,5 @@ class BZip2CompressionInputStream
         // might not be ready
         // yet, as in SequenceFile.Reader implementation.
         needsReset = true;
-    }
-
-    @Override
-    public long getPos()
-    {
-        return this.compressedStreamPosition;
-    }
-
-    /*
-     * As the comments before read method tell that
-     * compressed stream is advertised when at least
-     * one byte passed EOB have been read off.  But
-     * there is an exception to this rule.  When we
-     * construct the stream we advertise the position
-     * exactly at EOB.  In the following method
-     * shouldAddOn boolean captures this exception.
-     *
-     */
-    private void updatePos(boolean shouldAddOn)
-    {
-        int addOn = shouldAddOn ? 1 : 0;
-        this.compressedStreamPosition = this.startingPos + this.input.getProcessedByteCount() + addOn;
     }
 }
