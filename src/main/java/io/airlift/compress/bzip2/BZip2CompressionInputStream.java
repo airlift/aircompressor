@@ -25,8 +25,8 @@ import static java.util.Objects.requireNonNull;
 class BZip2CompressionInputStream
         extends CompressionInputStream
 {
-    private CBZip2InputStream input;
     private final BufferedInputStream bufferedIn;
+    private CBZip2InputStream input;
 
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
@@ -44,10 +44,10 @@ class BZip2CompressionInputStream
     }
 
     @Override
-    public int read(byte[] b, int off, int len)
+    public int read(byte[] buffer, int offset, int length)
             throws IOException
     {
-        if (len == 0) {
+        if (length == 0) {
             return 0;
         }
 
@@ -60,13 +60,12 @@ class BZip2CompressionInputStream
             input = new CBZip2InputStream(bufferedIn);
         }
 
-        int result;
-        result = this.input.read(b, off, len);
+        int result = input.read(buffer, offset, length);
 
         // if the result is the end of block marker, no data was read
         if (result == CBZip2InputStream.END_OF_BLOCK) {
             // read one byte into the new block and update the position.
-            result = this.input.read(b, off, 1);
+            result = input.read(buffer, offset, 1);
         }
 
         return result;
@@ -76,9 +75,12 @@ class BZip2CompressionInputStream
     public int read()
             throws IOException
     {
-        byte[] b = new byte[1];
-        int result = this.read(b, 0, 1);
-        return (result < 0) ? result : (b[0] & 0xff);
+        byte[] buffer = new byte[1];
+        int result = read(buffer, 0, 1);
+        if (result < 0) {
+            return result;
+        }
+        return buffer[0] & 0xff;
     }
 
     @Override
