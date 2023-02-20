@@ -137,7 +137,9 @@ class BZip2CompressionInputStream
         }
 
         if (needsReset) {
-            internalReset();
+            needsReset = false;
+            BufferedInputStream bufferedIn = readStreamHeader();
+            input = new CBZip2InputStream(bufferedIn);
         }
 
         int result;
@@ -164,16 +166,6 @@ class BZip2CompressionInputStream
         byte[] b = new byte[1];
         int result = this.read(b, 0, 1);
         return (result < 0) ? result : (b[0] & 0xff);
-    }
-
-    private void internalReset()
-            throws IOException
-    {
-        if (needsReset) {
-            needsReset = false;
-            BufferedInputStream bufferedIn = readStreamHeader();
-            input = new CBZip2InputStream(bufferedIn);
-        }
     }
 
     @Override
