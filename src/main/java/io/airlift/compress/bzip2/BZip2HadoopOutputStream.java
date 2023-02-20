@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.bzip2;
 
-import org.apache.hadoop.io.compress.CompressionOutputStream;
+import io.airlift.compress.hadoop.HadoopOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -21,15 +21,16 @@ import java.io.OutputStream;
 import static java.util.Objects.requireNonNull;
 
 // forked from Apache Hadoop
-class BZip2CompressionOutputStream
-        extends CompressionOutputStream
+class BZip2HadoopOutputStream
+        extends HadoopOutputStream
 {
+    private final OutputStream rawOutput;
     private boolean initialized;
     private CBZip2OutputStream output;
 
-    public BZip2CompressionOutputStream(OutputStream out)
+    public BZip2HadoopOutputStream(OutputStream out)
     {
-        super(requireNonNull(out, "out is null"));
+        this.rawOutput = requireNonNull(out, "out is null");
     }
 
     @Override
@@ -49,9 +50,6 @@ class BZip2CompressionOutputStream
     }
 
     @Override
-    public void resetState() {}
-
-    @Override
     public void finish()
             throws IOException
     {
@@ -59,6 +57,13 @@ class BZip2CompressionOutputStream
             output.finish();
             output = null;
         }
+    }
+
+    @Override
+    public void flush()
+            throws IOException
+    {
+        rawOutput.flush();
     }
 
     @Override
@@ -73,7 +78,7 @@ class BZip2CompressionOutputStream
             finish();
         }
         finally {
-            super.close();
+            rawOutput.close();
         }
     }
 
@@ -83,9 +88,9 @@ class BZip2CompressionOutputStream
         if (output == null) {
             initialized = true;
             // write magic
-            out.write(new byte[] {'B', 'Z'});
+            rawOutput.write(new byte[] {'B', 'Z'});
             // open new block
-            output = new CBZip2OutputStream(out);
+            output = new CBZip2OutputStream(rawOutput);
         }
     }
 }

@@ -13,27 +13,29 @@
  */
 package io.airlift.compress.lz4;
 
-import org.apache.hadoop.io.compress.CompressionOutputStream;
+import io.airlift.compress.hadoop.HadoopOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
+import static java.util.Objects.requireNonNull;
 
-class HadoopLz4OutputStream
-        extends CompressionOutputStream
+class Lz4HadoopOutputStream
+        extends HadoopOutputStream
 {
     private final Lz4Compressor compressor = new Lz4Compressor();
 
+    private final OutputStream out;
     private final byte[] inputBuffer;
     private final int inputMaxSize;
     private int inputOffset;
 
     private final byte[] outputBuffer;
 
-    public HadoopLz4OutputStream(OutputStream out, int bufferSize)
+    public Lz4HadoopOutputStream(OutputStream out, int bufferSize)
     {
-        super(out);
+        this.out = requireNonNull(out, "out is null");
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster
         inputMaxSize = inputBuffer.length - compressionOverhead(bufferSize);
@@ -83,10 +85,22 @@ class HadoopLz4OutputStream
     }
 
     @Override
-    public void resetState()
+    public void flush()
             throws IOException
     {
-        finish();
+        out.flush();
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        try {
+            finish();
+        }
+        finally {
+            out.close();
+        }
     }
 
     private void writeNextChunk(byte[] input, int inputOffset, int inputLength)

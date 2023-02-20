@@ -13,23 +13,24 @@
  */
 package io.airlift.compress.gzip;
 
-import org.apache.hadoop.io.compress.CompressionInputStream;
+import io.airlift.compress.hadoop.HadoopInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 
-class HadoopJdkGzipInputStream
-        extends CompressionInputStream
+import static java.util.Objects.requireNonNull;
+
+class JdkGzipHadoopInputStream
+        extends HadoopInputStream
 {
     private final byte[] oneByte = new byte[1];
     private final GZIPInputStream input;
 
-    public HadoopJdkGzipInputStream(InputStream input, int bufferSize)
+    public JdkGzipHadoopInputStream(InputStream input, int bufferSize)
             throws IOException
     {
-        super(input);
-        this.input = new GZIPInputStream(input, bufferSize);
+        this.input = new GZIPInputStream(requireNonNull(input, "input is null"), bufferSize);
     }
 
     @Override
@@ -52,20 +53,14 @@ class HadoopJdkGzipInputStream
 
     @Override
     public void resetState()
-            throws IOException
     {
         throw new UnsupportedOperationException("resetState not supported for gzip");
     }
 
     @Override
-    public void close() throws IOException
+    public void close()
+            throws IOException
     {
-        try {
-            super.close();
-        }
-        finally {
-            // close() will free the memory
-            input.close();
-        }
+        input.close();
     }
 }

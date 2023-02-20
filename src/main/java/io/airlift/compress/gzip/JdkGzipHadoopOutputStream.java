@@ -13,23 +13,24 @@
  */
 package io.airlift.compress.gzip;
 
-import org.apache.hadoop.io.compress.CompressionOutputStream;
+import io.airlift.compress.hadoop.HadoopOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
 
-class HadoopJdkGzipOutputStream
-        extends CompressionOutputStream
+import static java.util.Objects.requireNonNull;
+
+class JdkGzipHadoopOutputStream
+        extends HadoopOutputStream
 {
     private final byte[] oneByte = new byte[1];
     private final GZIPOutputStreamWrapper output;
 
-    public HadoopJdkGzipOutputStream(OutputStream output, int bufferSize)
+    public JdkGzipHadoopOutputStream(OutputStream output, int bufferSize)
             throws IOException
     {
-        super(output);
-        this.output = new GZIPOutputStreamWrapper(output, bufferSize);
+        this.output = new GZIPOutputStreamWrapper(requireNonNull(output, "output is null"), bufferSize);
     }
 
     @Override
@@ -60,13 +61,25 @@ class HadoopJdkGzipOutputStream
     }
 
     @Override
-    public void resetState()
+    public void flush()
             throws IOException
     {
-        output.finish();
+        output.flush();
     }
 
-    private class GZIPOutputStreamWrapper
+    @Override
+    public void close()
+            throws IOException
+    {
+        try {
+            finish();
+        }
+        finally {
+            output.close();
+        }
+    }
+
+    private static class GZIPOutputStreamWrapper
             extends GZIPOutputStream
     {
         GZIPOutputStreamWrapper(OutputStream output, int bufferSize)

@@ -15,6 +15,9 @@ package io.airlift.compress.lzo;
 
 final class LzoConstants
 {
+    public static final byte[] LZOP_MAGIC = new byte[] {(byte) 0x89, 0x4c, 0x5a, 0x4f, 0x00, 0x0d, 0x0a, 0x1a, 0x0a};
+    public static final byte LZO_1X_VARIANT = 1;
+
     public static final int SIZE_OF_SHORT = 2;
     public static final int SIZE_OF_INT = 4;
     public static final int SIZE_OF_LONG = 8;

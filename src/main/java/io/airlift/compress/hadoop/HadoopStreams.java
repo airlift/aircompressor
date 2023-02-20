@@ -11,15 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.bzip2;
+package io.airlift.compress.hadoop;
 
-import io.airlift.compress.hadoop.CodecAdapter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
 
-public class BZip2Codec
-        extends CodecAdapter
+public interface HadoopStreams
 {
-    public BZip2Codec()
-    {
-        super(configuration -> new BZip2HadoopStreams());
-    }
+    String getDefaultFileExtension();
+
+    List<String> getHadoopCodecName();
+
+    HadoopInputStream createInputStream(InputStream in)
+            throws IOException;
+
+    HadoopOutputStream createOutputStream(OutputStream out)
+            throws IOException;
 }

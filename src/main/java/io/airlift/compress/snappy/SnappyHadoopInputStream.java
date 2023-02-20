@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.snappy;
 
-import org.apache.hadoop.io.compress.CompressionInputStream;
+import io.airlift.compress.hadoop.HadoopInputStream;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -21,8 +21,8 @@ import java.io.InputStream;
 
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 
-class HadoopSnappyInputStream
-        extends CompressionInputStream
+class SnappyHadoopInputStream
+        extends HadoopInputStream
 {
     private final SnappyDecompressor decompressor = new SnappyDecompressor();
     private final InputStream in;
@@ -34,10 +34,8 @@ class HadoopSnappyInputStream
 
     private byte[] compressed = new byte[0];
 
-    public HadoopSnappyInputStream(InputStream in)
-            throws IOException
+    public SnappyHadoopInputStream(InputStream in)
     {
-        super(in);
         this.in = in;
     }
 
@@ -76,11 +74,17 @@ class HadoopSnappyInputStream
 
     @Override
     public void resetState()
-            throws IOException
     {
         uncompressedBlockLength = 0;
         uncompressedChunkOffset = 0;
         uncompressedChunkLength = 0;
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        in.close();
     }
 
     private boolean readNextChunk(byte[] userBuffer, int userOffset, int userLength)
