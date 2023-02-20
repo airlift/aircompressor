@@ -146,7 +146,6 @@ class CBZip2InputStream
 
     // used by skipToNextMarker
     private boolean skipResult;
-    private boolean skipDecompression;
 
     // Variables used by setup* methods exclusively
 
@@ -185,7 +184,6 @@ class CBZip2InputStream
         int blockSize = 0X39; // i.e 9
         this.blockSize100k = blockSize - (int) '0';
         this.in = new BufferedInputStream(in, 1024 * 9); // >1 MB buffer
-        this.skipDecompression = false;
         lazyInitialization = in.available() == 0;
         if (!lazyInitialization) {
             init();
@@ -370,11 +368,6 @@ class CBZip2InputStream
         if (lazyInitialization) {
             this.init();
             this.lazyInitialization = false;
-        }
-
-        if (skipDecompression) {
-            changeStateToProcessABlock();
-            skipDecompression = false;
         }
 
         final int hi = offs + len;
