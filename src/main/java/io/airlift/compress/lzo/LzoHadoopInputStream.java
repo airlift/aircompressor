@@ -13,16 +13,17 @@
  */
 package io.airlift.compress.lzo;
 
-import org.apache.hadoop.io.compress.CompressionInputStream;
+import io.airlift.compress.hadoop.HadoopInputStream;
 
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
+import static java.util.Objects.requireNonNull;
 
-class HadoopLzoInputStream
-        extends CompressionInputStream
+class LzoHadoopInputStream
+        extends HadoopInputStream
 {
     private final LzoDecompressor decompressor = new LzoDecompressor();
     private final InputStream in;
@@ -34,11 +35,9 @@ class HadoopLzoInputStream
 
     private byte[] compressed = new byte[0];
 
-    public HadoopLzoInputStream(InputStream in, int maxUncompressedLength)
-            throws IOException
+    public LzoHadoopInputStream(InputStream in, int maxUncompressedLength)
     {
-        super(in);
-        this.in = in;
+        this.in = requireNonNull(in, "in is null");
         // over allocate buffer which makes decompression easier
         uncompressedChunk = new byte[maxUncompressedLength + SIZE_OF_LONG];
     }
@@ -84,11 +83,17 @@ class HadoopLzoInputStream
 
     @Override
     public void resetState()
-            throws IOException
     {
         uncompressedBlockLength = 0;
         uncompressedChunkOffset = 0;
         uncompressedChunkLength = 0;
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        in.close();
     }
 
     private int bufferCompressedData()

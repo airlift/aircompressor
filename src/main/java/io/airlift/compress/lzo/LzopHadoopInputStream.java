@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.lzo;
 
-import org.apache.hadoop.io.compress.CompressionInputStream;
+import io.airlift.compress.hadoop.HadoopInputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -24,13 +24,14 @@ import java.util.zip.Adler32;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
+import static io.airlift.compress.lzo.LzoConstants.LZOP_MAGIC;
+import static io.airlift.compress.lzo.LzoConstants.LZO_1X_VARIANT;
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
-import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
-import static io.airlift.compress.lzo.LzopCodec.LZO_1X_VARIANT;
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
-class HadoopLzopInputStream
-        extends CompressionInputStream
+class LzopHadoopInputStream
+        extends HadoopInputStream
 {
     private static final int LZO_VERSION_MAX = 0x20A0;
     private static final int LZOP_FILE_VERSION_MIN = 0x0940;
@@ -60,11 +61,10 @@ class HadoopLzopInputStream
     private final boolean crc32Decompressed;
     private final boolean crc32Compressed;
 
-    public HadoopLzopInputStream(InputStream in, int maxUncompressedLength)
+    public LzopHadoopInputStream(InputStream in, int maxUncompressedLength)
             throws IOException
     {
-        super(in);
-        this.in = in;
+        this.in = requireNonNull(in, "in is null");
         // over allocate buffer which makes decompression easier
         uncompressedChunk = new byte[maxUncompressedLength + SIZE_OF_LONG];
 
@@ -206,11 +206,17 @@ class HadoopLzopInputStream
 
     @Override
     public void resetState()
-            throws IOException
     {
         uncompressedLength = 0;
         uncompressedOffset = 0;
         finished = false;
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        in.close();
     }
 
     private int bufferCompressedData()

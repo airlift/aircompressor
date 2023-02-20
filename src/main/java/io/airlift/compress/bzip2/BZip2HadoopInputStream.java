@@ -13,25 +13,21 @@
  */
 package io.airlift.compress.bzip2;
 
-import org.apache.hadoop.io.compress.CompressionInputStream;
+import io.airlift.compress.hadoop.HadoopInputStream;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static java.util.Objects.requireNonNull;
-
 // forked from Apache Hadoop
-class BZip2CompressionInputStream
-        extends CompressionInputStream
+class BZip2HadoopInputStream
+        extends HadoopInputStream
 {
     private final BufferedInputStream bufferedIn;
     private CBZip2InputStream input;
 
-    public BZip2CompressionInputStream(InputStream in)
-            throws IOException
+    public BZip2HadoopInputStream(InputStream in)
     {
-        super(requireNonNull(in, "in is null"));
         bufferedIn = new BufferedInputStream(in);
     }
 
@@ -87,6 +83,6 @@ class BZip2CompressionInputStream
             throws IOException
     {
         input = null;
-        super.close();
+        bufferedIn.close();
     }
 }

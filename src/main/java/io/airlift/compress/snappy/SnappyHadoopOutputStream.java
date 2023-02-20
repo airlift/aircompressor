@@ -11,72 +11,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.lzo;
+package io.airlift.compress.snappy;
 
-import org.apache.hadoop.io.compress.CompressionOutputStream;
+import io.airlift.compress.hadoop.HadoopOutputStream;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.zip.Adler32;
 
-import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
-import static io.airlift.compress.lzo.LzopCodec.LZOP_MAGIC;
-import static io.airlift.compress.lzo.LzopCodec.LZO_1X_VARIANT;
+import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
+import static java.util.Objects.requireNonNull;
 
-class HadoopLzopOutputStream
-        extends CompressionOutputStream
+class SnappyHadoopOutputStream
+        extends HadoopOutputStream
 {
-    private static final int LZOP_FILE_VERSION = 0x1010;
-    private static final int LZOP_FORMAT_VERSION = 0x0940;
-    private static final int LZO_FORMAT_VERSION = 0x2050;
-    private static final int LEVEL = 5;
+    private final SnappyCompressor compressor = new SnappyCompressor();
 
-    private final LzoCompressor compressor = new LzoCompressor();
-
+    private final OutputStream out;
     private final byte[] inputBuffer;
     private final int inputMaxSize;
     private int inputOffset;
 
     private final byte[] outputBuffer;
 
-    public HadoopLzopOutputStream(OutputStream out, int bufferSize)
-            throws IOException
+    public SnappyHadoopOutputStream(OutputStream out, int bufferSize)
     {
-        super(out);
+        this.out = requireNonNull(out, "out is null");
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster
         inputMaxSize = inputBuffer.length - compressionOverhead(bufferSize);
         outputBuffer = new byte[compressor.maxCompressedLength(inputMaxSize) + SIZE_OF_LONG];
-
-        out.write(LZOP_MAGIC);
-
-        ByteArrayOutputStream headerOut = new ByteArrayOutputStream(25);
-        DataOutputStream headerDataOut = new DataOutputStream(headerOut);
-        headerDataOut.writeShort(LZOP_FILE_VERSION);
-        headerDataOut.writeShort(LZO_FORMAT_VERSION);
-        headerDataOut.writeShort(LZOP_FORMAT_VERSION);
-        headerDataOut.writeByte(LZO_1X_VARIANT);
-        headerDataOut.writeByte(LEVEL);
-
-        // flags (none)
-        headerDataOut.writeInt(0);
-        // file mode (non-executable regular file)
-        headerDataOut.writeInt(0x81a4);
-        // modified time (in seconds from epoch)
-        headerDataOut.writeInt((int) (System.currentTimeMillis() / 1000));
-        // time zone modifier for above, which is UTC so 0
-        headerDataOut.writeInt(0);
-        // file name length (none)
-        headerDataOut.writeByte(0);
-
-        byte[] header = headerOut.toByteArray();
-        out.write(header);
-
-        Adler32 headerChecksum = new Adler32();
-        headerChecksum.update(header);
-        writeBigEndianInt((int) headerChecksum.getValue());
     }
 
     @Override
@@ -122,19 +85,22 @@ class HadoopLzopOutputStream
     }
 
     @Override
-    public void close()
+    public void flush()
             throws IOException
     {
-        finish();
-        writeBigEndianInt(0);
-        super.close();
+        out.flush();
     }
 
     @Override
-    public void resetState()
+    public void close()
             throws IOException
     {
-        finish();
+        try {
+            finish();
+        }
+        finally {
+            out.close();
+        }
     }
 
     private void writeNextChunk(byte[] input, int inputOffset, int inputLength)
@@ -143,14 +109,8 @@ class HadoopLzopOutputStream
         int compressedSize = compressor.compress(input, inputOffset, inputLength, outputBuffer, 0, outputBuffer.length);
 
         writeBigEndianInt(inputLength);
-        if (compressedSize < inputLength) {
-            writeBigEndianInt(compressedSize);
-            out.write(outputBuffer, 0, compressedSize);
-        }
-        else {
-            writeBigEndianInt(inputLength);
-            out.write(input, inputOffset, inputLength);
-        }
+        writeBigEndianInt(compressedSize);
+        out.write(outputBuffer, 0, compressedSize);
 
         this.inputOffset = 0;
     }
@@ -166,6 +126,6 @@ class HadoopLzopOutputStream
 
     private static int compressionOverhead(int size)
     {
-        return (size / 16) + 64 + 3;
+        return (size / 6) + 32;
     }
 }

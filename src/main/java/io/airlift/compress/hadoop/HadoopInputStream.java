@@ -11,15 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.bzip2;
+package io.airlift.compress.hadoop;
 
-import io.airlift.compress.hadoop.CodecAdapter;
+import java.io.IOException;
+import java.io.InputStream;
 
-public class BZip2Codec
-        extends CodecAdapter
+@SuppressWarnings("AbstractMethodOverridesConcreteMethod")
+public abstract class HadoopInputStream
+        extends InputStream
 {
-    public BZip2Codec()
-    {
-        super(configuration -> new BZip2HadoopStreams());
-    }
+    public abstract void resetState();
+
+    @Override
+    public abstract int read(byte[] b, int off, int len)
+            throws IOException;
+
+    @Override
+    public abstract void close()
+            throws IOException;
 }
