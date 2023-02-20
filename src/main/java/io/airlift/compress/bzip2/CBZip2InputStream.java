@@ -221,21 +221,6 @@ class CBZip2InputStream
     }
 
     /**
-     * This method is called by the client of this
-     * class in case there are any corrections in
-     * the stream position.  One common example is
-     * when client of this code removes starting BZ
-     * characters from the compressed stream.
-     *
-     * @param count count bytes are added to the reported bytes
-     */
-    public void updateReportedByteCount(int count)
-    {
-        this.reportedBytesReadFromCompressedStream += count;
-        this.updateProcessedByteCount(count);
-    }
-
-    /**
      * This method reads a Byte from the compressed stream. Whenever we need to
      * read from the underlying compressed stream, this method should be called
      * instead of directly calling the read method of the underlying compressed
