@@ -19,15 +19,12 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
 import static java.util.Objects.requireNonNull;
 
 // forked from Apache Hadoop
 class BZip2CompressionInputStream
         extends CompressionInputStream
 {
-    private static final int HEADER_LEN = HEADER.length();
-
     private CBZip2InputStream input;
     private final BufferedInputStream bufferedIn;
 
@@ -36,16 +33,6 @@ class BZip2CompressionInputStream
     {
         super(requireNonNull(in, "in is null"));
         bufferedIn = new BufferedInputStream(in);
-    }
-
-    private void trySkipMagic()
-            throws IOException
-    {
-        // If the stream starts with `BZ`, skip it
-        bufferedIn.mark(HEADER_LEN);
-        if (bufferedIn.read() != 'B' || bufferedIn.read() != 'Z') {
-            bufferedIn.reset();
-        }
     }
 
     @Override
@@ -65,7 +52,11 @@ class BZip2CompressionInputStream
         }
 
         if (input == null) {
-            trySkipMagic();
+            // If the stream starts with `BZ`, skip it
+            bufferedIn.mark(2);
+            if (bufferedIn.read() != 'B' || bufferedIn.read() != 'Z') {
+                bufferedIn.reset();
+            }
             input = new CBZip2InputStream(bufferedIn);
         }
 
