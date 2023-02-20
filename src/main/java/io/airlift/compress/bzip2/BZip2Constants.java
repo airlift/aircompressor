@@ -34,8 +34,6 @@ package io.airlift.compress.bzip2;
 // forked from Apache Hadoop
 final class BZip2Constants
 {
-    public static final String HEADER = "BZ";
-
     public static final int BASE_BLOCK_SIZE = 100000;
     public static final int MAX_ALPHA_SIZE = 258;
     public static final int RUN_A = 0;

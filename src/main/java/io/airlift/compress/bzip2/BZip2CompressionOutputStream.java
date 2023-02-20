@@ -17,9 +17,8 @@ import org.apache.hadoop.io.compress.CompressionOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 
-import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
+import static java.util.Objects.requireNonNull;
 
 // forked from Apache Hadoop
 class BZip2CompressionOutputStream
@@ -30,19 +29,8 @@ class BZip2CompressionOutputStream
 
     public BZip2CompressionOutputStream(OutputStream out)
     {
-        super(out);
+        super(requireNonNull(out, "out is null"));
         needsReset = true;
-    }
-
-    private void writeStreamHeader()
-            throws IOException
-    {
-        if (out != null) {
-            // The compressed bzip2 stream should start with the
-            // identifying characters BZ. Caller of CBZip2OutputStream
-            // i.e. this class must write these characters.
-            out.write(HEADER.getBytes(StandardCharsets.UTF_8));
-        }
     }
 
     @Override
@@ -64,7 +52,10 @@ class BZip2CompressionOutputStream
     {
         if (needsReset) {
             needsReset = false;
-            writeStreamHeader();
+
+            // write magic
+            out.write(new byte[] {'B', 'Z'});
+
             this.output = new CBZip2OutputStream(out);
         }
     }
