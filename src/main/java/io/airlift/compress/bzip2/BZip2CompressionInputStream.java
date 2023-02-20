@@ -220,7 +220,7 @@ class BZip2CompressionInputStream
         }
 
         if (this.posSM == PosAdvertisementStateMachine.ADVERTISE) {
-            result = this.input.read(b, off, off + 1);
+            result = this.input.read(b, off, 1);
             // This is the precise time to update compressed stream position
             // to the client of this code.
             this.updatePos(true);
