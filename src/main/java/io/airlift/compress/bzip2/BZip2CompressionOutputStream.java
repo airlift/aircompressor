@@ -33,31 +33,6 @@ class BZip2CompressionOutputStream
     }
 
     @Override
-    public void finish()
-            throws IOException
-    {
-        if (output != null) {
-            output.finish();
-            output = null;
-        }
-    }
-
-    private void openStreamIfNecessary()
-            throws IOException
-    {
-        if (output == null) {
-            initialized = true;
-            // write magic
-            out.write(new byte[] {'B', 'Z'});
-            // open new block
-            output = new CBZip2OutputStream(out);
-        }
-    }
-
-    @Override
-    public void resetState() {}
-
-    @Override
     public void write(int b)
             throws IOException
     {
@@ -74,6 +49,19 @@ class BZip2CompressionOutputStream
     }
 
     @Override
+    public void resetState() {}
+
+    @Override
+    public void finish()
+            throws IOException
+    {
+        if (output != null) {
+            output.finish();
+            output = null;
+        }
+    }
+
+    @Override
     public void close()
             throws IOException
     {
@@ -86,6 +74,18 @@ class BZip2CompressionOutputStream
         }
         finally {
             super.close();
+        }
+    }
+
+    private void openStreamIfNecessary()
+            throws IOException
+    {
+        if (output == null) {
+            initialized = true;
+            // write magic
+            out.write(new byte[] {'B', 'Z'});
+            // open new block
+            output = new CBZip2OutputStream(out);
         }
     }
 }
