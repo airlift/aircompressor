@@ -36,14 +36,6 @@ class BZip2CompressionInputStream
     }
 
     @Override
-    public void close()
-            throws IOException
-    {
-        input = null;
-        super.close();
-    }
-
-    @Override
     public int read(byte[] buffer, int offset, int length)
             throws IOException
     {
@@ -88,5 +80,13 @@ class BZip2CompressionInputStream
     {
         // drop the current compression stream, and new one will be created during the next read
         input = null;
+    }
+
+    @Override
+    public void close()
+            throws IOException
+    {
+        input = null;
+        super.close();
     }
 }
