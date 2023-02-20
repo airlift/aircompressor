@@ -98,7 +98,7 @@ class CBZip2InputStream
     private long reportedBytesReadFromCompressedStream;
     // The following variable keep record of compressed bytes read.
     private long bytesReadFromCompressedStream;
-    private boolean lazyInitialization;
+    private boolean initialized;
 
     private final byte[] array = new byte[1];
 
@@ -179,15 +179,10 @@ class CBZip2InputStream
      * @throws NullPointerException if <tt>in == null</tt>
      */
     public CBZip2InputStream(final InputStream in)
-            throws IOException
     {
         int blockSize = 0X39; // i.e 9
         this.blockSize100k = blockSize - (int) '0';
         this.in = new BufferedInputStream(in, 1024 * 9); // >1 MB buffer
-        lazyInitialization = in.available() == 0;
-        if (!lazyInitialization) {
-            init();
-        }
     }
 
     /**
@@ -365,9 +360,9 @@ class CBZip2InputStream
             throw new IOException("stream closed");
         }
 
-        if (lazyInitialization) {
+        if (!initialized) {
             this.init();
-            this.lazyInitialization = false;
+            this.initialized = true;
         }
 
         final int hi = offs + len;
