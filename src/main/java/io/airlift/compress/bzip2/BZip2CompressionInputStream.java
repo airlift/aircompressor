@@ -18,9 +18,9 @@ import org.apache.hadoop.io.compress.CompressionInputStream;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 import static io.airlift.compress.bzip2.BZip2Constants.HEADER;
+import static java.util.Objects.requireNonNull;
 
 // forked from Apache Hadoop
 class BZip2CompressionInputStream
@@ -30,7 +30,7 @@ class BZip2CompressionInputStream
 
     private CBZip2InputStream input;
     private boolean needsReset;
-    private BufferedInputStream bufferedIn;
+    private final BufferedInputStream bufferedIn;
     private final long startingPos;
 
     // Following state machine handles different states of compressed stream
@@ -49,42 +49,26 @@ class BZip2CompressionInputStream
     public BZip2CompressionInputStream(InputStream in)
             throws IOException
     {
-        super(in);
+        super(requireNonNull(in, "in is null"));
         needsReset = false;
         bufferedIn = new BufferedInputStream(in);
         this.startingPos = super.getPos();
         if (this.startingPos == 0) {
-            // We only strip header if it is start of file
-            bufferedIn = readStreamHeader();
+            trySkipMagic();
         }
         input = new CBZip2InputStream(bufferedIn);
 
         this.updatePos(false);
     }
 
-    private BufferedInputStream readStreamHeader()
+    private void trySkipMagic()
             throws IOException
     {
-        // We are flexible enough to allow the compressed stream not to
-        // start with the header of BZ. So it works fine either we have
-        // the header or not.
-        if (in != null) {
-            bufferedIn.mark(HEADER_LEN);
-            byte[] headerBytes = new byte[HEADER_LEN];
-            int actualRead = bufferedIn.read(headerBytes, 0, HEADER_LEN);
-            if (actualRead != -1) {
-                String header = new String(headerBytes, StandardCharsets.UTF_8);
-                if (header.compareTo(HEADER) != 0) {
-                    bufferedIn.reset();
-                }
-            }
+        // If the stream starts with `BZ`, skip it
+        bufferedIn.mark(HEADER_LEN);
+        if (bufferedIn.read() != 'B' || bufferedIn.read() != 'Z') {
+            bufferedIn.reset();
         }
-
-        if (bufferedIn == null) {
-            throw new IOException("Failed to read bzip2 stream.");
-        }
-
-        return bufferedIn;
     }
 
     @Override
@@ -138,7 +122,7 @@ class BZip2CompressionInputStream
 
         if (needsReset) {
             needsReset = false;
-            BufferedInputStream bufferedIn = readStreamHeader();
+            trySkipMagic();
             input = new CBZip2InputStream(bufferedIn);
         }
 
