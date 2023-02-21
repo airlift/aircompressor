@@ -24,57 +24,44 @@ import static java.util.Objects.requireNonNull;
 class BZip2CompressionOutputStream
         extends CompressionOutputStream
 {
+    private boolean initialized;
     private CBZip2OutputStream output;
-    private boolean needsReset;
 
     public BZip2CompressionOutputStream(OutputStream out)
     {
         super(requireNonNull(out, "out is null"));
-        needsReset = true;
     }
 
     @Override
     public void finish()
             throws IOException
     {
-        if (needsReset) {
-            // In the case that nothing is written to this stream, we still need to
-            // write out the header before closing, otherwise the stream won't be
-            // recognized by BZip2CompressionInputStream.
-            internalReset();
+        if (output != null) {
+            output.finish();
+            output = null;
         }
-        this.output.finish();
-        needsReset = true;
     }
 
-    private void internalReset()
+    private void openStreamIfNecessary()
             throws IOException
     {
-        if (needsReset) {
-            needsReset = false;
-
+        if (output == null) {
+            initialized = true;
             // write magic
             out.write(new byte[] {'B', 'Z'});
-
+            // open new block
             this.output = new CBZip2OutputStream(out);
         }
     }
 
     @Override
-    public void resetState()
-    {
-        // Cannot write to out at this point because out might not be ready
-        // yet, as in SequenceFile.Writer implementation.
-        needsReset = true;
-    }
+    public void resetState() {}
 
     @Override
     public void write(int b)
             throws IOException
     {
-        if (needsReset) {
-            internalReset();
-        }
+        openStreamIfNecessary();
         this.output.write(b);
     }
 
@@ -82,9 +69,7 @@ class BZip2CompressionOutputStream
     public void write(byte[] b, int off, int len)
             throws IOException
     {
-        if (needsReset) {
-            internalReset();
-        }
+        openStreamIfNecessary();
         this.output.write(b, off, len);
     }
 
@@ -93,10 +78,14 @@ class BZip2CompressionOutputStream
             throws IOException
     {
         try {
-            super.close();
+            // it the stream has never been initialized, create an empty block
+            if (!initialized) {
+                openStreamIfNecessary();
+            }
+            finish();
         }
         finally {
-            output.close();
+            super.close();
         }
     }
 }
