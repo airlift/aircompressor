@@ -50,7 +50,7 @@ class BZip2CompressionOutputStream
             // write magic
             out.write(new byte[] {'B', 'Z'});
             // open new block
-            this.output = new CBZip2OutputStream(out);
+            output = new CBZip2OutputStream(out);
         }
     }
 
@@ -62,7 +62,7 @@ class BZip2CompressionOutputStream
             throws IOException
     {
         openStreamIfNecessary();
-        this.output.write(b);
+        output.write(b);
     }
 
     @Override
@@ -70,7 +70,7 @@ class BZip2CompressionOutputStream
             throws IOException
     {
         openStreamIfNecessary();
-        this.output.write(b, off, len);
+        output.write(b, off, len);
     }
 
     @Override
