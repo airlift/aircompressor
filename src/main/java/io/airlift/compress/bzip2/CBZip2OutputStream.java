@@ -17,8 +17,6 @@
  */
 package io.airlift.compress.bzip2;
 
-import org.apache.hadoop.io.IOUtils;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -601,7 +599,7 @@ class CBZip2OutputStream
                 outShadow = null;
             }
             finally {
-                IOUtils.closeStream(outShadow);
+                outShadow.close();
             }
         }
     }
