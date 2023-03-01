@@ -23,7 +23,7 @@ class CompressionParameters
     private static final int MIN_HASH_LOG = 6;
 
     public static final int DEFAULT_COMPRESSION_LEVEL = 3;
-    private static final int MAX_COMPRESSION_LEVEL = 22;
+    public static final int MAX_COMPRESSION_LEVEL = 22;
 
     private final int windowLog; // largest match distance : larger == more compression, more memory needed during decompression
     private final int chainLog;  // fully searched segment : larger == more compression, slower, more memory (useless for fast)
