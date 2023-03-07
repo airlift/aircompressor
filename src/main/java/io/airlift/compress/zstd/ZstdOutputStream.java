@@ -121,8 +121,10 @@ public class ZstdOutputStream
     private void compressIfNecessary()
             throws IOException
     {
-        // only flush when the buffer if full and the buffer is larger than the window and one additional block
-        if (uncompressedPosition == uncompressed.length && uncompressed.length - context.parameters.getWindowSize() > context.parameters.getBlockSize()) {
+        // only flush when the buffer if is max size, full, and the buffer is larger than the window and one additional block
+        if (uncompressed.length >= maxBufferSize &&
+                uncompressedPosition == uncompressed.length &&
+                uncompressed.length - context.parameters.getWindowSize() > context.parameters.getBlockSize()) {
             writeChunk(false);
         }
     }
