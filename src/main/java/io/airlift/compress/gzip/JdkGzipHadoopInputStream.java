@@ -15,10 +15,12 @@ package io.airlift.compress.gzip;
 
 import io.airlift.compress.hadoop.HadoopInputStream;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 
+import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 
 class JdkGzipHadoopInputStream
@@ -30,7 +32,7 @@ class JdkGzipHadoopInputStream
     public JdkGzipHadoopInputStream(InputStream input, int bufferSize)
             throws IOException
     {
-        this.input = new GZIPInputStream(requireNonNull(input, "input is null"), bufferSize);
+        this.input = new GZIPInputStream(new GzipBufferedInputStream(input, bufferSize), bufferSize);
     }
 
     @Override
@@ -62,5 +64,23 @@ class JdkGzipHadoopInputStream
             throws IOException
     {
         input.close();
+    }
+
+    // workaround for https://bugs.openjdk.org/browse/JDK-8081450
+    private static class GzipBufferedInputStream
+            extends BufferedInputStream
+    {
+        public GzipBufferedInputStream(InputStream input, int bufferSize)
+        {
+            super(requireNonNull(input, "input is null"), bufferSize);
+        }
+
+        @Override
+        public int available()
+                throws IOException
+        {
+            // GZIPInputStream thinks the stream is complete if this returns zero
+            return max(1, super.available());
+        }
     }
 }
