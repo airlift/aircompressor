@@ -45,11 +45,19 @@ public class ZstdOutputStream
 
     private boolean closed;
 
+
     public ZstdOutputStream(OutputStream outputStream)
             throws IOException
     {
+        this(outputStream, DEFAULT_COMPRESSION_LEVEL);
+    }
+
+
+    public ZstdOutputStream(OutputStream outputStream, int compressionLevel)
+            throws IOException
+    {
         this.outputStream = requireNonNull(outputStream, "outputStream is null");
-        this.context = new CompressionContext(CompressionParameters.compute(DEFAULT_COMPRESSION_LEVEL, -1), ARRAY_BYTE_BASE_OFFSET, Integer.MAX_VALUE);
+        this.context = new CompressionContext(CompressionParameters.compute(compressionLevel, -1), ARRAY_BYTE_BASE_OFFSET, Integer.MAX_VALUE);
         this.maxBufferSize = context.parameters.getWindowSize() * 4;
 
         // create output buffer large enough for a single block
