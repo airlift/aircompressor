@@ -45,13 +45,11 @@ public class ZstdOutputStream
 
     private boolean closed;
 
-
     public ZstdOutputStream(OutputStream outputStream)
             throws IOException
     {
         this(outputStream, DEFAULT_COMPRESSION_LEVEL);
     }
-
 
     public ZstdOutputStream(OutputStream outputStream, int compressionLevel)
             throws IOException
