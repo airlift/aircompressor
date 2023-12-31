@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
@@ -25,6 +24,8 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+
+import static io.airlift.compress.Util.readResource;
 
 public class TestZstdCodec
         extends AbstractTestCompression
@@ -76,8 +77,8 @@ public class TestZstdCodec
     public void testConcatenatedFrames()
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames.zst"));
-        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames"));
+        byte[] compressed = readResource("data/zstd/multiple-frames.zst");
+        byte[] uncompressed = readResource("data/zstd/multiple-frames");
 
         byte[] output = new byte[uncompressed.length];
         getVerifyDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);

@@ -13,6 +13,12 @@
  */
 package io.airlift.compress;
 
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
+
 import static java.lang.String.format;
 
 public final class Util
@@ -37,5 +43,21 @@ public final class Util
             humanReadableSpeed = format("%.1fGB/s", bytesPerSecond / (1024.0f * 1024.0f * 1024.0f));
         }
         return humanReadableSpeed;
+    }
+
+    static Path getResourceAsPath(String path)
+    {
+        URL url = Util.class.getClassLoader().getResource(path);
+        Objects.requireNonNull(url, path);
+        return Path.of(url.getFile());
+    }
+
+    /**
+     * Reads data from classloader resources.
+     */
+    public static byte[] readResource(String resourcePath) throws IOException
+    {
+        Path path = getResourceAsPath(resourcePath);
+        return Files.readAllBytes(path);
     }
 }

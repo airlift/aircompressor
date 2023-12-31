@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
@@ -28,6 +27,7 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static io.airlift.compress.Util.readResource;
 import static org.testng.Assert.assertEquals;
 
 public class TestZstd
@@ -65,8 +65,8 @@ public class TestZstd
     {
         int padding = 1021;
 
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/with-checksum.zst"));
-        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/with-checksum"));
+        byte[] compressed = readResource("data/zstd/with-checksum.zst");
+        byte[] uncompressed = readResource("data/zstd/with-checksum");
 
         byte[] output = new byte[uncompressed.length + padding * 2]; // pre + post padding
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, padding, output.length - padding);
@@ -78,8 +78,8 @@ public class TestZstd
     public void testConcatenatedFrames()
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames.zst"));
-        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames"));
+        byte[] compressed = readResource("data/zstd/multiple-frames.zst");
+        byte[] uncompressed = readResource("data/zstd/multiple-frames");
 
         byte[] output = new byte[uncompressed.length];
         getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
@@ -91,7 +91,7 @@ public class TestZstd
     public void testInvalidSequenceOffset()
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/offset-before-start.zst"));
+        byte[] compressed = readResource("data/zstd/offset-before-start.zst");
         byte[] output = new byte[compressed.length * 10];
 
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
@@ -107,7 +107,7 @@ public class TestZstd
         // which ended up emitting raw literals due to insufficient gain
         Compressor compressor = getCompressor();
 
-        byte[] original = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/small-literals-after-incompressible-literals"));
+        byte[] original = readResource("data/zstd/small-literals-after-incompressible-literals");
         int maxCompressLength = compressor.maxCompressedLength(original.length);
 
         byte[] compressed = new byte[maxCompressLength];
@@ -127,7 +127,7 @@ public class TestZstd
 
         Compressor compressor = getCompressor();
 
-        byte[] original = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/large-rle"));
+        byte[] original = readResource("data/zstd/large-rle");
         int maxCompressLength = compressor.maxCompressedLength(original.length);
 
         byte[] compressed = new byte[maxCompressLength];
@@ -147,7 +147,7 @@ public class TestZstd
 
         Compressor compressor = getCompressor();
 
-        byte[] original = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/incompressible"));
+        byte[] original = readResource("data/zstd/incompressible");
         int maxCompressLength = compressor.maxCompressedLength(original.length);
 
         byte[] compressed = new byte[maxCompressLength];
@@ -178,6 +178,8 @@ public class TestZstd
 
         int compressedLength = compressor.compress(originalUncompressed, 0, originalUncompressed.length, compressed, 0, compressed.length);
 
+        assertByteArraysEqual(compressed, 0, compressed.length, compressed, 0, compressed.length);
+
         assertEquals(ZstdDecompressor.getDecompressedSize(compressed, 0, compressedLength), originalUncompressed.length);
 
         int padding = 10;
@@ -191,9 +193,8 @@ public class TestZstd
     public void testVerifyMagicInAllFrames()
             throws IOException
     {
-        Compressor compressor = getCompressor();
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/bad-second-frame.zst"));
-        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames"));
+        byte[] compressed = readResource("data/zstd/bad-second-frame.zst");
+        byte[] uncompressed = readResource("data/zstd/multiple-frames");
         byte[] output = new byte[uncompressed.length];
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
                 .isInstanceOf(MalformedInputException.class)
