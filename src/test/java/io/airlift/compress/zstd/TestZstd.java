@@ -26,8 +26,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static io.airlift.compress.Util.readResource;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 
 public class TestZstd

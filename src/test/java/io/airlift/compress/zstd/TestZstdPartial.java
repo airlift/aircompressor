@@ -20,7 +20,6 @@ import io.airlift.compress.MalformedInputException;
 import java.io.IOException;
 
 import static io.airlift.compress.Util.readResource;
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestZstdPartial

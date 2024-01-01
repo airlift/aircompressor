@@ -17,9 +17,9 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public final class Util
 {
@@ -48,7 +48,7 @@ public final class Util
     static Path getResourceAsPath(String path)
     {
         URL url = Util.class.getClassLoader().getResource(path);
-        Objects.requireNonNull(url, path);
+        requireNonNull(url, path);
         return Path.of(url.getFile());
     }
 
