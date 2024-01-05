@@ -133,18 +133,22 @@ public class ZstdOutputStream
     void finishWithoutClosingSource()
             throws IOException
     {
-        writeChunk(true);
-        closed = true;
+        if (!closed) {
+            writeChunk(true);
+            closed = true;
+        }
     }
 
     @Override
     public void close()
             throws IOException
     {
-        writeChunk(true);
+        if (!closed) {
+            writeChunk(true);
 
-        closed = true;
-        outputStream.close();
+            closed = true;
+            outputStream.close();
+        }
     }
 
     private void writeChunk(boolean lastChunk)
