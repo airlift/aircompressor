@@ -120,7 +120,7 @@ public final class SnappyRawDecompressor
                 // copy literal
                 long literalOutputLimit = output + literalLength;
                 if (literalOutputLimit > fastOutputLimit || input + literalLength > inputLimit - SIZE_OF_LONG) {
-                    if (literalOutputLimit > outputLimit) {
+                    if (literalOutputLimit > outputLimit || input + literalLength > inputLimit) {
                         throw new MalformedInputException(input - inputAddress);
                     }
 
@@ -153,6 +153,9 @@ public final class SnappyRawDecompressor
                     throw new MalformedInputException(input - inputAddress);
                 }
                 long matchOutputLimit = output + length;
+                if (matchOutputLimit > outputLimit) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
 
                 if (output > fastOutputLimit) {
                     // slow match copy
@@ -185,10 +188,6 @@ public final class SnappyRawDecompressor
                     }
 
                     if (matchOutputLimit > fastOutputLimit) {
-                        if (matchOutputLimit > outputLimit) {
-                            throw new MalformedInputException(input - inputAddress);
-                        }
-
                         while (output < fastOutputLimit) {
                             UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
                             matchAddress += SIZE_OF_LONG;
