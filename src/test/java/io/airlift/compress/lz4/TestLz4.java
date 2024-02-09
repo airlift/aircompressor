@@ -16,9 +16,17 @@ package io.airlift.compress.lz4;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
+import io.airlift.compress.MalformedInputException;
 import io.airlift.compress.thirdparty.JPountzLz4Compressor;
 import io.airlift.compress.thirdparty.JPountzLz4Decompressor;
 import net.jpountz.lz4.LZ4Factory;
+import org.testng.annotations.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestLz4
         extends AbstractTestCompression
@@ -45,5 +53,46 @@ public class TestLz4
     protected Decompressor getVerifyDecompressor()
     {
         return new JPountzLz4Decompressor(LZ4Factory.fastestInstance());
+    }
+
+    @Test
+    public void testLiteralLengthOverflow()
+            throws IOException
+    {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        buffer.write((byte) 0b1111_0000); // token
+        // Causes overflow for `literalLength`
+        byte[] literalLengthBytes = new byte[Integer.MAX_VALUE / 255 + 1]; // ~9MB
+        Arrays.fill(literalLengthBytes, (byte) 255);
+        buffer.write(literalLengthBytes);
+        buffer.write(1);
+        buffer.write(new byte[20]);
+
+        byte[] data = buffer.toByteArray();
+
+        assertThatThrownBy(() -> new Lz4Decompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
+                .isInstanceOf(MalformedInputException.class);
+    }
+
+    @Test
+    public void testMatchLengthOverflow()
+            throws IOException
+    {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        buffer.write((byte) 0b0000_1111); // token
+        buffer.write(new byte[2]); // offset
+
+        // Causes overflow for `matchLength`
+        byte[] literalLengthBytes = new byte[Integer.MAX_VALUE / 255 + 1]; // ~9MB
+        Arrays.fill(literalLengthBytes, (byte) 255);
+        buffer.write(literalLengthBytes);
+        buffer.write(1);
+
+        buffer.write(new byte[10]);
+
+        byte[] data = buffer.toByteArray();
+
+        assertThatThrownBy(() -> new Lz4Decompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
+                .isInstanceOf(MalformedInputException.class);
     }
 }

@@ -69,6 +69,9 @@ public final class Lz4RawDecompressor
                 }
                 while (value == 255 && input < inputLimit - 15);
             }
+            if (literalLength < 0) {
+                throw new MalformedInputException(input - inputAddress);
+            }
 
             // copy literal
             long literalEnd = input + literalLength;
@@ -127,6 +130,9 @@ public final class Lz4RawDecompressor
                 while (value == 255);
             }
             matchLength += MIN_MATCH; // implicit length from initial 4-byte match in encoder
+            if (matchLength < 0) {
+                throw new MalformedInputException(input - inputAddress);
+            }
 
             long matchOutputLimit = output + matchLength;
 
