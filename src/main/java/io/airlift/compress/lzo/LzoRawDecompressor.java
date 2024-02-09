@@ -248,6 +248,10 @@ public final class LzoRawDecompressor
                 }
                 firstCommand = false;
 
+                if (matchLength < 0) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
+
                 // copy match
                 if (matchLength != 0) {
                     // lzo encodes match offset minus one
@@ -316,6 +320,9 @@ public final class LzoRawDecompressor
                 }
 
                 // copy literal
+                if (literalLength < 0) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
                 long literalOutputLimit = output + literalLength;
                 if (literalOutputLimit > fastOutputLimit || input + literalLength > inputLimit - SIZE_OF_LONG) {
                     if (literalOutputLimit > outputLimit) {

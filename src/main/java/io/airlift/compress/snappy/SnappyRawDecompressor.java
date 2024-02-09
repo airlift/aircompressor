@@ -116,6 +116,9 @@ public final class SnappyRawDecompressor
 
             if ((opCode & 0x3) == LITERAL) {
                 int literalLength = length + trailer;
+                if (literalLength < 0) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
 
                 // copy literal
                 long literalOutputLimit = output + literalLength;
@@ -147,6 +150,9 @@ public final class SnappyRawDecompressor
                 // bit 8).
                 int matchOffset = entry & 0x700;
                 matchOffset += trailer;
+                if (matchOffset < 0) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
 
                 long matchAddress = output - matchOffset;
                 if (matchAddress < outputAddress || output + length > outputLimit) {
