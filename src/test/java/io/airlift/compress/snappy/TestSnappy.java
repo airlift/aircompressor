@@ -67,4 +67,14 @@ public class TestSnappy
         assertThatThrownBy(() -> new SnappyDecompressor().decompress(data, 0, data.length, new byte[1024], 0, 1024))
                 .isInstanceOf(MalformedInputException.class);
     }
+
+    @Test
+    public void testNegativeLength()
+    {
+        byte[] data = {(byte) 255, (byte) 255, (byte) 255, (byte) 255, 0b0000_1000};
+
+        assertThatThrownBy(() -> SnappyDecompressor.getUncompressedLength(data, 0))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageStartingWith("negative compressed length");
+    }
 }
