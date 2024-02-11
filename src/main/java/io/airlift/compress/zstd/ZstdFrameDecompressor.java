@@ -197,6 +197,7 @@ class ZstdFrameDecompressor
 
                 long hash = XxHash64.hash(0, outputBase, outputStart, decodedFrameSize);
 
+                verify(input + SIZE_OF_INT <= inputLimit, input, "Not enough input bytes");
                 int checksum = UNSAFE.getInt(inputBase, input);
                 if (checksum != (int) hash) {
                     throw new MalformedInputException(input, format("Bad checksum. Expected: %s, actual: %s", Integer.toHexString(checksum), Integer.toHexString((int) hash)));
@@ -510,14 +511,15 @@ class ZstdFrameDecompressor
         }
 
         // last literal segment
-        output = copyLastLiteral(outputBase, literalsBase, literalsLimit, output, literalsInput);
+        output = copyLastLiteral(input, literalsBase, literalsInput, literalsLimit, outputBase, output, outputLimit);
 
         return (int) (output - outputAddress);
     }
 
-    private static long copyLastLiteral(Object outputBase, Object literalsBase, long literalsLimit, long output, long literalsInput)
+    private static long copyLastLiteral(long input, Object literalsBase, long literalsInput, long literalsLimit, Object outputBase, long output, long outputLimit)
     {
         long lastLiteralsSize = literalsLimit - literalsInput;
+        verify(output + lastLiteralsSize <= outputLimit, input, "Output buffer too small");
         UNSAFE.copyMemory(literalsBase, literalsInput, outputBase, output, lastLiteralsSize);
         output += lastLiteralsSize;
         return output;
