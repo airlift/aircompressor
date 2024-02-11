@@ -62,6 +62,9 @@ public final class Lz4RawDecompressor
             // decode literal length
             int literalLength = token >>> 4; // top-most 4 bits of token
             if (literalLength == 0xF) {
+                if (input >= inputLimit) {
+                    throw new MalformedInputException(input - inputAddress);
+                }
                 int value;
                 do {
                     value = UNSAFE.getByte(inputBase, input++) & 0xFF;
