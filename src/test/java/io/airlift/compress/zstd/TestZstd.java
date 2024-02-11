@@ -258,6 +258,6 @@ public class TestZstd
 
         assertThatThrownBy(() -> new ZstdDecompressor().decompress(data, 0, data.length, new byte[10], 0, 10))
                 .isInstanceOf(MalformedInputException.class)
-                .hasMessageStartingWith("Input is corrupted");
+                .hasMessageStartingWith("Not enough input bytes");
     }
 }

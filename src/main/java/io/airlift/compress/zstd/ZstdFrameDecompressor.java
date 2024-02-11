@@ -170,17 +170,17 @@ class ZstdFrameDecompressor
                 int decodedSize;
                 switch (blockType) {
                     case RAW_BLOCK:
-                        verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
+                        verify(input + blockSize <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeRawBlock(inputBase, input, blockSize, outputBase, output, outputLimit);
                         input += blockSize;
                         break;
                     case RLE_BLOCK:
-                        verify(inputAddress + 1 <= inputLimit, input, "Not enough input bytes");
+                        verify(input + 1 <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeRleBlock(blockSize, inputBase, input, outputBase, output, outputLimit);
                         input += 1;
                         break;
                     case COMPRESSED_BLOCK:
-                        verify(inputAddress + blockSize <= inputLimit, input, "Not enough input bytes");
+                        verify(input + blockSize <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize, outputAddress);
                         input += blockSize;
                         break;
