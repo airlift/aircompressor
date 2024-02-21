@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.lzo;
 
-import com.google.common.io.Resources;
 import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
@@ -27,6 +26,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 
+import static io.airlift.compress.Util.readResource;
 import static java.lang.String.format;
 import static org.testng.Assert.assertEquals;
 
@@ -96,8 +96,8 @@ public class TestLzopCodec
     private void assertDecompressed(String variant)
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(Resources.getResource(getClass(), format("/data/lzo/test-%s.lzo", variant)));
-        byte[] uncompressed = Resources.toByteArray(Resources.getResource(getClass(), "/data/lzo/test"));
+        byte[] compressed = readResource(format("data/lzo/test-%s.lzo", variant));
+        byte[] uncompressed = readResource("data/lzo/test");
 
         byte[] output = new byte[uncompressed.length];
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
