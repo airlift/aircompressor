@@ -141,7 +141,7 @@
         <dependency>
             <groupId>io.trino.hadoop</groupId>
             <artifactId>hadoop-apache</artifactId>
-            <version>3.2.0-17</version>
+            <version>3.2.0-18</version>
             <scope>provided</scope>
         </dependency>
 
