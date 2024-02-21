@@ -16,9 +16,12 @@ package io.airlift.compress.thirdparty;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+
+import static com.google.common.base.Preconditions.checkPositionIndexes;
 
 public class JdkInflateDecompressor
         implements Decompressor
@@ -27,22 +30,67 @@ public class JdkInflateDecompressor
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
+        checkPositionIndexes(inputOffset, inputOffset + inputLength, input.length);
+        checkPositionIndexes(outputOffset, outputOffset + maxOutputLength, output.length);
+
+        Inflater inflater = new Inflater(true);
         try {
-            Inflater inflater = new Inflater(true);
             inflater.setInput(input, inputOffset, inputLength);
             int resultLength = inflater.inflate(output, outputOffset, maxOutputLength);
-            inflater.end();
+            if (!inflater.finished()) {
+                throw new MalformedInputException(inflater.getBytesRead());
+            }
             return resultLength;
         }
         catch (DataFormatException e) {
             throw new RuntimeException(e);
         }
+        finally {
+            inflater.end();
+        }
     }
 
+    @SuppressWarnings("RedundantCast") // allow running on JDK 8
     @Override
     public void decompress(ByteBuffer input, ByteBuffer output)
             throws MalformedInputException
     {
-        throw new UnsupportedOperationException("not yet implemented");
+        byte[] inputArray;
+        int inputOffset;
+        int inputLength;
+        if (input.hasArray()) {
+            inputArray = input.array();
+            inputOffset = input.arrayOffset() + input.position();
+            inputLength = input.remaining();
+        }
+        else {
+            inputArray = new byte[input.remaining()];
+            inputOffset = 0;
+            inputLength = inputArray.length;
+            input.get(inputArray);
+        }
+
+        byte[] outputArray;
+        int outputOffset;
+        int outputLength;
+        if (output.hasArray()) {
+            outputArray = output.array();
+            outputOffset = output.arrayOffset() + output.position();
+            outputLength = output.remaining();
+        }
+        else {
+            outputArray = new byte[output.remaining()];
+            outputOffset = 0;
+            outputLength = outputArray.length;
+        }
+
+        int written = decompress(inputArray, inputOffset, inputLength, outputArray, outputOffset, outputLength);
+
+        if (output.hasArray()) {
+            ((Buffer) output).position(output.position() + written);
+        }
+        else {
+            output.put(outputArray, outputOffset, written);
+        }
     }
 }

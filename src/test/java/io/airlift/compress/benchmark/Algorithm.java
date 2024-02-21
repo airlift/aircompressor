@@ -38,6 +38,7 @@ import io.airlift.compress.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
+import io.airlift.compress.zlib.InflateDecompressor;
 import io.airlift.compress.zstd.ZstdCompressor;
 import io.airlift.compress.zstd.ZstdDecompressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -50,6 +51,7 @@ public enum Algorithm
     airlift_lz4(new Lz4Decompressor(), new Lz4Compressor()),
     airlift_snappy(new SnappyDecompressor(), new SnappyCompressor()),
     airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
+    airlift_zlib(new InflateDecompressor(), new JdkDeflateCompressor()),
     airlift_zstd(new ZstdDecompressor(), new ZstdCompressor()),
 
     airlift_lz4_stream(new Lz4Codec(), new Lz4Compressor()),
