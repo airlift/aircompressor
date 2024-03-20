@@ -25,7 +25,7 @@ import static io.airlift.compress.zstd.Util.verify;
  * <p>
  * ... [16 17 18 19 20 21 22 23] [8 9 10 11 12 13 14 15] [0 1 2 3 4 5 6 7]
  */
-class BitInputStream
+final class BitInputStream
 {
     private BitInputStream()
     {
@@ -36,7 +36,7 @@ class BitInputStream
         return startAddress == currentAddress && bitsConsumed == Long.SIZE;
     }
 
-    static long readTail(Object inputBase, long inputAddress, int inputSize)
+    private static long readTail(Object inputBase, long inputAddress, int inputSize)
     {
         long bits = UNSAFE.getByte(inputBase, inputAddress) & 0xFF;
 
@@ -59,7 +59,7 @@ class BitInputStream
     }
 
     /**
-     * @return numberOfBits in the low order bits of a long
+     * @return numberOfBits in the low-order bits of a long
      */
     public static long peekBits(int bitsConsumed, long bitContainer, int numberOfBits)
     {
@@ -69,7 +69,7 @@ class BitInputStream
     /**
      * numberOfBits must be > 0
      *
-     * @return numberOfBits in the low order bits of a long
+     * @return numberOfBits in the low-order bits of a long
      */
     public static long peekBitsFast(int bitsConsumed, long bitContainer, int numberOfBits)
     {

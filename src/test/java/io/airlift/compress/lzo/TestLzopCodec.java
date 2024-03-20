@@ -96,8 +96,8 @@ class TestLzopCodec
     private void assertDecompressed(String variant)
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(Resources.getResource(getClass(), format("/data/lzo/test-%s.lzo", variant)));
-        byte[] uncompressed = Resources.toByteArray(Resources.getResource(getClass(), "/data/lzo/test"));
+        byte[] compressed = Resources.toByteArray(Resources.getResource(format("data/lzo/test-%s.lzo", variant)));
+        byte[] uncompressed = Resources.toByteArray(Resources.getResource("data/lzo/test"));
 
         byte[] output = new byte[uncompressed.length];
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);

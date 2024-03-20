@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -116,7 +115,7 @@ class TestSnappyStream
     @Test
     void testShortBlockHeader()
     {
-        assertThatThrownBy(() -> uncompressBlock(new byte[] {0}))
+        assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {0})))
                 .isInstanceOf(EOFException.class)
                 .hasMessageContaining("block header");
     }
@@ -125,7 +124,7 @@ class TestSnappyStream
     void testShortBlockData()
     {
         // flag = 0, size = 8, crc32c = 0, block data= [x, x]
-        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 8, 0, 0, 0, 0, 0, 0, 'x', 'x'}))
+        assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {1, 8, 0, 0, 0, 0, 0, 0, 'x', 'x'})))
                 .isInstanceOf(EOFException.class)
                 .hasMessageContaining("reading frame");
     }
@@ -135,7 +134,7 @@ class TestSnappyStream
     {
         for (int i = 2; i <= 0x7f; i++) {
             int value = i;
-            assertThatThrownBy(() -> uncompressBlock(new byte[] {(byte) value, 5, 0, 0, 0, 0, 0, 0, 0}))
+            assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {(byte) value, 5, 0, 0, 0, 0, 0, 0, 0})))
                     .isInstanceOf(IOException.class);
         }
     }
@@ -145,7 +144,7 @@ class TestSnappyStream
     {
         for (int i = 0x80; i <= 0xfe; i++) {
             try {
-                uncompressBlock(new byte[] {(byte) i, 5, 0, 0, 0, 0, 0, 0, 0});
+                uncompress(blockToStream(new byte[] {(byte) i, 5, 0, 0, 0, 0, 0, 0, 0}));
             }
             catch (IOException e) {
                 throw new AssertionError("exception thrown with flag: " + Integer.toHexString(i), e);
@@ -157,7 +156,7 @@ class TestSnappyStream
     void testInvalidBlockSizeZero()
     {
         // flag = '0', block size = 4, crc32c = 0
-        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 4, 0, 0, 0, 0, 0, 0}))
+        assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {1, 4, 0, 0, 0, 0, 0, 0})))
                 .isInstanceOf(IOException.class)
                 .hasMessageMatching(".*invalid length.*4.*");
     }
@@ -166,7 +165,7 @@ class TestSnappyStream
     void testInvalidChecksum()
     {
         // flag = 0, size = 5, crc32c = 0, block data = [a]
-        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 5, 0, 0, 0, 0, 0, 0, 'a'}))
+        assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {1, 5, 0, 0, 0, 0, 0, 0, 'a'})))
                 .isInstanceOf(IOException.class)
                 .hasMessage("Corrupt input: invalid checksum");
     }
@@ -270,12 +269,6 @@ class TestSnappyStream
         byte[] uncompressed = uncompress(stream);
 
         assertThat(random).isEqualTo(uncompressed);
-    }
-
-    private static byte[] uncompressBlock(byte[] block)
-            throws IOException
-    {
-        return uncompress(blockToStream(block));
     }
 
     private static byte[] blockToStream(byte[] block)
@@ -499,15 +492,4 @@ class TestSnappyStream
     {
         return toByteArray(new SnappyFramedInputStream(new ByteArrayInputStream(compressed)));
     }
-
-    private static File[] getTestFiles()
-    {
-        File[] testFiles = TEST_DATA_DIR.listFiles();
-        assertThat(testFiles != null && testFiles.length > 0)
-                .withFailMessage("No test files at " + TEST_DATA_DIR.getAbsolutePath())
-                .isTrue();
-        return testFiles;
-    }
-
-    private static final File TEST_DATA_DIR = new File("testdata");
 }

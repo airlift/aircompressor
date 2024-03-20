@@ -17,7 +17,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
 import static io.airlift.compress.zstd.Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 
-class HuffmanCompressor
+final class HuffmanCompressor
 {
     private HuffmanCompressor()
     {

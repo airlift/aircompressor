@@ -24,6 +24,7 @@ class DoubleFastBlockCompressor
     private static final int SEARCH_STRENGTH = 8;
     private static final int REP_MOVE = Constants.REPEATED_OFFSET_COUNT - 1;
 
+    @Override
     public int compressBlock(Object inputBase, final long inputAddress, int inputSize, SequenceStore output, BlockCompressionState state, RepeatedOffsets offsets, CompressionParameters parameters)
     {
         int matchSearchLength = Math.max(parameters.getSearchLength(), 4);

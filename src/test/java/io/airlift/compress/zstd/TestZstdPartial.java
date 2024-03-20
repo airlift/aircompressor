@@ -20,7 +20,6 @@ import io.airlift.compress.MalformedInputException;
 
 import java.io.IOException;
 
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestZstdPartial
@@ -60,7 +59,7 @@ class TestZstdPartial
     public void testInvalidSequenceOffset()
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(requireNonNull(getClass().getClassLoader().getResource("data/zstd/offset-before-start.zst")));
+        byte[] compressed = Resources.toByteArray(Resources.getResource("data/zstd/offset-before-start.zst"));
         byte[] output = new byte[compressed.length * 10];
 
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))

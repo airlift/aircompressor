@@ -17,7 +17,7 @@ import static io.airlift.compress.zstd.Constants.SIZE_OF_LONG;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-class SequenceStore
+final class SequenceStore
 {
     public final byte[] literalsBuffer;
     public int literalsLength;
