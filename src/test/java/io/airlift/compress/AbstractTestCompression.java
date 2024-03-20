@@ -14,13 +14,12 @@
 package io.airlift.compress;
 
 import com.google.common.primitives.Bytes;
+import com.google.inject.Inject;
 import io.airlift.compress.benchmark.DataSet;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Guice;
 import org.testng.annotations.Test;
-
-import javax.inject.Inject;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
