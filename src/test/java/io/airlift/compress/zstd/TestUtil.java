@@ -64,17 +64,5 @@ class TestUtil
         assertThat(outputBase).isEqualTo(testData.bytes);
     }
 
-    private static class TestData
-    {
-        final byte[] bytes;
-        final int offset;
-        final int value;
-
-        public TestData(byte[] bytes, int offset, int value)
-        {
-            this.bytes = bytes;
-            this.offset = offset;
-            this.value = value;
-        }
-    }
+    private record TestData(byte[] bytes, int offset, int value) {}
 }

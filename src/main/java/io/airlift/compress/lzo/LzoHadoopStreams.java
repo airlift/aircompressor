@@ -21,15 +21,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
-import static java.util.Arrays.asList;
-import static java.util.Collections.unmodifiableList;
-
 public class LzoHadoopStreams
         implements HadoopStreams
 {
-    private static final List<String> HADOOP_CODEC_NAMES = unmodifiableList(asList(
-            "org.apache.hadoop.io.compress.LzoCodec",
-            "com.hadoop.compression.lzo.LzoCodec"));
+    private static final List<String> HADOOP_CODEC_NAMES = List.of("org.apache.hadoop.io.compress.LzoCodec", "com.hadoop.compression.lzo.LzoCodec");
     private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 256 * 1024;
 
     private final int bufferSize;
