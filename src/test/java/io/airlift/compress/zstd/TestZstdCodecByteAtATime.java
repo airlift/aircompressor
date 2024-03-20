@@ -77,8 +77,8 @@ class TestZstdCodecByteAtATime
     void testConcatenatedFrames()
             throws IOException
     {
-        byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames.zst"));
-        byte[] uncompressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames"));
+        byte[] compressed = Resources.toByteArray(Resources.getResource("data/zstd/multiple-frames.zst"));
+        byte[] uncompressed = Resources.toByteArray(Resources.getResource("data/zstd/multiple-frames"));
 
         byte[] output = new byte[uncompressed.length];
         getVerifyDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);

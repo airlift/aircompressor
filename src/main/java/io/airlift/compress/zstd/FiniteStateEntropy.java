@@ -22,7 +22,7 @@ import static io.airlift.compress.zstd.Util.checkArgument;
 import static io.airlift.compress.zstd.Util.verify;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-class FiniteStateEntropy
+final class FiniteStateEntropy
 {
     public static final int MAX_SYMBOL = 255;
     public static final int MAX_TABLE_LOG = 12;

@@ -22,6 +22,7 @@ public class MockJdkDeflateCompressor
 {
     private static final int OVERHEAD = 128;
 
+    @Override
     public int maxCompressedLength(int uncompressedSize)
     {
         return uncompressedSize + OVERHEAD;

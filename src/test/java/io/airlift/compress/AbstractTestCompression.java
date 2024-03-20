@@ -562,13 +562,13 @@ public abstract class AbstractTestCompression
         if (expected.remaining() > 1) {
             ByteBuffer duplicate = expected.duplicate();
             duplicate.get(); // skip one byte
-            compressor.compress(duplicate, ByteBuffer.allocate(((Buffer) compressed).remaining()));
+            compressor.compress(duplicate, ByteBuffer.allocate(compressed.remaining()));
         }
 
         compressor.compress(expected.duplicate(), compressed);
         ((Buffer) compressed).flip();
 
-        ByteBuffer uncompressed = ByteBuffer.allocate(((Buffer) expected).remaining());
+        ByteBuffer uncompressed = ByteBuffer.allocate(expected.remaining());
 
         // TODO: validate with "control" decompressor
         getDecompressor().decompress(compressed, uncompressed);

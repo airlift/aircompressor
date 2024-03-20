@@ -21,7 +21,7 @@ import java.util.zip.Checksum;
  * and implemented on many Intel chipsets supporting SSE4.2.
  */
 // this code was taken from Apache Hadoop
-class Crc32C
+final class Crc32C
         implements Checksum
 {
     private static final int MASK_DELTA = 0xa282ead8;
@@ -126,6 +126,7 @@ class Crc32C
         crc = localCrc;
     }
 
+    @Override
     public void update(int b)
     {
         crc = (crc >>> 8) ^ T8_0[(crc ^ b) & 0xff];

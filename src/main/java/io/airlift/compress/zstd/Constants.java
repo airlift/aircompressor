@@ -13,7 +13,7 @@
  */
 package io.airlift.compress.zstd;
 
-class Constants
+final class Constants
 {
     public static final int SIZE_OF_BYTE = 1;
     public static final int SIZE_OF_SHORT = 2;

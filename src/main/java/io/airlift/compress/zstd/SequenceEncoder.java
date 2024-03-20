@@ -31,7 +31,7 @@ import static io.airlift.compress.zstd.FiniteStateEntropy.optimalTableLog;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.zstd.Util.checkArgument;
 
-class SequenceEncoder
+final class SequenceEncoder
 {
     private static final int DEFAULT_LITERAL_LENGTH_NORMALIZED_COUNTS_LOG = 6;
     private static final short[] DEFAULT_LITERAL_LENGTH_NORMALIZED_COUNTS = {4, 3, 2, 2, 2, 2, 2, 2,

@@ -18,7 +18,7 @@ import java.util.Arrays;
 import static io.airlift.compress.zstd.UnsafeUtil.UNSAFE;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-class Histogram
+final class Histogram
 {
     private Histogram()
     {
