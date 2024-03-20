@@ -1,25 +1,25 @@
-name: CI
+name: ci
 
-on: [push, pull_request]
+on:
+  - push
+  - pull_request
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        java: ['8', '11', '17']
+        java-version:
+          - 8
+          - 21
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup test JDK ${{ matrix.java }}
-        uses: actions/setup-java@v3
+      - uses: actions/checkout@v1
+      - uses: actions/setup-java@v3
         with:
-          distribution: 'zulu'
-          java-version: ${{ matrix.java }}
-      - run: echo "test_java_home=$JAVA_HOME" >> $GITHUB_ENV
-      - name: Setup build JDK 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: 17
-      - name: Maven Test
-        run: mvn install -V -P ci -B -Dtest_java_home=${{ env.test_java_home }}
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
+      - name: Maven Install
+        run: mvn install -B -V -DskipTests -Dair.check.skip-all
+      - name: Maven Tests
+        run: mvn install -B -P ci
