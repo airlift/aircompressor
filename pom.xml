@@ -65,13 +65,13 @@
         <dependency>
             <groupId>io.trino.hadoop</groupId>
             <artifactId>hadoop-apache</artifactId>
-            <version>3.2.0-17</version>
+            <version>3.3.5-1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.2-1</version>
+            <version>1.5.5-11</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -139,7 +139,7 @@
         <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>
-            <version>1.1.8.4</version>
+            <version>1.1.10.5</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
