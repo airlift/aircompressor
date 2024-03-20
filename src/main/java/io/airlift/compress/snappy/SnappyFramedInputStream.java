@@ -315,10 +315,6 @@ public final class SnappyFramedInputStream
         final int length;
         final FrameAction frameAction;
 
-        /**
-         * @param frameAction
-         * @param length
-         */
         public FrameMetaData(FrameAction frameAction, int length)
         {
             this.frameAction = frameAction;
