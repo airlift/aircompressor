@@ -23,7 +23,7 @@ import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-public class TestLz4CodecByteAtATime
+class TestLz4CodecByteAtATime
         extends AbstractTestCompression
 {
     static {
@@ -32,7 +32,7 @@ public class TestLz4CodecByteAtATime
 
     private final CompressionCodec verifyCodec;
 
-    public TestLz4CodecByteAtATime()
+    TestLz4CodecByteAtATime()
     {
         org.apache.hadoop.io.compress.Lz4Codec codec = new org.apache.hadoop.io.compress.Lz4Codec();
         codec.setConf(new Configuration());

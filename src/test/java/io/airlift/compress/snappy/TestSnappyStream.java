@@ -14,9 +14,9 @@
 package io.airlift.compress.snappy;
 
 import com.google.common.base.Charsets;
-import io.airlift.compress.TestingModule;
+import io.airlift.compress.TestingData;
 import io.airlift.compress.benchmark.DataSet;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,36 +26,34 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.List;
 
 import static com.google.common.io.ByteStreams.toByteArray;
 import static com.google.common.primitives.UnsignedBytes.toInt;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the functionality of {@link org.iq80.snappy.SnappyFramedInputStream}
  * and {@link org.iq80.snappy.SnappyFramedOutputStream}.
  */
-public class TestSnappyStream
+class TestSnappyStream
 {
-    protected static byte[] getRandom(double compressionRatio, int length)
+    static byte[] getRandom(double compressionRatio, int length)
     {
         RandomGenerator gen = new RandomGenerator(compressionRatio);
         gen.getNextPosition(length);
         byte[] random = Arrays.copyOf(gen.data, length);
-        assertEquals(random.length, length);
+        assertThat(random).hasSize(length);
         return random;
     }
 
-    protected byte[] getMarkerFrame()
+    static byte[] getMarkerFrame()
     {
         return SnappyFramed.HEADER_BYTES;
     }
 
     @Test
-    public void testSimple()
+    void testSimple()
             throws Exception
     {
         byte[] original = "aaaaaaaaaaaabbbbbbbaaaaaa".getBytes(Charsets.UTF_8);
@@ -63,30 +61,30 @@ public class TestSnappyStream
         byte[] compressed = compress(original);
         byte[] uncompressed = uncompress(compressed);
 
-        assertEquals(uncompressed, original);
+        assertThat(uncompressed).isEqualTo(original);
         // 10 byte stream header, 4 byte block header, 4 byte crc, 19 bytes
-        assertEquals(compressed.length, 37);
+        assertThat(compressed).hasSize(37);
 
         // stream header
-        assertEquals(Arrays.copyOf(compressed, 10), SnappyFramed.HEADER_BYTES);
+        assertThat(Arrays.copyOf(compressed, 10)).isEqualTo(SnappyFramed.HEADER_BYTES);
 
         // flag: compressed
-        assertEquals(toInt(compressed[10]), SnappyFramed.COMPRESSED_DATA_FLAG);
+        assertThat(toInt(compressed[10])).isEqualTo(SnappyFramed.COMPRESSED_DATA_FLAG);
 
         // length: 23 = 0x000017
-        assertEquals(toInt(compressed[11]), 0x17);
-        assertEquals(toInt(compressed[12]), 0x00);
-        assertEquals(toInt(compressed[13]), 0x00);
+        assertThat(toInt(compressed[11])).isEqualTo(0x17);
+        assertThat(toInt(compressed[12])).isEqualTo(0x00);
+        assertThat(toInt(compressed[13])).isEqualTo(0x00);
 
         // crc32c: 0x9274cda8
-        assertEquals(toInt(compressed[17]), 0x92);
-        assertEquals(toInt(compressed[16]), 0x74);
-        assertEquals(toInt(compressed[15]), 0xCD);
-        assertEquals(toInt(compressed[14]), 0xA8);
+        assertThat(toInt(compressed[17])).isEqualTo(0x92);
+        assertThat(toInt(compressed[16])).isEqualTo(0x74);
+        assertThat(toInt(compressed[15])).isEqualTo(0xCD);
+        assertThat(toInt(compressed[14])).isEqualTo(0xA8);
     }
 
     @Test
-    public void testUncompressible()
+    void testUncompressible()
             throws Exception
     {
         byte[] random = getRandom(1, 5000);
@@ -94,98 +92,97 @@ public class TestSnappyStream
         byte[] compressed = compress(random);
         byte[] uncompressed = uncompress(compressed);
 
-        assertEquals(uncompressed, random);
-        assertEquals(compressed.length, random.length + 10 + 4 + 4);
+        assertThat(uncompressed).isEqualTo(random);
+        assertThat(compressed).hasSize(random.length + 10 + 4 + 4);
 
         // flag: uncompressed
-        assertEquals(toInt(compressed[10]), SnappyFramed.UNCOMPRESSED_DATA_FLAG);
+        assertThat(toInt(compressed[10])).isEqualTo(SnappyFramed.UNCOMPRESSED_DATA_FLAG);
 
         // length: 5004 = 0x138c
-        assertEquals(toInt(compressed[13]), 0x00);
-        assertEquals(toInt(compressed[12]), 0x13);
-        assertEquals(toInt(compressed[11]), 0x8c);
+        assertThat(toInt(compressed[13])).isEqualTo(0x00);
+        assertThat(toInt(compressed[12])).isEqualTo(0x13);
+        assertThat(toInt(compressed[11])).isEqualTo(0x8c);
     }
 
     @Test
-    public void testEmptyCompression()
+    void testEmptyCompression()
             throws Exception
     {
         byte[] empty = new byte[0];
-        assertEquals(compress(empty), SnappyFramed.HEADER_BYTES);
-        assertEquals(uncompress(SnappyFramed.HEADER_BYTES), empty);
-    }
-
-    @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*block header.*")
-    public void testShortBlockHeader()
-            throws Exception
-    {
-        uncompressBlock(new byte[] {0});
-    }
-
-    @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*reading frame.*")
-    public void testShortBlockData()
-            throws Exception
-    {
-        // flag = 0, size = 8, crc32c = 0, block data= [x, x]
-        uncompressBlock(new byte[] {1, 8, 0, 0, 0, 0, 0, 0, 'x', 'x'});
+        assertThat(compress(empty)).isEqualTo(SnappyFramed.HEADER_BYTES);
+        assertThat(uncompress(SnappyFramed.HEADER_BYTES)).isEqualTo(empty);
     }
 
     @Test
-    public void testUnskippableChunkFlags()
-            throws Exception
+    void testShortBlockHeader()
+    {
+        assertThatThrownBy(() -> uncompressBlock(new byte[] {0}))
+                .isInstanceOf(EOFException.class)
+                .hasMessageContaining("block header");
+    }
+
+    @Test
+    void testShortBlockData()
+    {
+        // flag = 0, size = 8, crc32c = 0, block data= [x, x]
+        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 8, 0, 0, 0, 0, 0, 0, 'x', 'x'}))
+                .isInstanceOf(EOFException.class)
+                .hasMessageContaining("reading frame");
+    }
+
+    @Test
+    void testUnskippableChunkFlags()
     {
         for (int i = 2; i <= 0x7f; i++) {
-            try {
-                uncompressBlock(new byte[] {(byte) i, 5, 0, 0, 0, 0, 0, 0, 0});
-                fail("no exception thrown with flag: " + Integer.toHexString(i));
-            }
-            catch (IOException expected) {
-            }
+            int value = i;
+            assertThatThrownBy(() -> uncompressBlock(new byte[] {(byte) value, 5, 0, 0, 0, 0, 0, 0, 0}))
+                    .isInstanceOf(IOException.class);
         }
     }
 
     @Test
-    public void testSkippableChunkFlags()
-            throws Exception
+    void testSkippableChunkFlags()
     {
         for (int i = 0x80; i <= 0xfe; i++) {
             try {
                 uncompressBlock(new byte[] {(byte) i, 5, 0, 0, 0, 0, 0, 0, 0});
             }
             catch (IOException e) {
-                fail("exception thrown with flag: " + Integer.toHexString(i), e);
+                throw new AssertionError("exception thrown with flag: " + Integer.toHexString(i), e);
             }
         }
     }
 
-    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "invalid length.*4.*")
-    public void testInvalidBlockSizeZero()
-            throws Exception
+    @Test
+    void testInvalidBlockSizeZero()
     {
         // flag = '0', block size = 4, crc32c = 0
-        uncompressBlock(new byte[] {1, 4, 0, 0, 0, 0, 0, 0});
-    }
-
-    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = "Corrupt input: invalid checksum")
-    public void testInvalidChecksum()
-            throws Exception
-    {
-        // flag = 0, size = 5, crc32c = 0, block data = [a]
-        uncompressBlock(new byte[] {1, 5, 0, 0, 0, 0, 0, 0, 'a'});
+        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 4, 0, 0, 0, 0, 0, 0}))
+                .isInstanceOf(IOException.class)
+                .hasMessageMatching(".*invalid length.*4.*");
     }
 
     @Test
-    public void testInvalidChecksumIgnoredWhenVerificationDisabled()
+    void testInvalidChecksum()
+    {
+        // flag = 0, size = 5, crc32c = 0, block data = [a]
+        assertThatThrownBy(() -> uncompressBlock(new byte[] {1, 5, 0, 0, 0, 0, 0, 0, 'a'}))
+                .isInstanceOf(IOException.class)
+                .hasMessage("Corrupt input: invalid checksum");
+    }
+
+    @Test
+    void testInvalidChecksumIgnoredWhenVerificationDisabled()
             throws Exception
     {
         // flag = 0, size = 4, crc32c = 0, block data = [a]
         byte[] block = {1, 5, 0, 0, 0, 0, 0, 0, 'a'};
         ByteArrayInputStream inputData = new ByteArrayInputStream(blockToStream(block));
-        assertEquals(toByteArray(new SnappyFramedInputStream(inputData, false)), new byte[] {'a'});
+        assertThat(toByteArray(new SnappyFramedInputStream(inputData, false))).isEqualTo(new byte[] {'a'});
     }
 
     @Test
-    public void testLargerFrames_raw_()
+    void testLargerFrames_raw_()
             throws IOException
     {
         byte[] random = getRandom(0.5, 100000);
@@ -210,11 +207,11 @@ public class TestSnappyStream
 
         byte[] uncompressed = uncompress(stream);
 
-        assertEquals(random, uncompressed);
+        assertThat(random).isEqualTo(uncompressed);
     }
 
     @Test
-    public void testLargerFrames_compressed_()
+    void testLargerFrames_compressed_()
             throws IOException
     {
         byte[] random = getRandom(0.5, 500000);
@@ -241,11 +238,11 @@ public class TestSnappyStream
 
         byte[] uncompressed = uncompress(stream);
 
-        assertEquals(random, uncompressed);
+        assertThat(random).isEqualTo(uncompressed);
     }
 
     @Test
-    public void testLargerFrames_compressed_smaller_raw_larger()
+    void testLargerFrames_compressed_smaller_raw_larger()
             throws IOException
     {
         byte[] random = getRandom(0.5, 100000);
@@ -272,10 +269,10 @@ public class TestSnappyStream
 
         byte[] uncompressed = uncompress(stream);
 
-        assertEquals(random, uncompressed);
+        assertThat(random).isEqualTo(uncompressed);
     }
 
-    private byte[] uncompressBlock(byte[] block)
+    private static byte[] uncompressBlock(byte[] block)
             throws IOException
     {
         return uncompress(blockToStream(block));
@@ -290,7 +287,7 @@ public class TestSnappyStream
     }
 
     @Test
-    public void testLargeWrites()
+    void testLargeWrites()
             throws Exception
     {
         byte[] random = getRandom(0.5, 500000);
@@ -308,11 +305,11 @@ public class TestSnappyStream
         // get compressed data
         snappyOut.close();
         byte[] compressed = out.toByteArray();
-        assertTrue(compressed.length < random.length);
+        assertThat(compressed.length < random.length).isTrue();
 
         // decompress
         byte[] uncompressed = uncompress(compressed);
-        assertEquals(uncompressed, random);
+        assertThat(uncompressed).isEqualTo(random);
 
         // decompress byte at a time
         InputStream in = new SnappyFramedInputStream(new ByteArrayInputStream(compressed), true);
@@ -321,12 +318,12 @@ public class TestSnappyStream
         while ((c = in.read()) != -1) {
             uncompressed[i++] = (byte) c;
         }
-        assertEquals(i, random.length);
-        assertEquals(uncompressed, random);
+        assertThat(i).isEqualTo(random.length);
+        assertThat(uncompressed).isEqualTo(random);
     }
 
     @Test
-    public void testSingleByteWrites()
+    void testSingleByteWrites()
             throws Exception
     {
         byte[] random = getRandom(0.5, 500000);
@@ -340,14 +337,14 @@ public class TestSnappyStream
 
         snappyOut.close();
         byte[] compressed = out.toByteArray();
-        assertTrue(compressed.length < random.length);
+        assertThat(compressed.length < random.length).isTrue();
 
         byte[] uncompressed = uncompress(compressed);
-        assertEquals(uncompressed, random);
+        assertThat(uncompressed).isEqualTo(random);
     }
 
     @Test
-    public void testExtraFlushes()
+    void testExtraFlushes()
             throws Exception
     {
         byte[] random = getRandom(0.5, 500000);
@@ -363,14 +360,14 @@ public class TestSnappyStream
 
         snappyOut.close();
         byte[] compressed = out.toByteArray();
-        assertTrue(compressed.length < random.length);
+        assertThat(compressed.length < random.length).isTrue();
 
         byte[] uncompressed = uncompress(compressed);
-        assertEquals(uncompressed, random);
+        assertThat(uncompressed).isEqualTo(random);
     }
 
     @Test
-    public void testUncompressibleRange()
+    void testUncompressibleRange()
             throws Exception
     {
         int max = 128 * 1024;
@@ -382,40 +379,41 @@ public class TestSnappyStream
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
 
-            assertEquals(uncompressed, original);
+            assertThat(uncompressed).isEqualTo(original);
             // assertEquals(compressed.length, original.length + overhead);
         }
     }
 
     @Test
-    public void testByteForByteTestData()
+    void testByteForByteTestData()
             throws Exception
     {
-        List<DataSet> dataSets = new TestingModule().dataSets();
-        for (DataSet dataSet : dataSets) {
+        for (DataSet dataSet : TestingData.DATA_SETS) {
             byte[] original = dataSet.getUncompressed();
             byte[] compressed = compress(original);
             byte[] uncompressed = uncompress(compressed);
-            assertEquals(uncompressed, original);
+            assertThat(uncompressed).isEqualTo(original);
         }
     }
 
-    @Test(expectedExceptions = EOFException.class, expectedExceptionsMessageRegExp = ".*stream header.*")
-    public void testEmptyStream()
-            throws Exception
+    @Test
+    void testEmptyStream()
     {
-        uncompress(new byte[0]);
-    }
-
-    @Test(expectedExceptions = IOException.class, expectedExceptionsMessageRegExp = ".*stream header.*")
-    public void testInvalidStreamHeader()
-            throws Exception
-    {
-        uncompress(new byte[] {'b', 0, 0, 'g', 'u', 's', 0});
+        assertThatThrownBy(() -> uncompress(new byte[0]))
+                .isInstanceOf(EOFException.class)
+                .hasMessageContaining("stream header");
     }
 
     @Test
-    public void testCloseIsIdempotent()
+    void testInvalidStreamHeader()
+    {
+        assertThatThrownBy(() -> uncompress(new byte[] {'b', 0, 0, 'g', 'u', 's', 0}))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("stream header");
+    }
+
+    @Test
+    void testCloseIsIdempotent()
             throws Exception
     {
         byte[] random = getRandom(0.5, 500000);
@@ -432,7 +430,7 @@ public class TestSnappyStream
 
         InputStream snappyIn = new SnappyFramedInputStream(new ByteArrayInputStream(compressed), true);
         byte[] uncompressed = toByteArray(snappyIn);
-        assertEquals(uncompressed, random);
+        assertThat(uncompressed).isEqualTo(random);
 
         snappyIn.close();
         snappyIn.close();
@@ -443,7 +441,7 @@ public class TestSnappyStream
      * anywhere in stream.
      */
     @Test
-    public void testMarkerFrameInStream()
+    void testMarkerFrameInStream()
             throws IOException
     {
         int size = 500000;
@@ -474,10 +472,10 @@ public class TestSnappyStream
         byte[] compressed = out.toByteArray();
         byte[] uncompressed = uncompress(compressed);
 
-        assertEquals(random, uncompressed);
+        assertThat(random).isEqualTo(uncompressed);
     }
 
-    public static byte[] blockCompress(byte[] data)
+    private static byte[] blockCompress(byte[] data)
     {
         SnappyCompressor compressor = new SnappyCompressor();
         byte[] compressedOut = new byte[compressor.maxCompressedLength(data.length)];
@@ -502,10 +500,12 @@ public class TestSnappyStream
         return toByteArray(new SnappyFramedInputStream(new ByteArrayInputStream(compressed)));
     }
 
-    static File[] getTestFiles()
+    private static File[] getTestFiles()
     {
         File[] testFiles = TEST_DATA_DIR.listFiles();
-        assertTrue(testFiles != null && testFiles.length > 0, "No test files at " + TEST_DATA_DIR.getAbsolutePath());
+        assertThat(testFiles != null && testFiles.length > 0)
+                .withFailMessage("No test files at " + TEST_DATA_DIR.getAbsolutePath())
+                .isTrue();
         return testFiles;
     }
 

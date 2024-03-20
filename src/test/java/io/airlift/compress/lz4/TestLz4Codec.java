@@ -22,7 +22,7 @@ import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-public class TestLz4Codec
+class TestLz4Codec
         extends AbstractTestCompression
 {
     static {
@@ -31,7 +31,7 @@ public class TestLz4Codec
 
     private final CompressionCodec verifyCodec;
 
-    public TestLz4Codec()
+    TestLz4Codec()
     {
         org.apache.hadoop.io.compress.Lz4Codec codec = new org.apache.hadoop.io.compress.Lz4Codec();
         codec.setConf(new Configuration());

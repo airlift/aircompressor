@@ -21,8 +21,7 @@ import java.nio.ByteBuffer;
 import static java.lang.String.format;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Objects.requireNonNull;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdPartialDecompressor
@@ -37,10 +36,10 @@ public class ZstdPartialDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        assertEquals(decompressor.getInputRequired(), 0);
-        assertEquals(decompressor.getRequestedOutputSize(), 0);
-        assertEquals(decompressor.getInputConsumed(), 0);
-        assertEquals(decompressor.getOutputBufferUsed(), 0);
+        assertThat(decompressor.getInputRequired()).isEqualTo(0);
+        assertThat(decompressor.getRequestedOutputSize()).isEqualTo(0);
+        assertThat(decompressor.getInputConsumed()).isEqualTo(0);
+        assertThat(decompressor.getOutputBufferUsed()).isEqualTo(0);
 
         int inputPosition = inputOffset;
         final int inputLimit = inputOffset + inputLength;
@@ -76,12 +75,12 @@ public class ZstdPartialDecompressor
             // copy output chunk to output
             int outputBufferUsed = decompressor.getOutputBufferUsed();
             if (outputBufferUsed > 0) {
-                assertTrue(outputPosition + outputBufferUsed <= outputLimit);
+                assertThat(outputPosition + outputBufferUsed <= outputLimit).isTrue();
                 System.arraycopy(outputBuffer, 0, output, outputPosition, outputBufferUsed);
                 outputPosition += outputBufferUsed;
             }
 
-            assertTrue(decompressor.getInputConsumed() <= inputChunk.length);
+            assertThat(decompressor.getInputConsumed() <= inputChunk.length).isTrue();
             inputPosition += decompressor.getInputConsumed();
         }
         return outputPosition - outputOffset;

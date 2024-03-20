@@ -23,11 +23,11 @@ import io.airlift.compress.HadoopCodecDecompressorByteAtATime;
 import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-public class TestZstdCodecByteAtATime
+class TestZstdCodecByteAtATime
         extends AbstractTestCompression
 {
     static {
@@ -36,7 +36,7 @@ public class TestZstdCodecByteAtATime
 
     private final CompressionCodec verifyCodec;
 
-    public TestZstdCodecByteAtATime()
+    TestZstdCodecByteAtATime()
     {
         org.apache.hadoop.io.compress.ZStandardCodec codec = new org.apache.hadoop.io.compress.ZStandardCodec();
         codec.setConf(new Configuration());
@@ -74,7 +74,7 @@ public class TestZstdCodecByteAtATime
     }
 
     @Test
-    public void testConcatenatedFrames()
+    void testConcatenatedFrames()
             throws IOException
     {
         byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames.zst"));

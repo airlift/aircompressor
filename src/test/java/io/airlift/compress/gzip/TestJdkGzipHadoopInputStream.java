@@ -14,7 +14,7 @@
 package io.airlift.compress.gzip;
 
 import com.google.common.io.ByteStreams;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,10 +26,10 @@ import java.util.zip.GZIPOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestJdkGzipHadoopInputStream
+class TestJdkGzipHadoopInputStream
 {
     @Test
-    public void testGzipInputStreamBug()
+    void testGzipInputStreamBug()
             throws IOException
     {
         byte[] part1 = zip("hello ".getBytes());
