@@ -20,7 +20,7 @@ import io.airlift.compress.HadoopNative;
 import io.airlift.compress.MalformedInputException;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -59,7 +59,7 @@ public class TestLzo
     }
 
     @Test
-    public void testLiteralLengthOverflow()
+    void testLiteralLengthOverflow()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -76,7 +76,7 @@ public class TestLzo
     }
 
     @Test
-    public void testMatchLengthOverflow1()
+    void testMatchLengthOverflow1()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -105,7 +105,7 @@ public class TestLzo
     }
 
     @Test
-    public void testMatchLengthOverflow2()
+    void testMatchLengthOverflow2()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

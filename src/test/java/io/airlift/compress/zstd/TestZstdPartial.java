@@ -23,7 +23,7 @@ import java.io.IOException;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestZstdPartial
+class TestZstdPartial
         extends TestZstd
 {
     @Override

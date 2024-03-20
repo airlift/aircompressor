@@ -17,14 +17,13 @@ import com.google.common.io.Resources;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
-import io.airlift.compress.benchmark.DataSet;
 
 import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestZstdStream
+class TestZstdStream
         extends TestZstd
 {
     @Override
@@ -70,7 +69,7 @@ public class TestZstdStream
     }
 
     @Override
-    public void testGetDecompressedSize(DataSet dataSet)
+    public void testGetDecompressedSize()
     {
         // streaming does not publish the size
     }

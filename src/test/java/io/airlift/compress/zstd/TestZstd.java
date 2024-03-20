@@ -18,18 +18,19 @@ import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.TestingData;
 import io.airlift.compress.benchmark.DataSet;
 import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.testng.Assert.assertEquals;
 
 public class TestZstd
         extends AbstractTestCompression
@@ -61,7 +62,7 @@ public class TestZstd
     // Ideally, this should be covered by super.testDecompressWithOutputPadding(...), but the data written by the native
     // compressor doesn't include checksums, so it's not a comprehensive test. The dataset for this test has a checksum.
     @Test
-    public void testDecompressWithOutputPaddingAndChecksum()
+    void testDecompressWithOutputPaddingAndChecksum()
             throws IOException
     {
         int padding = 1021;
@@ -76,7 +77,7 @@ public class TestZstd
     }
 
     @Test
-    public void testConcatenatedFrames()
+    void testConcatenatedFrames()
             throws IOException
     {
         byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/multiple-frames.zst"));
@@ -89,7 +90,7 @@ public class TestZstd
     }
 
     @Test
-    public void testInvalidSequenceOffset()
+    void testInvalidSequenceOffset()
             throws IOException
     {
         byte[] compressed = Resources.toByteArray(getClass().getClassLoader().getResource("data/zstd/offset-before-start.zst"));
@@ -101,7 +102,7 @@ public class TestZstd
     }
 
     @Test
-    public void testSmallLiteralsAfterIncompressibleLiterals()
+    void testSmallLiteralsAfterIncompressibleLiterals()
             throws IOException
     {
         // Ensure the compressor doesn't try to reuse a huffman table that was created speculatively for a previous block
@@ -121,7 +122,7 @@ public class TestZstd
     }
 
     @Test
-    public void testLargeRle()
+    void testLargeRle()
             throws IOException
     {
         // Dataset that produces an RLE block with 3-byte header
@@ -141,7 +142,7 @@ public class TestZstd
     }
 
     @Test
-    public void testIncompressibleData()
+    void testIncompressibleData()
             throws IOException
     {
         // Incompressible data that would require more than maxCompressedLength(...) to store
@@ -161,17 +162,24 @@ public class TestZstd
     }
 
     @Test
-    public void testMaxCompressedSize()
+    void testMaxCompressedSize()
     {
-        assertEquals(new ZstdCompressor().maxCompressedLength(0), 64);
-        assertEquals(new ZstdCompressor().maxCompressedLength(64 * 1024), 65_824);
-        assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024), 131_584);
-        assertEquals(new ZstdCompressor().maxCompressedLength(128 * 1024 + 1), 131_585);
+        assertThat(new ZstdCompressor().maxCompressedLength(0)).isEqualTo(64);
+        assertThat(new ZstdCompressor().maxCompressedLength(64 * 1024)).isEqualTo(65_824);
+        assertThat(new ZstdCompressor().maxCompressedLength(128 * 1024)).isEqualTo(131_584);
+        assertThat(new ZstdCompressor().maxCompressedLength(128 * 1024 + 1)).isEqualTo(131_585);
     }
 
     // test over data sets, should the result depend on input size or its compressibility
-    @Test(dataProvider = "data")
-    public void testGetDecompressedSize(DataSet dataSet)
+    @Test
+    void testGetDecompressedSize()
+    {
+        for (DataSet dataSet : TestingData.DATA_SETS) {
+            testGetDecompressedSize(dataSet);
+        }
+    }
+
+    private void testGetDecompressedSize(DataSet dataSet)
     {
         Compressor compressor = getCompressor();
         byte[] originalUncompressed = dataSet.getUncompressed();
@@ -179,17 +187,17 @@ public class TestZstd
 
         int compressedLength = compressor.compress(originalUncompressed, 0, originalUncompressed.length, compressed, 0, compressed.length);
 
-        assertEquals(ZstdDecompressor.getDecompressedSize(compressed, 0, compressedLength), originalUncompressed.length);
+        assertThat(ZstdDecompressor.getDecompressedSize(compressed, 0, compressedLength)).isEqualTo(originalUncompressed.length);
 
         int padding = 10;
         byte[] compressedWithPadding = new byte[compressedLength + padding];
         Arrays.fill(compressedWithPadding, (byte) 42);
         System.arraycopy(compressed, 0, compressedWithPadding, padding, compressedLength);
-        assertEquals(ZstdDecompressor.getDecompressedSize(compressedWithPadding, padding, compressedLength), originalUncompressed.length);
+        assertThat(ZstdDecompressor.getDecompressedSize(compressedWithPadding, padding, compressedLength)).isEqualTo(originalUncompressed.length);
     }
 
     @Test
-    public void testVerifyMagicInAllFrames()
+    void testVerifyMagicInAllFrames()
             throws IOException
     {
         Compressor compressor = getCompressor();
@@ -202,7 +210,7 @@ public class TestZstd
     }
 
     @Test
-    public void testDecompressIsMissingData()
+    void testDecompressIsMissingData()
     {
         byte[] input = new byte[]{40, -75, 47, -3, 32, 0, 1, 0};
         byte[] output = new byte[1024];
@@ -212,7 +220,7 @@ public class TestZstd
     }
 
     @Test
-    public void testBadHuffmanData()
+    void testBadHuffmanData()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

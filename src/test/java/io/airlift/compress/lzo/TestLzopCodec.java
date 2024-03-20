@@ -23,14 +23,14 @@ import io.airlift.compress.HadoopNative;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
 import static java.lang.String.format;
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestLzopCodec
+class TestLzopCodec
         extends AbstractTestCompression
 {
     static {
@@ -39,7 +39,7 @@ public class TestLzopCodec
 
     private final CompressionCodec verifyCodec;
 
-    public TestLzopCodec()
+    TestLzopCodec()
     {
         com.hadoop.compression.lzo.LzopCodec codec = new com.hadoop.compression.lzo.LzopCodec();
         codec.setConf(new Configuration());
@@ -77,7 +77,7 @@ public class TestLzopCodec
     }
 
     @Test
-    public void testDecompressNewerVersion()
+    void testDecompressNewerVersion()
             throws IOException
     {
         // lzop --no-checksum -o test-no-checksum.lzo test
@@ -102,7 +102,7 @@ public class TestLzopCodec
         byte[] output = new byte[uncompressed.length];
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
 
-        assertEquals(decompressedSize, output.length);
+        assertThat(decompressedSize).isEqualTo(output.length);
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
     }
 }

@@ -15,19 +15,19 @@ package io.airlift.compress.zstd;
 
 import net.jpountz.xxhash.XXHash64;
 import net.jpountz.xxhash.XXHashFactory;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 // forked from https://github.com/airlift/slice
-public class TestXxHash64
+class TestXxHash64
 {
     private static final long PRIME = 2654435761L;
 
     private final byte[] buffer = new byte[101];
 
-    public TestXxHash64()
+    TestXxHash64()
     {
         long value = PRIME;
         for (int i = 0; i < buffer.length; i++) {
@@ -37,7 +37,7 @@ public class TestXxHash64
     }
 
     @Test
-    public void testSanity()
+    void testSanity()
     {
         assertHash(0, buffer, 0, 0xEF46DB3751D8E999L);
 
@@ -61,7 +61,7 @@ public class TestXxHash64
     }
 
     @Test
-    public void testMultipleLengths()
+    void testMultipleLengths()
     {
         XXHash64 jpountz = XXHashFactory.fastestInstance().hash64();
         for (int i = 0; i < 20_000; i++) {
@@ -73,7 +73,7 @@ public class TestXxHash64
 
     private static void assertHash(long seed, byte[] data, int length, long expected)
     {
-        assertEquals(hash(seed, data, length), expected);
+        assertThat(hash(seed, data, length)).isEqualTo(expected);
     }
 
     private static long hash(long seed, byte[] data, int length)

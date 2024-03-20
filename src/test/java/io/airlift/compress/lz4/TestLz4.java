@@ -20,7 +20,7 @@ import io.airlift.compress.MalformedInputException;
 import io.airlift.compress.thirdparty.JPountzLz4Compressor;
 import io.airlift.compress.thirdparty.JPountzLz4Decompressor;
 import net.jpountz.lz4.LZ4Factory;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,7 +28,7 @@ import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestLz4
+class TestLz4
         extends AbstractTestCompression
 {
     @Override
@@ -56,7 +56,7 @@ public class TestLz4
     }
 
     @Test
-    public void testLiteralLengthOverflow()
+    void testLiteralLengthOverflow()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -75,7 +75,7 @@ public class TestLz4
     }
 
     @Test
-    public void testMatchLengthOverflow()
+    void testMatchLengthOverflow()
             throws IOException
     {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

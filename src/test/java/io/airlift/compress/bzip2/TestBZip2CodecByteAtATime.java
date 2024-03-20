@@ -23,7 +23,7 @@ import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-public class TestBZip2CodecByteAtATime
+class TestBZip2CodecByteAtATime
         extends AbstractTestCompression
 {
     static {
@@ -32,7 +32,7 @@ public class TestBZip2CodecByteAtATime
 
     private final CompressionCodec verifyCodec;
 
-    public TestBZip2CodecByteAtATime()
+    TestBZip2CodecByteAtATime()
     {
         org.apache.hadoop.io.compress.BZip2Codec codec = new org.apache.hadoop.io.compress.BZip2Codec();
         codec.setConf(new Configuration());

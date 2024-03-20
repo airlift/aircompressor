@@ -32,7 +32,7 @@ public class TestLzoCodec
 
     private final CompressionCodec verifyCodec;
 
-    public TestLzoCodec()
+    TestLzoCodec()
     {
         com.hadoop.compression.lzo.LzoCodec codec = new com.hadoop.compression.lzo.LzoCodec();
         codec.setConf(new Configuration());

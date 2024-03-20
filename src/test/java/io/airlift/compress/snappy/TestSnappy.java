@@ -19,11 +19,11 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 import io.airlift.compress.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class TestSnappy
+class TestSnappy
         extends AbstractTestCompression
 {
     @Override
@@ -51,7 +51,7 @@ public class TestSnappy
     }
 
     @Test
-    public void testInvalidLiteralLength()
+    void testInvalidLiteralLength()
     {
         byte[] data = {
                 // Encoded uncompressed length 1024
@@ -69,7 +69,7 @@ public class TestSnappy
     }
 
     @Test
-    public void testNegativeLength()
+    void testNegativeLength()
     {
         byte[] data = {(byte) 255, (byte) 255, (byte) 255, (byte) 255, 0b0000_1000};
 

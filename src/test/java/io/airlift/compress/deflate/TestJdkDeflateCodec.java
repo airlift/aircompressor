@@ -22,12 +22,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 
-public class TestJdkDeflateCodec
+class TestJdkDeflateCodec
         extends AbstractTestCompression
 {
     private final CompressionCodec verifyCodec;
 
-    public TestJdkDeflateCodec()
+    TestJdkDeflateCodec()
     {
         DefaultCodec codec = new DefaultCodec();
         codec.setConf(new Configuration());

@@ -13,42 +13,68 @@
  */
 package io.airlift.compress.zstd;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import com.google.common.collect.ImmutableList;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static io.airlift.compress.zstd.Util.get24BitLittleEndian;
 import static io.airlift.compress.zstd.Util.put24BitLittleEndian;
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class TestUtil
+class TestUtil
 {
-    @DataProvider(name = "test24bitIntegers")
-    public static Object[][] test24bitIntegers()
+    private final List<TestData> test24bitIntegers = ImmutableList.<TestData>builder()
+            .add(new TestData(new byte[]{1, 0, 0, 0}, 0, 1))
+            .add(new TestData(new byte[]{12, -83, 0, 0}, 0, 44300))
+            .add(new TestData(new byte[]{0, 0, -128}, 0, 8388608))
+            .add(new TestData(new byte[]{(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215))
+            .add(new TestData(new byte[]{63, 25, 72, 0}, 0, 4725055))
+            .add(new TestData(new byte[]{0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1))
+            .build();
+
+    @Test
+    void testGet24BitLittleEndian()
     {
-        return new Object[][] {
-                {new byte[]{1, 0, 0, 0}, 0, 1},
-                {new byte[]{12, -83, 0, 0}, 0, 44300},
-                {new byte[]{0, 0, -128}, 0, 8388608},
-                {new byte[]{(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215},
-                {new byte[]{63, 25, 72, 0}, 0, 4725055},
-                {new byte[]{0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1}
-        };
+        for (TestData testData : test24bitIntegers) {
+            testGet24BitLittleEndian(testData);
+        }
     }
 
-    @Test(dataProvider = "test24bitIntegers")
-    public void testGet24BitLittleEndian(byte[] bytes, int offset, int value)
+    private static void testGet24BitLittleEndian(TestData testData)
     {
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + offset;
-        assertEquals(get24BitLittleEndian(bytes, inputAddress), value);
+        long inputAddress = ARRAY_BYTE_BASE_OFFSET + testData.offset;
+        assertThat(get24BitLittleEndian(testData.bytes, inputAddress)).isEqualTo(testData.value);
     }
 
-    @Test(dataProvider = "test24bitIntegers")
-    public void testPut24BitLittleEndian(byte[] bytes, int offset, int value)
+    @Test
+    void testPut24BitLittleEndian()
     {
-        Object outputBase = new byte[bytes.length];
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + offset;
-        put24BitLittleEndian(outputBase, outputAddress, value);
-        assertEquals(outputBase, bytes);
+        for (TestData testData : test24bitIntegers) {
+            testPut24BitLittleEndian(testData);
+        }
+    }
+
+    private static void testPut24BitLittleEndian(TestData testData)
+    {
+        Object outputBase = new byte[testData.bytes.length];
+        long outputAddress = ARRAY_BYTE_BASE_OFFSET + testData.offset;
+        put24BitLittleEndian(outputBase, outputAddress, testData.value);
+        assertThat(outputBase).isEqualTo(testData.bytes);
+    }
+
+    private static class TestData
+    {
+        final byte[] bytes;
+        final int offset;
+        final int value;
+
+        public TestData(byte[] bytes, int offset, int value)
+        {
+            this.bytes = bytes;
+            this.offset = offset;
+            this.value = value;
+        }
     }
 }

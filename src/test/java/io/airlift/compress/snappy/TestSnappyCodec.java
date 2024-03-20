@@ -22,7 +22,7 @@ import io.airlift.compress.HadoopNative;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-public class TestSnappyCodec
+class TestSnappyCodec
         extends AbstractTestCompression
 {
     static {
@@ -31,7 +31,7 @@ public class TestSnappyCodec
 
     private final CompressionCodec verifyCodec;
 
-    public TestSnappyCodec()
+    TestSnappyCodec()
     {
         org.apache.hadoop.io.compress.SnappyCodec codec = new org.apache.hadoop.io.compress.SnappyCodec();
         codec.setConf(new Configuration());

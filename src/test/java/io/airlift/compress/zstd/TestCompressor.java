@@ -13,15 +13,16 @@
  */
 package io.airlift.compress.zstd;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class TestCompressor
+class TestCompressor
 {
     @Test
-    public void testMagic()
+    void testMagic()
     {
         byte[] buffer = new byte[4];
         int address = ARRAY_BYTE_BASE_OFFSET;
@@ -30,22 +31,26 @@ public class TestCompressor
         ZstdFrameDecompressor.verifyMagic(buffer, address, address + buffer.length);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*buffer too small.*")
-    public void testMagicFailsWithSmallBuffer()
+    @Test
+    void testMagicFailsWithSmallBuffer()
     {
         byte[] buffer = new byte[3];
-        ZstdFrameCompressor.writeMagic(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*buffer too small.*")
-    public void testFrameHeaderFailsWithSmallBuffer()
-    {
-        byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE - 1];
-        ZstdFrameCompressor.writeFrameHeader(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length, 1000, 1024);
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeMagic(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageMatching(".*buffer too small.*");
     }
 
     @Test
-    public void testFrameHeader()
+    void testFrameHeaderFailsWithSmallBuffer()
+    {
+        byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE - 1];
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length, 1000, 1024))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageMatching(".*buffer too small.*");
+    }
+
+    @Test
+    void testFrameHeader()
     {
         verifyFrameHeader(1, 1024, new FrameHeader(2, -1, 1, -1, true));
         verifyFrameHeader(256, 1024, new FrameHeader(3, -1, 256, -1, true));
@@ -64,34 +69,38 @@ public class TestCompressor
         verifyFrameHeader(Integer.MAX_VALUE, 1024, new FrameHeader(6, 1024, Integer.MAX_VALUE, -1, true));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Minimum window size is 1024")
-    public void testMinimumWindowSize()
+    @Test
+    void testMinimumWindowSize()
     {
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1023);
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1023))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageMatching(".*Minimum window size is 1024.*");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "\\QWindow size of magnitude 2^10 must be multiple of 128\\E")
-    public void testWindowSizePrecision()
+    @Test
+    void testWindowSizePrecision()
     {
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1025);
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1025))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Window size of magnitude 2^10 must be multiple of 128");
     }
 
-    private void verifyFrameHeader(int inputSize, int windowSize, FrameHeader expected)
+    private static void verifyFrameHeader(int inputSize, int windowSize, FrameHeader expected)
     {
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
         int size = ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, inputSize, windowSize);
 
-        assertEquals(size, expected.headerSize);
+        assertThat(size).isEqualTo(expected.headerSize);
 
         FrameHeader actual = ZstdFrameDecompressor.readFrameHeader(buffer, address, address + buffer.length);
-        assertEquals(actual, expected);
+        assertThat(actual).isEqualTo(expected);
     }
 }

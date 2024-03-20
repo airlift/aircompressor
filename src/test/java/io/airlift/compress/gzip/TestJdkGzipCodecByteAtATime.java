@@ -22,12 +22,12 @@ import io.airlift.compress.HadoopCodecDecompressorByteAtATime;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 
-public class TestJdkGzipCodecByteAtATime
+class TestJdkGzipCodecByteAtATime
         extends AbstractTestCompression
 {
     private final CompressionCodec verifyCodec;
 
-    public TestJdkGzipCodecByteAtATime()
+    TestJdkGzipCodecByteAtATime()
     {
         org.apache.hadoop.io.compress.GzipCodec codec = new org.apache.hadoop.io.compress.GzipCodec();
         codec.setConf(new Configuration());
