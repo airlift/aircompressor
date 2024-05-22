@@ -18,9 +18,9 @@ import io.airlift.compress.AbstractTestCompression;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.HadoopCodecCompressor;
-import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.HadoopCodecDecompressorByteAtATime;
-import io.airlift.compress.HadoopNative;
+import io.airlift.compress.thirdparty.ZstdJniCompressor;
+import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.junit.jupiter.api.Test;
@@ -30,10 +30,6 @@ import java.io.IOException;
 class TestZstdCodecByteAtATime
         extends AbstractTestCompression
 {
-    static {
-        HadoopNative.requireHadoopNative();
-    }
-
     private final CompressionCodec verifyCodec;
 
     TestZstdCodecByteAtATime()
@@ -64,13 +60,15 @@ class TestZstdCodecByteAtATime
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new HadoopCodecCompressor(verifyCodec, new ZstdCompressor());
+        // Hadoop format is the standard Zstd framed format
+        return new ZstdJniCompressor(3);
     }
 
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new HadoopCodecDecompressor(verifyCodec);
+        // Hadoop format is the standard Zstd framed format
+        return new ZstdJniDecompressor();
     }
 
     @Test
