@@ -29,8 +29,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
-import static org.apache.hadoop.io.compress.CompressionCodecFactory.getCodecClasses;
-
 public final class HadoopNative
 {
     private static boolean loaded;
@@ -52,10 +50,6 @@ public final class HadoopNative
 
             loadLibrary("gplcompression");
             loadLibrary("lzo2");
-            loadLibrary("zstd");
-
-            // verify that all configured codec classes can be loaded
-            loadAllCodecs();
 
             requireNativeZlib();
 
@@ -64,19 +58,6 @@ public final class HadoopNative
         catch (Throwable t) {
             error = t;
             throw new RuntimeException("failed to load Hadoop native library", error);
-        }
-    }
-
-    private static void loadAllCodecs()
-    {
-        Configuration conf = new Configuration();
-        CompressionCodecFactory factory = new CompressionCodecFactory(conf);
-        for (Class<? extends CompressionCodec> clazz : getCodecClasses(conf)) {
-            CompressionCodec codec = factory.getCodecByClassName(clazz.getName());
-            if (codec == null) {
-                throw new RuntimeException("failed to load codec: " + clazz.getName());
-            }
-            codec.getDecompressorType();
         }
     }
 
