@@ -17,7 +17,6 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -38,13 +37,6 @@ public class JdkInflateDecompressor
         catch (DataFormatException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

@@ -18,7 +18,6 @@ import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class JPountzLz4Compressor
         implements Compressor
@@ -40,12 +39,6 @@ public class JPountzLz4Compressor
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
         return compressor.compress(input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
-    }
-
-    @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
-    {
-        compressor.compress(input, output);
     }
 
     @Override

@@ -19,7 +19,6 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class JPountzLz4Decompressor
         implements Decompressor
@@ -36,13 +35,6 @@ public class JPountzLz4Decompressor
             throws MalformedInputException
     {
         return decompressor.decompress(input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
-    }
-
-    @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        decompressor.decompress(input, output);
     }
 
     @Override

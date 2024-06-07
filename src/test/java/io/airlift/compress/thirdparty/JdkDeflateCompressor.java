@@ -16,7 +16,6 @@ package io.airlift.compress.thirdparty;
 import io.airlift.compress.Compressor;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 import java.util.zip.Deflater;
 
 import static java.util.zip.Deflater.FULL_FLUSH;
@@ -39,12 +38,6 @@ public class JdkDeflateCompressor
         int compressedDataLength = deflater.deflate(output, outputOffset, maxOutputLength, FULL_FLUSH);
         deflater.end();
         return compressedDataLength;
-    }
-
-    @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

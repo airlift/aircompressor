@@ -19,7 +19,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 import static com.google.common.primitives.Ints.constrainToRange;
 import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
@@ -66,12 +65,6 @@ public class ZstdStreamCompressor
         }
         System.arraycopy(compressed, 0, output, outputOffset, compressed.length);
         return compressed.length;
-    }
-
-    @Override
-    public void compress(ByteBuffer inputBuffer, ByteBuffer outputBuffer)
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override
