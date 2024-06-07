@@ -11,24 +11,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.lz4;
+package io.airlift.compress.zstd;
 
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
 
-import static io.airlift.compress.lz4.UnsafeUtil.getAddress;
-import static io.airlift.compress.lz4.UnsafeUtil.getBase;
+import static io.airlift.compress.zstd.UnsafeUtil.getAddress;
+import static io.airlift.compress.zstd.UnsafeUtil.getBase;
 import static java.lang.Math.addExact;
 import static java.lang.String.format;
 import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class Lz4Decompressor
+public class ZstdJavaDecompressor
         implements Decompressor
 {
+    private final ZstdFrameDecompressor decompressor = new ZstdFrameDecompressor();
+
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
@@ -41,11 +43,12 @@ public class Lz4Decompressor
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
-        return Lz4RawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return decompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
     {
         try {
             byte[] inputBase = getBase(input);
@@ -56,7 +59,7 @@ public class Lz4Decompressor
             long outputAddress = getAddress(output);
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return Lz4RawDecompressor.decompress(
+            return decompressor.decompress(
                     inputBase,
                     inputAddress,
                     inputLimit,
@@ -68,6 +71,12 @@ public class Lz4Decompressor
             reachabilityFence(input);
             reachabilityFence(output);
         }
+    }
+
+    public static long getDecompressedSize(byte[] input, int offset, int length)
+    {
+        int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
+        return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)

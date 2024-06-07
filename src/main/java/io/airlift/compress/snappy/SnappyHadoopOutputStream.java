@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 class SnappyHadoopOutputStream
         extends HadoopOutputStream
 {
-    private final SnappyCompressor compressor = new SnappyCompressor();
+    private final SnappyJavaCompressor compressor = new SnappyJavaCompressor();
 
     private final OutputStream out;
     private final byte[] inputBuffer;

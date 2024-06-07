@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 class Lz4HadoopInputStream
         extends HadoopInputStream
 {
-    private final Lz4Decompressor decompressor = new Lz4Decompressor();
+    private final Lz4JavaDecompressor decompressor = new Lz4JavaDecompressor();
     private final InputStream in;
     private final byte[] uncompressedChunk;
 

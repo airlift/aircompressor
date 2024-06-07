@@ -48,7 +48,7 @@ class TestLz4CodecByteAtATime
     @Override
     protected Compressor getCompressor()
     {
-        return new HadoopCodecCompressor(new Lz4Codec(), new Lz4Compressor());
+        return new HadoopCodecCompressor(new Lz4Codec(), new Lz4JavaCompressor());
     }
 
     @Override
@@ -60,7 +60,7 @@ class TestLz4CodecByteAtATime
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new HadoopCodecCompressor(verifyCodec, new Lz4Compressor());
+        return new HadoopCodecCompressor(verifyCodec, new Lz4JavaCompressor());
     }
 
     @Override

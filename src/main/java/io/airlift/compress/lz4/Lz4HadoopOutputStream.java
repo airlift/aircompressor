@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 class Lz4HadoopOutputStream
         extends HadoopOutputStream
 {
-    private final Lz4Compressor compressor = new Lz4Compressor();
+    private final Lz4JavaCompressor compressor = new Lz4JavaCompressor();
 
     private final OutputStream out;
     private final byte[] inputBuffer;

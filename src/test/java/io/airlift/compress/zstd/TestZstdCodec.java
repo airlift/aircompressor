@@ -48,7 +48,7 @@ class TestZstdCodec
     @Override
     protected Compressor getCompressor()
     {
-        return new HadoopCodecCompressor(new ZstdCodec(), new ZstdCompressor());
+        return new HadoopCodecCompressor(new ZstdCodec(), new ZstdJavaCompressor());
     }
 
     @Override

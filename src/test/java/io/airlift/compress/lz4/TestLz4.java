@@ -34,13 +34,13 @@ class TestLz4
     @Override
     protected Compressor getCompressor()
     {
-        return new Lz4Compressor();
+        return new Lz4JavaCompressor();
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new Lz4Decompressor();
+        return new Lz4JavaDecompressor();
     }
 
     @Override
@@ -70,7 +70,7 @@ class TestLz4
 
         byte[] data = buffer.toByteArray();
 
-        assertThatThrownBy(() -> new Lz4Decompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
+        assertThatThrownBy(() -> new Lz4JavaDecompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
                 .isInstanceOf(MalformedInputException.class);
     }
 
@@ -92,7 +92,7 @@ class TestLz4
 
         byte[] data = buffer.toByteArray();
 
-        assertThatThrownBy(() -> new Lz4Decompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
+        assertThatThrownBy(() -> new Lz4JavaDecompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
                 .isInstanceOf(MalformedInputException.class);
     }
 }

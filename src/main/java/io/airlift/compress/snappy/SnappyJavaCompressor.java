@@ -13,8 +13,7 @@
  */
 package io.airlift.compress.snappy;
 
-import io.airlift.compress.Decompressor;
-import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.Compressor;
 
 import java.lang.foreign.MemorySegment;
 
@@ -26,20 +25,19 @@ import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class SnappyDecompressor
-        implements Decompressor
+public class SnappyJavaCompressor
+        implements Compressor
 {
-    public static int getUncompressedLength(byte[] compressed, int compressedOffset)
-    {
-        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
-        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
+    private final short[] table = new short[SnappyRawCompressor.MAX_HASH_TABLE_SIZE];
 
-        return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
+    @Override
+    public int maxCompressedLength(int uncompressedSize)
+    {
+        return SnappyRawCompressor.maxCompressedLength(uncompressedSize);
     }
 
     @Override
-    public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
-            throws MalformedInputException
+    public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
@@ -49,12 +47,11 @@ public class SnappyDecompressor
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
-        return SnappyRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return SnappyRawCompressor.compress(input, inputAddress, inputLimit, output, outputAddress, outputLimit, table);
     }
 
     @Override
-    public int decompress(MemorySegment input, MemorySegment output)
-            throws MalformedInputException
+    public int compress(MemorySegment input, MemorySegment output)
     {
         try {
             byte[] inputBase = getBase(input);
@@ -65,13 +62,14 @@ public class SnappyDecompressor
             long outputAddress = getAddress(output);
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return SnappyRawDecompressor.decompress(
+            return SnappyRawCompressor.compress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
-                    outputLimit);
+                    outputLimit,
+                    table);
         }
         finally {
             reachabilityFence(input);
