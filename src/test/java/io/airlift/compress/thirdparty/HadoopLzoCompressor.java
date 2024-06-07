@@ -18,7 +18,6 @@ import org.anarres.lzo.hadoop.codec.LzoCompressor;
 
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class HadoopLzoCompressor
         implements Compressor
@@ -60,12 +59,6 @@ public class HadoopLzoCompressor
         }
 
         return offset - outputOffset;
-    }
-
-    @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

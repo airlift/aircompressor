@@ -18,7 +18,6 @@ import io.airlift.compress.snappy.SnappyCompressor;
 
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class XerialSnappyCompressor
         implements Compressor
@@ -34,17 +33,6 @@ public class XerialSnappyCompressor
     {
         try {
             return org.xerial.snappy.Snappy.compress(input, inputOffset, inputLength, output, outputOffset);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
-    {
-        try {
-            org.xerial.snappy.Snappy.compress(input, output);
         }
         catch (IOException e) {
             throw new RuntimeException(e);

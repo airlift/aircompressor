@@ -18,7 +18,6 @@ import io.airlift.compress.MalformedInputException;
 
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class XerialSnappyDecompressor
         implements Decompressor
@@ -29,18 +28,6 @@ public class XerialSnappyDecompressor
     {
         try {
             return org.xerial.snappy.Snappy.uncompress(input, inputOffset, inputLength, output, outputOffset);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        try {
-            org.xerial.snappy.Snappy.uncompress(input, output);
         }
         catch (IOException e) {
             throw new RuntimeException(e);

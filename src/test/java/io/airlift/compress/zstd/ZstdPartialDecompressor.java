@@ -17,7 +17,6 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
 import static java.util.Arrays.copyOfRange;
@@ -85,13 +84,6 @@ public class ZstdPartialDecompressor
             inputPosition += decompressor.getInputConsumed();
         }
         return outputPosition - outputOffset;
-    }
-
-    @Override
-    public void decompress(ByteBuffer inputBuffer, ByteBuffer outputBuffer)
-            throws MalformedInputException
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

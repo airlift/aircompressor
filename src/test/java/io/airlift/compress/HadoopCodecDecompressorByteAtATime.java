@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 public class HadoopCodecDecompressorByteAtATime
         implements Decompressor
@@ -56,13 +55,6 @@ public class HadoopCodecDecompressorByteAtATime
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

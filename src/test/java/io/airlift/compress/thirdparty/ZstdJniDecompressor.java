@@ -31,13 +31,6 @@ public class ZstdJniDecompressor
     }
 
     @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        Zstd.decompress(output, input);
-    }
-
-    @Override
     public int decompress(MemorySegment input, MemorySegment output)
             throws MalformedInputException
     {

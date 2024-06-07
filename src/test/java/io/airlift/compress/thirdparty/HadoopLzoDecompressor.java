@@ -20,7 +20,6 @@ import org.anarres.lzo.hadoop.codec.LzoDecompressor.CompressionStrategy;
 
 import java.io.IOException;
 import java.lang.foreign.MemorySegment;
-import java.nio.ByteBuffer;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -60,13 +59,6 @@ public class HadoopLzoDecompressor
         }
 
         return offset - outputOffset;
-    }
-
-    @Override
-    public void decompress(ByteBuffer input, ByteBuffer output)
-            throws MalformedInputException
-    {
-        throw new UnsupportedOperationException("not yet implemented");
     }
 
     @Override

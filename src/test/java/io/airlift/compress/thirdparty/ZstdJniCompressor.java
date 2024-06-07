@@ -42,12 +42,6 @@ public class ZstdJniCompressor
     }
 
     @Override
-    public void compress(ByteBuffer input, ByteBuffer output)
-    {
-        Zstd.compress(input, output, level);
-    }
-
-    @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
         ByteBuffer inputBuffer = input.asByteBuffer();
