@@ -11,50 +11,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.zstd;
+package io.airlift.compress.snappy;
 
-import io.airlift.compress.Compressor;
+import io.airlift.compress.Decompressor;
+import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
 
-import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
-import static io.airlift.compress.zstd.UnsafeUtil.getAddress;
-import static io.airlift.compress.zstd.UnsafeUtil.getBase;
+import static io.airlift.compress.snappy.UnsafeUtil.getAddress;
+import static io.airlift.compress.snappy.UnsafeUtil.getBase;
 import static java.lang.Math.addExact;
 import static java.lang.String.format;
 import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdCompressor
-        implements Compressor
+public class SnappyJavaDecompressor
+        implements Decompressor
 {
-    @Override
-    public int maxCompressedLength(int uncompressedSize)
+    public static int getUncompressedLength(byte[] compressed, int compressedOffset)
     {
-        int result = uncompressedSize + (uncompressedSize >>> 8);
+        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
+        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
 
-        if (uncompressedSize < MAX_BLOCK_SIZE) {
-            result += (MAX_BLOCK_SIZE - uncompressedSize) >>> 11;
-        }
-
-        return result;
+        return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
     }
 
     @Override
-    public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+    public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+            throws MalformedInputException
     {
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
         long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputLimit = inputAddress + inputLength;
         long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputLimit = outputAddress + maxOutputLength;
 
-        return ZstdFrameCompressor.compress(input, inputAddress, inputAddress + inputLength, output, outputAddress, outputAddress + maxOutputLength, CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
+        return SnappyRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
     }
 
     @Override
-    public int compress(MemorySegment input, MemorySegment output)
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
     {
         try {
             byte[] inputBase = getBase(input);
@@ -65,14 +65,13 @@ public class ZstdCompressor
             long outputAddress = getAddress(output);
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return ZstdFrameCompressor.compress(
+            return SnappyRawDecompressor.decompress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
-                    outputLimit,
-                    CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
+                    outputLimit);
         }
         finally {
             reachabilityFence(input);

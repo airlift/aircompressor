@@ -34,7 +34,7 @@ class TestZstdPartial
     @Override
     protected Compressor getCompressor()
     {
-        return new ZstdCompressor();
+        return new ZstdJavaCompressor();
     }
 
     @Override
@@ -46,13 +46,13 @@ class TestZstdPartial
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new ZstdCompressor();
+        return new ZstdJavaCompressor();
     }
 
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new ZstdDecompressor();
+        return new ZstdJavaDecompressor();
     }
 
     @Override

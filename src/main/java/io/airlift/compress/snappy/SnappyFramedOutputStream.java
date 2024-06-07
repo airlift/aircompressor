@@ -32,7 +32,7 @@ public final class SnappyFramedOutputStream
     public static final int DEFAULT_BLOCK_SIZE = MAX_BLOCK_SIZE;
 
     public static final double DEFAULT_MIN_COMPRESSION_RATIO = 0.85d;
-    private final SnappyCompressor compressor = new SnappyCompressor();
+    private final SnappyJavaCompressor compressor = new SnappyJavaCompressor();
     private final int blockSize;
     private final byte[] buffer;
     private final byte[] outputBuffer;

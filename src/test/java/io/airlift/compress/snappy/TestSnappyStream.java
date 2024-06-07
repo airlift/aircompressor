@@ -466,7 +466,7 @@ class TestSnappyStream
 
     private static byte[] blockCompress(byte[] data)
     {
-        SnappyCompressor compressor = new SnappyCompressor();
+        SnappyJavaCompressor compressor = new SnappyJavaCompressor();
         byte[] compressedOut = new byte[compressor.maxCompressedLength(data.length)];
         int compressedSize = compressor.compress(data, 0, data.length, compressedOut, 0, compressedOut.length);
         byte[] trimmedBuffer = Arrays.copyOf(compressedOut, compressedSize);

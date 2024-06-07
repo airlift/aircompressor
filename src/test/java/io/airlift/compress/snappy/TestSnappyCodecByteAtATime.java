@@ -48,7 +48,7 @@ class TestSnappyCodecByteAtATime
     @Override
     protected Compressor getCompressor()
     {
-        return new HadoopCodecCompressor(new SnappyCodec(), new SnappyCompressor());
+        return new HadoopCodecCompressor(new SnappyCodec(), new SnappyJavaCompressor());
     }
 
     @Override
@@ -60,7 +60,7 @@ class TestSnappyCodecByteAtATime
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new HadoopCodecCompressor(verifyCodec, new SnappyCompressor());
+        return new HadoopCodecCompressor(verifyCodec, new SnappyJavaCompressor());
     }
 
     @Override

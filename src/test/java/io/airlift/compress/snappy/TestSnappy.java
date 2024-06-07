@@ -29,13 +29,13 @@ class TestSnappy
     @Override
     protected Compressor getCompressor()
     {
-        return new SnappyCompressor();
+        return new SnappyJavaCompressor();
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new SnappyDecompressor();
+        return new SnappyJavaDecompressor();
     }
 
     @Override
@@ -64,7 +64,7 @@ class TestSnappy
                 0, 0, 0, 0, 0, 0, 0, 0
         };
 
-        assertThatThrownBy(() -> new SnappyDecompressor().decompress(data, 0, data.length, new byte[1024], 0, 1024))
+        assertThatThrownBy(() -> new SnappyJavaDecompressor().decompress(data, 0, data.length, new byte[1024], 0, 1024))
                 .isInstanceOf(MalformedInputException.class);
     }
 
@@ -73,7 +73,7 @@ class TestSnappy
     {
         byte[] data = {(byte) 255, (byte) 255, (byte) 255, (byte) 255, 0b0000_1000};
 
-        assertThatThrownBy(() -> SnappyDecompressor.getUncompressedLength(data, 0))
+        assertThatThrownBy(() -> SnappyJavaDecompressor.getUncompressedLength(data, 0))
                 .isInstanceOf(MalformedInputException.class)
                 .hasMessageStartingWith("negative compressed length");
     }

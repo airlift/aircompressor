@@ -27,7 +27,7 @@ import static java.lang.Math.min;
 public final class SnappyFramedInputStream
         extends InputStream
 {
-    private final SnappyDecompressor decompressor = new SnappyDecompressor();
+    private final SnappyJavaDecompressor decompressor = new SnappyJavaDecompressor();
 
     private final InputStream in;
     private final byte[] frameHeader;
@@ -185,7 +185,7 @@ public final class SnappyFramedInputStream
         FrameData frameData = getFrameData(input);
 
         if (FrameAction.UNCOMPRESS == frameMetaData.frameAction) {
-            int uncompressedLength = SnappyDecompressor.getUncompressedLength(input, frameData.offset);
+            int uncompressedLength = SnappyJavaDecompressor.getUncompressedLength(input, frameData.offset);
 
             if (uncompressedLength > uncompressed.length) {
                 uncompressed = new byte[uncompressedLength];

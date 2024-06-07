@@ -29,7 +29,7 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 /**
  * This class is not thread-safe
  */
-public class Lz4Compressor
+public class Lz4JavaCompressor
         implements Compressor
 {
     private final int[] table = new int[MAX_TABLE_SIZE];
