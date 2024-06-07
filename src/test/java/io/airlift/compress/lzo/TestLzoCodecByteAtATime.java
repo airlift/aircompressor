@@ -41,7 +41,7 @@ public class TestLzoCodecByteAtATime
     }
 
     @Override
-    protected boolean isByteBufferSupported()
+    protected boolean isMemorySegmentSupported()
     {
         return false;
     }

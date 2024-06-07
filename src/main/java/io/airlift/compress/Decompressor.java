@@ -13,6 +13,7 @@
  */
 package io.airlift.compress;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public interface Decompressor
@@ -24,5 +25,11 @@ public interface Decompressor
             throws MalformedInputException;
 
     void decompress(ByteBuffer input, ByteBuffer output)
+            throws MalformedInputException;
+
+    /**
+     * @return number of bytes written to the output
+     */
+    int decompress(MemorySegment input, MemorySegment output)
             throws MalformedInputException;
 }

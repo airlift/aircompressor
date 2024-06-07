@@ -16,11 +16,13 @@ package io.airlift.compress.lzo;
 import io.airlift.compress.IncompatibleJvmException;
 import sun.misc.Unsafe;
 
+import java.lang.foreign.MemorySegment;
 import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteOrder;
 
 import static java.lang.String.format;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 final class UnsafeUtil
 {
@@ -60,5 +62,28 @@ final class UnsafeUtil
         }
 
         return UNSAFE.getLong(buffer, ADDRESS_OFFSET);
+    }
+
+    public static byte[] getBase(MemorySegment segment)
+    {
+        if (segment.isNative()) {
+            return null;
+        }
+        if (segment.isReadOnly()) {
+            throw new IllegalArgumentException("MemorySegment is read-only");
+        }
+        Object inputBase = segment.heapBase().orElse(null);
+        if (!(inputBase instanceof byte[] byteArray)) {
+            throw new IllegalArgumentException("MemorySegment is not backed by a byte array");
+        }
+        return byteArray;
+    }
+
+    public static long getAddress(MemorySegment segment)
+    {
+        if (segment.isNative()) {
+            return segment.address();
+        }
+        return segment.address() + ARRAY_BYTE_BASE_OFFSET;
     }
 }

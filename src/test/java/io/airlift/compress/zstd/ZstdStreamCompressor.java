@@ -18,6 +18,7 @@ import io.airlift.compress.Compressor;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 import static com.google.common.primitives.Ints.constrainToRange;
@@ -69,6 +70,12 @@ public class ZstdStreamCompressor
 
     @Override
     public void compress(ByteBuffer inputBuffer, ByteBuffer outputBuffer)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
     {
         throw new UnsupportedOperationException("not yet implemented");
     }

@@ -20,7 +20,7 @@ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_INT;
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
 
-public final class SnappyRawDecompressor
+final class SnappyRawDecompressor
 {
     private static final int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};

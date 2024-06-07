@@ -22,7 +22,7 @@ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
 
-public final class Lz4RawDecompressor
+final class Lz4RawDecompressor
 {
     private static final int[] DEC_32_TABLE = {4, 1, 2, 1, 4, 4, 4, 4};
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};

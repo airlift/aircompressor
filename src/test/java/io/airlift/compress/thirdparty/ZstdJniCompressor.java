@@ -16,6 +16,7 @@ package io.airlift.compress.thirdparty;
 import com.github.luben.zstd.Zstd;
 import io.airlift.compress.Compressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class ZstdJniCompressor
@@ -44,5 +45,14 @@ public class ZstdJniCompressor
     public void compress(ByteBuffer input, ByteBuffer output)
     {
         Zstd.compress(input, output, level);
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
+    {
+        ByteBuffer inputBuffer = input.asByteBuffer();
+        ByteBuffer outputBuffer = output.asByteBuffer();
+        Zstd.compress(inputBuffer, outputBuffer, level);
+        return outputBuffer.position();
     }
 }

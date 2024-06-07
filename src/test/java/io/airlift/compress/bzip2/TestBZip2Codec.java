@@ -39,7 +39,7 @@ class TestBZip2Codec
     }
 
     @Override
-    protected boolean isByteBufferSupported()
+    protected boolean isMemorySegmentSupported()
     {
         return false;
     }

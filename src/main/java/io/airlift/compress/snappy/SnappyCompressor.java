@@ -15,11 +15,15 @@ package io.airlift.compress.snappy;
 
 import io.airlift.compress.Compressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static io.airlift.compress.snappy.UnsafeUtil.getAddress;
+import static io.airlift.compress.snappy.UnsafeUtil.getBase;
+import static java.lang.Math.addExact;
 import static java.lang.String.format;
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -110,6 +114,33 @@ public class SnappyCompressor
                         table);
                 output.position(output.position() + written);
             }
+        }
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
+    {
+        try {
+            byte[] inputBase = getBase(input);
+            long inputAddress = getAddress(input);
+            long inputLimit = addExact(inputAddress, input.byteSize());
+
+            byte[] outputBase = getBase(output);
+            long outputAddress = getAddress(output);
+            long outputLimit = addExact(outputAddress, output.byteSize());
+
+            return SnappyRawCompressor.compress(
+                    inputBase,
+                    inputAddress,
+                    inputLimit,
+                    outputBase,
+                    outputAddress,
+                    outputLimit,
+                    table);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
         }
     }
 

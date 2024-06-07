@@ -19,8 +19,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.io.UncheckedIOException;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,7 +28,9 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.google.common.base.Preconditions.checkPositionIndexes;
+import static java.lang.String.format;
 import static java.lang.System.arraycopy;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,7 +66,7 @@ public abstract class AbstractTestCompression
 
     protected abstract Decompressor getVerifyDecompressor();
 
-    protected boolean isByteBufferSupported()
+    protected boolean isMemorySegmentSupported()
     {
         return true;
     }
@@ -244,103 +246,101 @@ public abstract class AbstractTestCompression
     }
 
     @Test
-    void testDecompressByteBufferHeapToHeap()
+    void testDecompressMemorySegmentHeapToHeap()
     {
         for (DataSet dataSet : testCases) {
-            testDecompressByteBufferHeapToHeap(dataSet);
+            testDecompressMemorySegmentHeapToHeap(dataSet);
         }
     }
 
-    void testDecompressByteBufferHeapToHeap(DataSet dataSet)
+    void testDecompressMemorySegmentHeapToHeap(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
-        ByteBuffer compressed = ByteBuffer.wrap(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocate(uncompressedOriginal.length);
+        MemorySegment compressed = MemorySegment.ofArray(prepareCompressedData(uncompressedOriginal));
+        MemorySegment uncompressed = MemorySegment.ofArray(new byte[uncompressedOriginal.length]);
 
-        getDecompressor().decompress(compressed, uncompressed);
-        ((Buffer) uncompressed).flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
+        int size = getDecompressor().decompress(compressed, uncompressed);
+        assertMemorySegmentEqual(MemorySegment.ofArray(uncompressedOriginal), uncompressed.asSlice(0, size));
     }
 
     @Test
-    void testDecompressByteBufferHeapToDirect()
+    void testDecompressMemorySegmentHeapToDirect()
     {
         for (DataSet dataSet : testCases) {
-            testDecompressByteBufferHeapToDirect(dataSet);
+            testDecompressMemorySegmentHeapToDirect(dataSet);
         }
     }
 
-    private void testDecompressByteBufferHeapToDirect(DataSet dataSet)
+    private void testDecompressMemorySegmentHeapToDirect(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
-        ByteBuffer compressed = ByteBuffer.wrap(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment compressed = MemorySegment.ofArray(prepareCompressedData(uncompressedOriginal));
+            MemorySegment uncompressed = arena.allocate(uncompressedOriginal.length);
 
-        getDecompressor().decompress(compressed, uncompressed);
-        ((Buffer) uncompressed).flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
+            int size = getDecompressor().decompress(compressed, uncompressed);
+            assertMemorySegmentEqual(MemorySegment.ofArray(uncompressedOriginal), uncompressed.asSlice(0, size));
+        }
     }
 
     @Test
-    void testDecompressByteBufferDirectToHeap()
+    void testDecompressMemorySegmentDirectToHeap()
     {
         for (DataSet dataSet : testCases) {
-            testDecompressByteBufferDirectToHeap(dataSet);
+            testDecompressMemorySegmentDirectToHeap(dataSet);
         }
     }
 
-    private void testDecompressByteBufferDirectToHeap(DataSet dataSet)
+    private void testDecompressMemorySegmentDirectToHeap(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
-        ByteBuffer compressed = toDirectBuffer(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocate(uncompressedOriginal.length);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment compressed = toNativeSegment(arena, prepareCompressedData(uncompressedOriginal));
+            MemorySegment uncompressed = MemorySegment.ofArray(new byte[uncompressedOriginal.length]);
 
-        getDecompressor().decompress(compressed, uncompressed);
-        ((Buffer) uncompressed).flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
+            int size = getDecompressor().decompress(compressed, uncompressed);
+            assertMemorySegmentEqual(MemorySegment.ofArray(uncompressedOriginal), uncompressed.asSlice(0, size));
+        }
     }
 
     @Test
-    void testDecompressByteBufferDirectToDirect()
+    void testDecompressMemorySegmentDirectToDirect()
     {
         for (DataSet dataSet : testCases) {
-            testDecompressByteBufferDirectToDirect(dataSet);
+            testDecompressMemorySegmentDirectToDirect(dataSet);
         }
     }
 
-    private void testDecompressByteBufferDirectToDirect(DataSet dataSet)
+    private void testDecompressMemorySegmentDirectToDirect(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
-        ByteBuffer compressed = toDirectBuffer(prepareCompressedData(uncompressedOriginal));
-        ByteBuffer uncompressed = ByteBuffer.allocateDirect(uncompressedOriginal.length);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment compressed = toNativeSegment(arena, prepareCompressedData(uncompressedOriginal));
+            MemorySegment uncompressed = arena.allocate(uncompressedOriginal.length);
 
-        getDecompressor().decompress(compressed, uncompressed);
-        ((Buffer) uncompressed).flip();
-
-        assertByteBufferEqual(ByteBuffer.wrap(uncompressedOriginal), uncompressed);
+            int size = getDecompressor().decompress(compressed, uncompressed);
+            assertMemorySegmentEqual(MemorySegment.ofArray(uncompressedOriginal), uncompressed.asSlice(0, size));
+        }
     }
 
     @Test
@@ -460,121 +460,122 @@ public abstract class AbstractTestCompression
     }
 
     @Test
-    void testCompressByteBufferHeapToHeap()
+    void testCompressMemorySegmentHeapToHeap()
     {
         for (DataSet dataSet : testCases) {
-            testCompressByteBufferHeapToHeap(dataSet);
+            testCompressMemorySegmentHeapToHeap(dataSet);
         }
     }
 
-    private void testCompressByteBufferHeapToHeap(DataSet dataSet)
+    private void testCompressMemorySegmentHeapToHeap(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
         Compressor compressor = getCompressor();
 
-        verifyCompressByteBuffer(
+        verifyCompressMemorySegment(
                 compressor,
-                ByteBuffer.wrap(uncompressedOriginal),
-                ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+                MemorySegment.ofArray(uncompressedOriginal),
+                MemorySegment.ofArray(new byte[compressor.maxCompressedLength(uncompressedOriginal.length)]));
     }
 
     @Test
-    void testCompressByteBufferHeapToDirect()
+    void testCompressMemorySegmentHeapToDirect()
     {
         for (DataSet dataSet : testCases) {
-            testCompressByteBufferHeapToDirect(dataSet);
+            testCompressMemorySegmentHeapToDirect(dataSet);
         }
     }
 
-    private void testCompressByteBufferHeapToDirect(DataSet dataSet)
+    private void testCompressMemorySegmentHeapToDirect(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
         Compressor compressor = getCompressor();
 
-        verifyCompressByteBuffer(
-                compressor,
-                ByteBuffer.wrap(uncompressedOriginal),
-                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
+        try (Arena arena = Arena.ofConfined()) {
+            verifyCompressMemorySegment(
+                    compressor,
+                    MemorySegment.ofArray(uncompressedOriginal),
+                    arena.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+        }
     }
 
     @Test
-    void testCompressByteBufferDirectToHeap()
+    void testCompressMemorySegmentDirectToHeap()
     {
         for (DataSet dataSet : testCases) {
-            testCompressByteBufferDirectToHeap(dataSet);
+            testCompressMemorySegmentDirectToHeap(dataSet);
         }
     }
 
-    private void testCompressByteBufferDirectToHeap(DataSet dataSet)
+    private void testCompressMemorySegmentDirectToHeap(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
         Compressor compressor = getCompressor();
 
-        verifyCompressByteBuffer(
-                compressor,
-                toDirectBuffer(uncompressedOriginal),
-                ByteBuffer.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+        try (Arena arena = Arena.ofConfined()) {
+            verifyCompressMemorySegment(
+                    compressor,
+                    toNativeSegment(arena, uncompressedOriginal),
+                    MemorySegment.ofArray(new byte[compressor.maxCompressedLength(uncompressedOriginal.length)]));
+        }
     }
 
     @Test
-    void testCompressByteBufferDirectToDirect()
+    void testCompressMemorySegmentDirectToDirect()
     {
         for (DataSet dataSet : testCases) {
-            testCompressByteBufferDirectToDirect(dataSet);
+            testCompressMemorySegmentDirectToDirect(dataSet);
         }
     }
 
-    private void testCompressByteBufferDirectToDirect(DataSet dataSet)
+    private void testCompressMemorySegmentDirectToDirect(DataSet dataSet)
     {
-        if (!isByteBufferSupported()) {
-            Assumptions.abort("ByteBuffer not supported");
+        if (!isMemorySegmentSupported()) {
+            Assumptions.abort("MemorySegment not supported");
         }
 
         byte[] uncompressedOriginal = dataSet.getUncompressed();
 
         Compressor compressor = getCompressor();
 
-        verifyCompressByteBuffer(
-                compressor,
-                toDirectBuffer(uncompressedOriginal),
-                ByteBuffer.allocateDirect(compressor.maxCompressedLength(uncompressedOriginal.length)));
+        try (Arena arena = Arena.ofConfined()) {
+            verifyCompressMemorySegment(
+                    compressor,
+                    toNativeSegment(arena, uncompressedOriginal),
+                    arena.allocate(compressor.maxCompressedLength(uncompressedOriginal.length)));
+        }
     }
 
-    private void verifyCompressByteBuffer(Compressor compressor, ByteBuffer expected, ByteBuffer compressed)
+    private void verifyCompressMemorySegment(Compressor compressor, MemorySegment expected, MemorySegment compressed)
     {
         // attempt to compress slightly different data to ensure the compressor doesn't keep state
         // between calls that may affect results
-        if (expected.remaining() > 1) {
-            ByteBuffer duplicate = expected.duplicate();
-            duplicate.get(); // skip one byte
-            compressor.compress(duplicate, ByteBuffer.allocate(compressed.remaining()));
+        if (expected.byteSize() > 1) {
+            compressor.compress(expected.asSlice(1), MemorySegment.ofArray(new byte[(int) compressed.byteSize()]));
         }
 
-        compressor.compress(expected.duplicate(), compressed);
-        ((Buffer) compressed).flip();
+        int compressedSize = compressor.compress(expected, compressed);
 
-        ByteBuffer uncompressed = ByteBuffer.allocate(expected.remaining());
+        MemorySegment uncompressed = MemorySegment.ofArray(new byte[(int) expected.byteSize()]);
 
-        // TODO: validate with "control" decompressor
-        getDecompressor().decompress(compressed, uncompressed);
-        ((Buffer) uncompressed).flip();
+        int decompressedSize = getDecompressor().decompress(compressed.asSlice(0, compressedSize), uncompressed);
 
-        assertByteBufferEqual(expected.duplicate(), uncompressed);
+        assertMemorySegmentEqual(expected, uncompressed.asSlice(0, decompressedSize));
     }
 
     private void verifyCompressedData(byte[] originalUncompressed, byte[] compressed, int compressedLength)
@@ -625,41 +626,34 @@ public abstract class AbstractTestCompression
 
         for (int i = 0; i < Math.min(leftLength, rightLength); i++) {
             if (left[leftOffset + i] != right[rightOffset + i]) {
-                throw new AssertionError(String.format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[leftOffset + i], right[rightOffset + i]));
+                throw new AssertionError(format("Byte arrays differ at position %s: 0x%02X vs 0x%02X", i, left[leftOffset + i], right[rightOffset + i]));
             }
         }
 
         assertThat(leftLength)
-                .withFailMessage(String.format("Array lengths differ: %s vs %s", leftLength, rightLength))
+                .withFailMessage(format("Array lengths differ: %s vs %s", leftLength, rightLength))
                 .isEqualTo(rightLength);
     }
 
-    private static void assertByteBufferEqual(ByteBuffer left, ByteBuffer right)
+    private static void assertMemorySegmentEqual(MemorySegment left, MemorySegment right)
     {
-        Buffer leftBuffer = left;
-        Buffer rightBuffer = right;
-
-        int leftPosition = leftBuffer.position();
-        int rightPosition = rightBuffer.position();
-        for (int i = 0; i < Math.min(leftBuffer.remaining(), rightBuffer.remaining()); i++) {
-            if (left.get(leftPosition + i) != right.get(rightPosition + i)) {
-                throw new AssertionError(String.format("Byte buffers differ at position %s: 0x%02X vs 0x%02X", i, left.get(leftPosition + i), right.get(rightPosition + i)));
+        int leftPosition = 0;
+        int rightPosition = 0;
+        for (int i = 0; i < Math.min(left.byteSize(), right.byteSize()); i++) {
+            byte leftByte = left.get(JAVA_BYTE, leftPosition + i);
+            byte rightByte = right.get(JAVA_BYTE, rightPosition + i);
+            if (leftByte != rightByte) {
+                throw new AssertionError("Byte buffers differ at position %s: 0x%02X vs 0x%02X".formatted(i, leftByte, rightPosition));
             }
         }
-
-        assertThat(leftBuffer.remaining())
-                .withFailMessage(String.format("Buffer lengths differ: %s vs %s", leftBuffer.remaining(), leftBuffer.remaining()))
-                .isEqualTo(rightBuffer.remaining());
+        assertThat(left.byteSize())
+                .withFailMessage("Buffer lengths differ: %s vs %s".formatted(left.byteSize(), right.byteSize()))
+                .isEqualTo(right.byteSize());
     }
 
-    private static ByteBuffer toDirectBuffer(byte[] data)
+    private static MemorySegment toNativeSegment(Arena arena, byte[] data)
     {
-        ByteBuffer direct = ByteBuffer.allocateDirect(data.length);
-        direct.put(data);
-
-        ((Buffer) direct).flip();
-
-        return direct;
+        return arena.allocateFrom(JAVA_BYTE, data);
     }
 
     private byte[] prepareCompressedData(byte[] uncompressed)

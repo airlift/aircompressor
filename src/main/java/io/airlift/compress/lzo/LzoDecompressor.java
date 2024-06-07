@@ -16,11 +16,15 @@ package io.airlift.compress.lzo;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static io.airlift.compress.lzo.UnsafeUtil.getAddress;
+import static io.airlift.compress.lzo.UnsafeUtil.getBase;
+import static java.lang.Math.addExact;
 import static java.lang.String.format;
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -98,6 +102,33 @@ public class LzoDecompressor
                 int written = LzoRawDecompressor.decompress(inputBase, inputAddress, inputLimit, outputBase, outputAddress, outputLimit);
                 output.position(output.position() + written);
             }
+        }
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
+    {
+        try {
+            byte[] inputBase = getBase(input);
+            long inputAddress = getAddress(input);
+            long inputLimit = addExact(inputAddress, input.byteSize());
+
+            byte[] outputBase = getBase(output);
+            long outputAddress = getAddress(output);
+            long outputLimit = addExact(outputAddress, output.byteSize());
+
+            return LzoRawDecompressor.decompress(
+                    inputBase,
+                    inputAddress,
+                    inputLimit,
+                    outputBase,
+                    outputAddress,
+                    outputLimit);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
         }
     }
 

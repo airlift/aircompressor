@@ -15,6 +15,7 @@ package io.airlift.compress.gzip;
 
 import io.airlift.compress.Compressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class MockJdkGzipCompressor
@@ -36,6 +37,12 @@ public class MockJdkGzipCompressor
 
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
+    {
+        throw new UnsupportedOperationException("method is not supported");
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
     {
         throw new UnsupportedOperationException("method is not supported");
     }

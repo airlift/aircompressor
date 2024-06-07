@@ -17,6 +17,7 @@ import com.github.luben.zstd.Zstd;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class ZstdJniDecompressor
@@ -34,5 +35,15 @@ public class ZstdJniDecompressor
             throws MalformedInputException
     {
         Zstd.decompress(output, input);
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
+    {
+        ByteBuffer inputBuffer = input.asByteBuffer();
+        ByteBuffer outputBuffer = output.asByteBuffer();
+        Zstd.compress(inputBuffer, outputBuffer);
+        return outputBuffer.position();
     }
 }

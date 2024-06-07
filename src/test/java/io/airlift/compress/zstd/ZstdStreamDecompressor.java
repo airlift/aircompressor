@@ -19,6 +19,7 @@ import io.airlift.compress.MalformedInputException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
@@ -52,6 +53,13 @@ public class ZstdStreamDecompressor
             throws MalformedInputException
     {
         throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
+    {
+        throw new UnsupportedOperationException();
     }
 
     private static void verifyRange(byte[] data, int offset, int length)
