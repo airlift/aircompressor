@@ -40,7 +40,7 @@ class TestLz4CodecByteAtATime
     }
 
     @Override
-    protected boolean isByteBufferSupported()
+    protected boolean isMemorySegmentSupported()
     {
         return false;
     }

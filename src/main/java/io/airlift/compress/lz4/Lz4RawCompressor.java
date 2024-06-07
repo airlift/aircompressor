@@ -21,7 +21,7 @@ import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_LONG;
 import static io.airlift.compress.lz4.Lz4Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.lz4.UnsafeUtil.UNSAFE;
 
-public final class Lz4RawCompressor
+final class Lz4RawCompressor
 {
     private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 

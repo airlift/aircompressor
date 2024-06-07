@@ -15,6 +15,7 @@ package io.airlift.compress.thirdparty;
 
 import io.airlift.compress.Compressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.util.zip.Deflater;
 
@@ -42,6 +43,12 @@ public class JdkDeflateCompressor
 
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
     {
         throw new UnsupportedOperationException("not yet implemented");
     }

@@ -15,12 +15,16 @@ package io.airlift.compress.lz4;
 
 import io.airlift.compress.Compressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static io.airlift.compress.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
 import static io.airlift.compress.lz4.UnsafeUtil.getAddress;
+import static io.airlift.compress.lz4.UnsafeUtil.getBase;
+import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
@@ -112,6 +116,25 @@ public class Lz4Compressor
                         table);
                 output.position(output.position() + written);
             }
+        }
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
+    {
+        try {
+            return Lz4RawCompressor.compress(
+                    getBase(input),
+                    getAddress(input),
+                    toIntExact(input.byteSize()),
+                    getBase(output),
+                    getAddress(output),
+                    toIntExact(output.byteSize()),
+                    table);
+        }
+        finally {
+            reachabilityFence(input);
+            reachabilityFence(output);
         }
     }
 

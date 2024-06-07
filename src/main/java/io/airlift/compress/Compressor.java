@@ -13,6 +13,7 @@
  */
 package io.airlift.compress;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public interface Compressor
@@ -25,4 +26,9 @@ public interface Compressor
     int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength);
 
     void compress(ByteBuffer input, ByteBuffer output);
+
+    /**
+     * @return number of bytes written to the output
+     */
+    int compress(MemorySegment input, MemorySegment output);
 }

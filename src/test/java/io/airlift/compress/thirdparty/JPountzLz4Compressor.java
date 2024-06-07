@@ -17,6 +17,7 @@ import io.airlift.compress.Compressor;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class JPountzLz4Compressor
@@ -45,5 +46,11 @@ public class JPountzLz4Compressor
     public void compress(ByteBuffer input, ByteBuffer output)
     {
         compressor.compress(input, output);
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 }

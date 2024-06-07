@@ -18,6 +18,7 @@ import io.airlift.compress.MalformedInputException;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4SafeDecompressor;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class JPountzLz4Decompressor
@@ -42,5 +43,12 @@ public class JPountzLz4Decompressor
             throws MalformedInputException
     {
         decompressor.decompress(input, output);
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 }

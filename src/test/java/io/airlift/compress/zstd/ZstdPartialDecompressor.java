@@ -16,6 +16,7 @@ package io.airlift.compress.zstd;
 import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 import static java.lang.String.format;
@@ -88,6 +89,13 @@ public class ZstdPartialDecompressor
 
     @Override
     public void decompress(ByteBuffer inputBuffer, ByteBuffer outputBuffer)
+            throws MalformedInputException
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
             throws MalformedInputException
     {
         throw new UnsupportedOperationException("not yet implemented");

@@ -17,6 +17,7 @@ import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class XerialSnappyDecompressor
@@ -44,5 +45,12 @@ public class XerialSnappyDecompressor
         catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public int decompress(MemorySegment input, MemorySegment output)
+            throws MalformedInputException
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 }

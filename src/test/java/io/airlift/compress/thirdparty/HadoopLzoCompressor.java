@@ -17,6 +17,7 @@ import io.airlift.compress.Compressor;
 import org.anarres.lzo.hadoop.codec.LzoCompressor;
 
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class HadoopLzoCompressor
@@ -63,6 +64,12 @@ public class HadoopLzoCompressor
 
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
     {
         throw new UnsupportedOperationException("not yet implemented");
     }

@@ -22,7 +22,7 @@ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.snappy.UnsafeUtil.UNSAFE;
 
-public final class SnappyRawCompressor
+final class SnappyRawCompressor
 {
     // The size of a compression block. Note that many parts of the compression
     // code assumes that BLOCK_SIZE <= 65536; in particular, the hash table

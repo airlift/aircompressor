@@ -40,7 +40,7 @@ class TestSnappyCodecByteAtATime
     }
 
     @Override
-    protected boolean isByteBufferSupported()
+    protected boolean isMemorySegmentSupported()
     {
         return false;
     }

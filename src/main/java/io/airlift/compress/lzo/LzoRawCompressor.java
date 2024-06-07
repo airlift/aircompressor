@@ -20,7 +20,7 @@ import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_LONG;
 import static io.airlift.compress.lzo.LzoConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.lzo.UnsafeUtil.UNSAFE;
 
-public final class LzoRawCompressor
+final class LzoRawCompressor
 {
     public static final int LAST_LITERAL_SIZE = 5;
     public static final int MIN_MATCH = 4;

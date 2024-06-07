@@ -19,6 +19,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 import java.util.function.IntUnaryOperator;
 
@@ -68,6 +69,12 @@ public class HadoopCodecCompressor
 
     @Override
     public void compress(ByteBuffer input, ByteBuffer output)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
     {
         throw new UnsupportedOperationException("not yet implemented");
     }

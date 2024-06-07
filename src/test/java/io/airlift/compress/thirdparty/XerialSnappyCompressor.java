@@ -17,6 +17,7 @@ import io.airlift.compress.Compressor;
 import io.airlift.compress.snappy.SnappyCompressor;
 
 import java.io.IOException;
+import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class XerialSnappyCompressor
@@ -48,5 +49,11 @@ public class XerialSnappyCompressor
         catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public int compress(MemorySegment input, MemorySegment output)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
     }
 }
