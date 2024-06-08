@@ -31,10 +31,6 @@ import static com.google.common.primitives.UnsignedBytes.toInt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Tests the functionality of {@link org.iq80.snappy.SnappyFramedInputStream}
- * and {@link org.iq80.snappy.SnappyFramedOutputStream}.
- */
 class TestSnappyStream
 {
     static byte[] getRandom(double compressionRatio, int length)
