@@ -26,7 +26,7 @@ public class Lz4Codec
 {
     public Lz4Codec()
     {
-        super(configuration -> new Lz4HadoopStreams(getBufferSize(configuration)));
+        super(configuration -> new Lz4HadoopStreams(true, getBufferSize(configuration)));
     }
 
     private static int getBufferSize(Optional<Configuration> configuration)

@@ -13,8 +13,6 @@
  */
 package io.airlift.compress.snappy;
 
-import io.airlift.compress.Compressor;
-
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.snappy.UnsafeUtil.getAddress;
@@ -25,8 +23,8 @@ import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class SnappyJavaCompressor
-        implements Compressor
+public final class SnappyJavaCompressor
+        implements SnappyCompressor
 {
     private final short[] table = new short[SnappyRawCompressor.MAX_HASH_TABLE_SIZE];
 

@@ -16,6 +16,8 @@ package io.airlift.compress.snappy;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link OutputStream}.
  */
@@ -32,7 +34,7 @@ public final class SnappyFramedOutputStream
     public static final int DEFAULT_BLOCK_SIZE = MAX_BLOCK_SIZE;
 
     public static final double DEFAULT_MIN_COMPRESSION_RATIO = 0.85d;
-    private final SnappyJavaCompressor compressor = new SnappyJavaCompressor();
+    private final SnappyCompressor compressor;
     private final int blockSize;
     private final byte[] buffer;
     private final byte[] outputBuffer;
@@ -48,10 +50,10 @@ public final class SnappyFramedOutputStream
      *
      * @param out the underlying output stream
      */
-    public SnappyFramedOutputStream(OutputStream out)
+    public SnappyFramedOutputStream(SnappyCompressor compressor, OutputStream out)
             throws IOException
     {
-        this(out, true);
+        this(compressor, out, true);
     }
 
     /**
@@ -60,22 +62,23 @@ public final class SnappyFramedOutputStream
      *
      * @param out the underlying output stream
      */
-    public static SnappyFramedOutputStream newChecksumFreeBenchmarkOutputStream(OutputStream out)
+    public static SnappyFramedOutputStream newChecksumFreeBenchmarkOutputStream(SnappyCompressor compressor, OutputStream out)
             throws IOException
     {
-        return new SnappyFramedOutputStream(out, false);
+        return new SnappyFramedOutputStream(compressor, out, false);
     }
 
-    private SnappyFramedOutputStream(OutputStream out, boolean writeChecksums)
+    private SnappyFramedOutputStream(SnappyCompressor compressor, OutputStream out, boolean writeChecksums)
             throws IOException
     {
-        this(out, writeChecksums, DEFAULT_BLOCK_SIZE, DEFAULT_MIN_COMPRESSION_RATIO);
+        this(compressor, out, writeChecksums, DEFAULT_BLOCK_SIZE, DEFAULT_MIN_COMPRESSION_RATIO);
     }
 
-    public SnappyFramedOutputStream(OutputStream out, boolean writeChecksums, int blockSize, double minCompressionRatio)
+    public SnappyFramedOutputStream(SnappyCompressor compressor, OutputStream out, boolean writeChecksums, int blockSize, double minCompressionRatio)
             throws IOException
     {
-        this.out = SnappyInternalUtils.checkNotNull(out, "out is null");
+        this.compressor = requireNonNull(compressor, "compressor is null");
+        this.out = requireNonNull(out, "out is null");
         this.writeChecksums = writeChecksums;
         SnappyInternalUtils.checkArgument(minCompressionRatio > 0 && minCompressionRatio <= 1.0, "minCompressionRatio %1s must be between (0,1.0].", minCompressionRatio);
         this.minCompressionRatio = minCompressionRatio;

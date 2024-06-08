@@ -14,41 +14,19 @@
 package io.airlift.compress.snappy;
 
 import io.airlift.compress.AbstractTestCompression;
-import io.airlift.compress.Compressor;
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
-import io.airlift.compress.thirdparty.XerialSnappyCompressor;
-import io.airlift.compress.thirdparty.XerialSnappyDecompressor;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class TestSnappy
+public abstract class AbstractTestSnappy
         extends AbstractTestCompression
 {
     @Override
-    protected Compressor getCompressor()
-    {
-        return new SnappyJavaCompressor();
-    }
+    protected abstract SnappyCompressor getCompressor();
 
     @Override
-    protected Decompressor getDecompressor()
-    {
-        return new SnappyJavaDecompressor();
-    }
-
-    @Override
-    protected Compressor getVerifyCompressor()
-    {
-        return new XerialSnappyCompressor();
-    }
-
-    @Override
-    protected Decompressor getVerifyDecompressor()
-    {
-        return new XerialSnappyDecompressor();
-    }
+    protected abstract SnappyDecompressor getDecompressor();
 
     @Test
     void testInvalidLiteralLength()
@@ -64,7 +42,7 @@ class TestSnappy
                 0, 0, 0, 0, 0, 0, 0, 0
         };
 
-        assertThatThrownBy(() -> new SnappyJavaDecompressor().decompress(data, 0, data.length, new byte[1024], 0, 1024))
+        assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[1024], 0, 1024))
                 .isInstanceOf(MalformedInputException.class);
     }
 
@@ -73,8 +51,8 @@ class TestSnappy
     {
         byte[] data = {(byte) 255, (byte) 255, (byte) 255, (byte) 255, 0b0000_1000};
 
-        assertThatThrownBy(() -> SnappyJavaDecompressor.getUncompressedLength(data, 0))
+        assertThatThrownBy(() -> getDecompressor().getUncompressedLength(data, 0))
                 .isInstanceOf(MalformedInputException.class)
-                .hasMessageStartingWith("negative compressed length");
+                .hasMessageStartingWith("invalid compressed length");
     }
 }

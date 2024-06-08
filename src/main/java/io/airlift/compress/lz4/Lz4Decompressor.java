@@ -11,26 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.hadoop;
+package io.airlift.compress.lz4;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.List;
+import io.airlift.compress.Decompressor;
 
-/**
- * A factory for creating Hadoop compliant input and output streams.
- * Implementations of this interface are thread safe.
- */
-public interface HadoopStreams
+import java.lang.foreign.MemorySegment;
+
+public sealed interface Lz4Decompressor
+        extends Decompressor
+        permits Lz4JavaDecompressor, Lz4NativeDecompressor
 {
-    String getDefaultFileExtension();
-
-    List<String> getHadoopCodecName();
-
-    HadoopInputStream createInputStream(InputStream in)
-            throws IOException;
-
-    HadoopOutputStream createOutputStream(OutputStream out)
-            throws IOException;
+    int decompress(MemorySegment input, MemorySegment output);
 }

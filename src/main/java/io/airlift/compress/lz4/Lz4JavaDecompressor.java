@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.lz4;
 
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
@@ -26,8 +25,8 @@ import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class Lz4JavaDecompressor
-        implements Decompressor
+public final class Lz4JavaDecompressor
+        implements Lz4Decompressor
 {
     @Override
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)

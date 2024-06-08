@@ -307,7 +307,7 @@ final class SnappyRawDecompressor
             }
         }
         if (result < 0) {
-            throw new MalformedInputException(compressedAddress, "negative compressed length");
+            throw new MalformedInputException(compressedAddress, "invalid compressed length");
         }
         return new int[] {result, bytesRead};
     }

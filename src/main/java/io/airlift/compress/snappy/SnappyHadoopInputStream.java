@@ -24,7 +24,7 @@ import static io.airlift.compress.snappy.SnappyConstants.SIZE_OF_LONG;
 class SnappyHadoopInputStream
         extends HadoopInputStream
 {
-    private final SnappyJavaDecompressor decompressor = new SnappyJavaDecompressor();
+    private final SnappyDecompressor decompressor;
     private final InputStream in;
 
     private int uncompressedBlockLength;
@@ -34,8 +34,9 @@ class SnappyHadoopInputStream
 
     private byte[] compressed = new byte[0];
 
-    public SnappyHadoopInputStream(InputStream in)
+    public SnappyHadoopInputStream(SnappyDecompressor decompressor, InputStream in)
     {
+        this.decompressor = decompressor;
         this.in = in;
     }
 
@@ -112,7 +113,7 @@ class SnappyHadoopInputStream
         }
         readInput(compressedChunkLength, compressed);
 
-        uncompressedChunkLength = SnappyJavaDecompressor.getUncompressedLength(compressed, 0);
+        uncompressedChunkLength = decompressor.getUncompressedLength(compressed, 0);
         if (uncompressedChunkLength > uncompressedBlockLength) {
             throw new IOException("Chunk uncompressed size is greater than block size");
         }

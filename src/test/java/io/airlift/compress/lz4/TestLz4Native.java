@@ -19,19 +19,19 @@ import io.airlift.compress.thirdparty.JPountzLz4Compressor;
 import io.airlift.compress.thirdparty.JPountzLz4Decompressor;
 import net.jpountz.lz4.LZ4Factory;
 
-class TestLz4
+class TestLz4Native
         extends AbstractTestLz4
 {
     @Override
     protected Compressor getCompressor()
     {
-        return new Lz4JavaCompressor();
+        return new Lz4NativeCompressor();
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new Lz4JavaDecompressor();
+        return new Lz4NativeDecompressor();
     }
 
     @Override

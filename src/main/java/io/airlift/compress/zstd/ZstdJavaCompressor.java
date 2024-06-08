@@ -13,8 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.compress.Compressor;
-
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.zstd.Constants.MAX_BLOCK_SIZE;
@@ -27,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdJavaCompressor
-        implements Compressor
+        implements ZstdCompressor
 {
     @Override
     public int maxCompressedLength(int uncompressedSize)

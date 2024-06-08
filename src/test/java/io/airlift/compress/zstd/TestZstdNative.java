@@ -13,57 +13,35 @@
  */
 package io.airlift.compress.zstd;
 
-import com.google.common.io.Resources;
 import io.airlift.compress.Compressor;
 import io.airlift.compress.Decompressor;
-import io.airlift.compress.MalformedInputException;
+import io.airlift.compress.thirdparty.ZstdJniCompressor;
+import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 
-import java.io.IOException;
-
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-class TestZstdPartial
+public class TestZstdNative
         extends AbstractTestZstd
 {
     @Override
-    protected boolean isMemorySegmentSupported()
-    {
-        return false;
-    }
-
-    @Override
     protected ZstdCompressor getCompressor()
     {
-        return new ZstdJavaCompressor();
+        return new ZstdNativeCompressor();
     }
 
     @Override
     protected ZstdDecompressor getDecompressor()
     {
-        return new ZstdPartialDecompressor();
+        return new ZstdNativeDecompressor();
     }
 
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new ZstdJavaCompressor();
+        return new ZstdJniCompressor(3);
     }
 
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new ZstdJavaDecompressor();
-    }
-
-    @Override
-    public void testInvalidSequenceOffset()
-            throws IOException
-    {
-        byte[] compressed = Resources.toByteArray(Resources.getResource("data/zstd/offset-before-start.zst"));
-        byte[] output = new byte[compressed.length * 10];
-
-        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
-                .isInstanceOf(MalformedInputException.class)
-                .hasMessageStartingWith("Input is corrupted: offset=");
+        return new ZstdJniDecompressor();
     }
 }

@@ -20,6 +20,7 @@ import java.util.Arrays;
 
 import static io.airlift.compress.snappy.SnappyFramedOutputStream.MAX_BLOCK_SIZE;
 import static java.lang.Math.min;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Implements the <a href="http://snappy.googlecode.com/svn/trunk/framing_format.txt" >x-snappy-framed</a> as an {@link InputStream}.
@@ -27,7 +28,7 @@ import static java.lang.Math.min;
 public final class SnappyFramedInputStream
         extends InputStream
 {
-    private final SnappyJavaDecompressor decompressor = new SnappyJavaDecompressor();
+    private final SnappyDecompressor decompressor;
 
     private final InputStream in;
     private final byte[] frameHeader;
@@ -64,15 +65,16 @@ public final class SnappyFramedInputStream
      */
     private byte[] buffer;
 
-    public SnappyFramedInputStream(InputStream in)
+    public SnappyFramedInputStream(SnappyDecompressor decompressor, InputStream in)
             throws IOException
     {
-        this(in, true);
+        this(decompressor, in, true);
     }
 
-    public SnappyFramedInputStream(InputStream in, boolean verifyChecksums)
+    public SnappyFramedInputStream(SnappyDecompressor decompressor, InputStream in, boolean verifyChecksums)
             throws IOException
     {
+        this.decompressor = requireNonNull(decompressor, "decompressor is null");
         this.in = in;
         this.verifyChecksums = verifyChecksums;
         allocateBuffersBasedOnSize(MAX_BLOCK_SIZE + 5);
@@ -185,7 +187,7 @@ public final class SnappyFramedInputStream
         FrameData frameData = getFrameData(input);
 
         if (FrameAction.UNCOMPRESS == frameMetaData.frameAction) {
-            int uncompressedLength = SnappyJavaDecompressor.getUncompressedLength(input, frameData.offset);
+            int uncompressedLength = decompressor.getUncompressedLength(input, frameData.offset);
 
             if (uncompressedLength > uncompressed.length) {
                 uncompressed = new byte[uncompressedLength];

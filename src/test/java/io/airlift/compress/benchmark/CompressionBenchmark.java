@@ -57,9 +57,12 @@ public class CompressionBenchmark
 
     @Param({
             "airlift_lz4",
+            "airlift_lz4_native",
             "airlift_lzo",
             "airlift_snappy",
+            "airlift_snappy_native",
             "airlift_zstd",
+            "airlift_zstd_native",
 
             "xerial_snappy",
             "jpountz_lz4_jni",

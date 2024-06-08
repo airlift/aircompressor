@@ -26,7 +26,7 @@ public class SnappyCodec
 {
     public SnappyCodec()
     {
-        super(configuration -> new SnappyHadoopStreams(getBufferSize(configuration)));
+        super(configuration -> new SnappyHadoopStreams(true, getBufferSize(configuration)));
     }
 
     private static int getBufferSize(Optional<Configuration> configuration)

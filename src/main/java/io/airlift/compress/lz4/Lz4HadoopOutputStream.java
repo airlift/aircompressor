@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 class Lz4HadoopOutputStream
         extends HadoopOutputStream
 {
-    private final Lz4JavaCompressor compressor = new Lz4JavaCompressor();
+    private final Lz4Compressor compressor;
 
     private final OutputStream out;
     private final byte[] inputBuffer;
@@ -33,8 +33,9 @@ class Lz4HadoopOutputStream
 
     private final byte[] outputBuffer;
 
-    public Lz4HadoopOutputStream(OutputStream out, int bufferSize)
+    public Lz4HadoopOutputStream(Lz4Compressor compressor, OutputStream out, int bufferSize)
     {
+        this.compressor = requireNonNull(compressor, "compressor is null");
         this.out = requireNonNull(out, "out is null");
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster

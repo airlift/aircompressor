@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
@@ -25,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdPartialDecompressor
-        implements Decompressor
+        implements ZstdDecompressor
 {
     private final ZstdIncrementalFrameDecompressor decompressor = new ZstdIncrementalFrameDecompressor();
 
@@ -91,6 +90,13 @@ public class ZstdPartialDecompressor
             throws MalformedInputException
     {
         throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    @Override
+    public long getDecompressedSize(byte[] input, int offset, int length)
+    {
+        int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
+        return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)
