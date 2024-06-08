@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.io.ByteArrayInputStream;
@@ -23,9 +22,10 @@ import java.lang.foreign.MemorySegment;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdStreamDecompressor
-        implements Decompressor
+        implements ZstdDecompressor
 {
     @Override
     public int decompress(final byte[] input, final int inputOffset, final int inputLength, final byte[] output, final int outputOffset, final int maxOutputLength)
@@ -52,6 +52,13 @@ public class ZstdStreamDecompressor
             throws MalformedInputException
     {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long getDecompressedSize(byte[] input, int offset, int length)
+    {
+        int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
+        return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)

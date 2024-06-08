@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
@@ -27,7 +26,7 @@ import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdJavaDecompressor
-        implements Decompressor
+        implements ZstdDecompressor
 {
     private final ZstdFrameDecompressor decompressor = new ZstdFrameDecompressor();
 
@@ -73,7 +72,8 @@ public class ZstdJavaDecompressor
         }
     }
 
-    public static long getDecompressedSize(byte[] input, int offset, int length)
+    @Override
+    public long getDecompressedSize(byte[] input, int offset, int length)
     {
         int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
         return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);

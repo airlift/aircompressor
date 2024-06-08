@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 class Lz4HadoopInputStream
         extends HadoopInputStream
 {
-    private final Lz4JavaDecompressor decompressor = new Lz4JavaDecompressor();
+    private final Lz4Decompressor decompressor;
     private final InputStream in;
     private final byte[] uncompressedChunk;
 
@@ -35,8 +35,9 @@ class Lz4HadoopInputStream
 
     private byte[] compressed = new byte[0];
 
-    public Lz4HadoopInputStream(InputStream in, int maxUncompressedLength)
+    public Lz4HadoopInputStream(Lz4Decompressor decompressor, InputStream in, int maxUncompressedLength)
     {
+        this.decompressor = requireNonNull(decompressor, "decompressor is null");
         this.in = requireNonNull(in, "in is null");
         // over allocate buffer which makes decompression easier
         uncompressedChunk = new byte[maxUncompressedLength + SIZE_OF_LONG];

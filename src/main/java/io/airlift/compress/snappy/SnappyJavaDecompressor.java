@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.snappy;
 
-import io.airlift.compress.Decompressor;
 import io.airlift.compress.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
@@ -26,10 +25,11 @@ import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class SnappyJavaDecompressor
-        implements Decompressor
+public final class SnappyJavaDecompressor
+        implements SnappyDecompressor
 {
-    public static int getUncompressedLength(byte[] compressed, int compressedOffset)
+    @Override
+    public int getUncompressedLength(byte[] compressed, int compressedOffset)
     {
         long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
         long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;

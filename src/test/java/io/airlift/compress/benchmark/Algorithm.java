@@ -20,12 +20,16 @@ import io.airlift.compress.HadoopCodecDecompressor;
 import io.airlift.compress.lz4.Lz4Codec;
 import io.airlift.compress.lz4.Lz4JavaCompressor;
 import io.airlift.compress.lz4.Lz4JavaDecompressor;
+import io.airlift.compress.lz4.Lz4NativeCompressor;
+import io.airlift.compress.lz4.Lz4NativeDecompressor;
 import io.airlift.compress.lzo.LzoCodec;
 import io.airlift.compress.lzo.LzoCompressor;
 import io.airlift.compress.lzo.LzoDecompressor;
 import io.airlift.compress.snappy.SnappyCodec;
 import io.airlift.compress.snappy.SnappyJavaCompressor;
 import io.airlift.compress.snappy.SnappyJavaDecompressor;
+import io.airlift.compress.snappy.SnappyNativeCompressor;
+import io.airlift.compress.snappy.SnappyNativeDecompressor;
 import io.airlift.compress.thirdparty.HadoopLzoCompressor;
 import io.airlift.compress.thirdparty.HadoopLzoDecompressor;
 import io.airlift.compress.thirdparty.JPountzLz4Compressor;
@@ -38,6 +42,8 @@ import io.airlift.compress.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.thirdparty.ZstdJniDecompressor;
 import io.airlift.compress.zstd.ZstdJavaCompressor;
 import io.airlift.compress.zstd.ZstdJavaDecompressor;
+import io.airlift.compress.zstd.ZstdNativeCompressor;
+import io.airlift.compress.zstd.ZstdNativeDecompressor;
 import net.jpountz.lz4.LZ4Factory;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -46,9 +52,12 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 public enum Algorithm
 {
     airlift_lz4(new Lz4JavaDecompressor(), new Lz4JavaCompressor()),
+    airlift_lz4_native(new Lz4NativeDecompressor(), new Lz4NativeCompressor()),
     airlift_snappy(new SnappyJavaDecompressor(), new SnappyJavaCompressor()),
+    airlift_snappy_native(new SnappyNativeDecompressor(), new SnappyNativeCompressor()),
     airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
     airlift_zstd(new ZstdJavaDecompressor(), new ZstdJavaCompressor()),
+    airlift_zstd_native(new ZstdNativeDecompressor(), new ZstdNativeCompressor()),
 
     airlift_lz4_stream(new Lz4Codec(), new Lz4JavaCompressor()),
     airlift_snappy_stream(new SnappyCodec(), new SnappyJavaCompressor()),

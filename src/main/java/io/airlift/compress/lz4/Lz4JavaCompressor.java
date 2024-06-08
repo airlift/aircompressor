@@ -13,8 +13,6 @@
  */
 package io.airlift.compress.lz4;
 
-import io.airlift.compress.Compressor;
-
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
@@ -29,8 +27,8 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 /**
  * This class is not thread-safe
  */
-public class Lz4JavaCompressor
-        implements Compressor
+public final class Lz4JavaCompressor
+        implements Lz4Compressor
 {
     private final int[] table = new int[MAX_TABLE_SIZE];
 

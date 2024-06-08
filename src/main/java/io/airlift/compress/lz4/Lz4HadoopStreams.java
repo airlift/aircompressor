@@ -27,15 +27,17 @@ public class Lz4HadoopStreams
         implements HadoopStreams
 {
     private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 256 * 1024;
+    private final boolean useNative;
     private final int bufferSize;
 
     public Lz4HadoopStreams()
     {
-        this(DEFAULT_OUTPUT_BUFFER_SIZE);
+        this(true, DEFAULT_OUTPUT_BUFFER_SIZE);
     }
 
-    public Lz4HadoopStreams(int bufferSize)
+    public Lz4HadoopStreams(boolean useNative, int bufferSize)
     {
+        this.useNative = useNative && Lz4Native.isEnabled();
         this.bufferSize = bufferSize;
     }
 
@@ -54,12 +56,14 @@ public class Lz4HadoopStreams
     @Override
     public HadoopInputStream createInputStream(InputStream in)
     {
-        return new Lz4HadoopInputStream(in, bufferSize);
+        Lz4Decompressor decompressor = useNative ? new Lz4NativeDecompressor() : new Lz4JavaDecompressor();
+        return new Lz4HadoopInputStream(decompressor, in, bufferSize);
     }
 
     @Override
     public HadoopOutputStream createOutputStream(OutputStream out)
     {
-        return new Lz4HadoopOutputStream(out, bufferSize);
+        Lz4Compressor compressor = useNative ? new Lz4NativeCompressor() : new Lz4JavaCompressor();
+        return new Lz4HadoopOutputStream(compressor, out, bufferSize);
     }
 }

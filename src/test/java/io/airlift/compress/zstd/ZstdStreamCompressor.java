@@ -13,8 +13,6 @@
  */
 package io.airlift.compress.zstd;
 
-import io.airlift.compress.Compressor;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,7 +24,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class ZstdStreamCompressor
-        implements Compressor
+        implements ZstdCompressor
 {
     @Override
     public int maxCompressedLength(int uncompressedSize)

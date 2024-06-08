@@ -24,7 +24,7 @@ import static java.util.Objects.requireNonNull;
 class SnappyHadoopOutputStream
         extends HadoopOutputStream
 {
-    private final SnappyJavaCompressor compressor = new SnappyJavaCompressor();
+    private final SnappyCompressor compressor;
 
     private final OutputStream out;
     private final byte[] inputBuffer;
@@ -33,8 +33,9 @@ class SnappyHadoopOutputStream
 
     private final byte[] outputBuffer;
 
-    public SnappyHadoopOutputStream(OutputStream out, int bufferSize)
+    public SnappyHadoopOutputStream(SnappyCompressor compressor, OutputStream out, int bufferSize)
     {
+        this.compressor = compressor;
         this.out = requireNonNull(out, "out is null");
         inputBuffer = new byte[bufferSize];
         // leave extra space free at end of buffers to make compression (slightly) faster

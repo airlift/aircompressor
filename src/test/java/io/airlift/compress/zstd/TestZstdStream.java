@@ -32,13 +32,13 @@ class TestZstdStream
     }
 
     @Override
-    protected Compressor getCompressor()
+    protected ZstdCompressor getCompressor()
     {
         return new ZstdStreamCompressor();
     }
 
     @Override
-    protected Decompressor getDecompressor()
+    protected ZstdDecompressor getDecompressor()
     {
         return new ZstdStreamDecompressor();
     }

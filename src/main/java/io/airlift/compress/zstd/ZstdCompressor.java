@@ -11,26 +11,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.airlift.compress.hadoop;
+package io.airlift.compress.zstd;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.List;
+import io.airlift.compress.Compressor;
 
-/**
- * A factory for creating Hadoop compliant input and output streams.
- * Implementations of this interface are thread safe.
- */
-public interface HadoopStreams
+import java.lang.foreign.MemorySegment;
+
+public interface ZstdCompressor
+        extends Compressor
 {
-    String getDefaultFileExtension();
-
-    List<String> getHadoopCodecName();
-
-    HadoopInputStream createInputStream(InputStream in)
-            throws IOException;
-
-    HadoopOutputStream createOutputStream(OutputStream out)
-            throws IOException;
+    int compress(MemorySegment input, MemorySegment output);
 }
