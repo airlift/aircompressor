@@ -61,7 +61,6 @@ public class CompressionBenchmark
             "airlift_snappy",
             "airlift_zstd",
 
-            "iq80_snappy",
             "xerial_snappy",
             "jpountz_lz4_jni",
             "jpountz_lz4_safe",
