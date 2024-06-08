@@ -26,12 +26,12 @@ import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 class TestUtil
 {
     private final List<TestData> test24bitIntegers = ImmutableList.<TestData>builder()
-            .add(new TestData(new byte[]{1, 0, 0, 0}, 0, 1))
-            .add(new TestData(new byte[]{12, -83, 0, 0}, 0, 44300))
-            .add(new TestData(new byte[]{0, 0, -128}, 0, 8388608))
-            .add(new TestData(new byte[]{(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215))
-            .add(new TestData(new byte[]{63, 25, 72, 0}, 0, 4725055))
-            .add(new TestData(new byte[]{0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1))
+            .add(new TestData(new byte[] {1, 0, 0, 0}, 0, 1))
+            .add(new TestData(new byte[] {12, -83, 0, 0}, 0, 44300))
+            .add(new TestData(new byte[] {0, 0, -128}, 0, 8388608))
+            .add(new TestData(new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215))
+            .add(new TestData(new byte[] {63, 25, 72, 0}, 0, 4725055))
+            .add(new TestData(new byte[] {0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1))
             .build();
 
     @Test
