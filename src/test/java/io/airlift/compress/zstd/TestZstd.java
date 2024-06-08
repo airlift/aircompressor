@@ -211,7 +211,7 @@ public class TestZstd
     @Test
     void testDecompressIsMissingData()
     {
-        byte[] input = new byte[]{40, -75, 47, -3, 32, 0, 1, 0};
+        byte[] input = new byte[] {40, -75, 47, -3, 32, 0, 1, 0};
         byte[] output = new byte[1024];
         assertThatThrownBy(() -> getDecompressor().decompress(input, 0, input.length, output, 0, output.length))
                 .matches(e -> e instanceof MalformedInputException || e instanceof UncheckedIOException)
