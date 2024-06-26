@@ -26,8 +26,8 @@ import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdJavaOutputStream
-        extends OutputStream
+public final class ZstdJavaOutputStream
+        extends ZstdOutputStream
 {
     private final OutputStream outputStream;
     private final CompressionContext context;
@@ -129,8 +129,8 @@ public class ZstdJavaOutputStream
         }
     }
 
-    // visible for Hadoop stream
-    void finishWithoutClosingSource()
+    @Override
+    public void finishWithoutClosingSource()
             throws IOException
     {
         if (!closed) {
