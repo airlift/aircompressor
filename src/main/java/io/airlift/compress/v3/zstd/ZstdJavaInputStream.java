@@ -23,8 +23,8 @@ import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdJavaInputStream
-        extends InputStream
+public final class ZstdJavaInputStream
+        extends ZstdInputStream
 {
     private static final int MIN_BUFFER_SIZE = 4096;
 
