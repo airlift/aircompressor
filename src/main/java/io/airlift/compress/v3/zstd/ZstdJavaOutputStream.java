@@ -26,8 +26,8 @@ import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdJavaOutputStream
-        extends OutputStream
+public final class ZstdJavaOutputStream
+        extends ZstdOutputStreamBase
 {
     private final OutputStream outputStream;
     private final CompressionContext context;
@@ -43,6 +43,10 @@ public class ZstdJavaOutputStream
     // end of unprocessed data in uncompressed buffer
     private int uncompressedPosition;
 
+    // set once a finish is attempted, whether or not it succeeded; the underlying stream may still be open
+    private boolean finished;
+    // the first write or finish failure, after which the frame cannot be continued or ended
+    private Throwable failure;
     private boolean closed;
 
     public ZstdJavaOutputStream(OutputStream outputStream)
@@ -66,6 +70,12 @@ public class ZstdJavaOutputStream
         if (closed) {
             throw new IOException("Stream is closed");
         }
+        if (failure != null) {
+            throw failedException();
+        }
+        if (finished) {
+            throw new IOException("Stream is finished");
+        }
 
         growBufferIfNecessary(1);
 
@@ -87,6 +97,12 @@ public class ZstdJavaOutputStream
     {
         if (closed) {
             throw new IOException("Stream is closed");
+        }
+        if (failure != null) {
+            throw failedException();
+        }
+        if (finished) {
+            throw new IOException("Stream is finished");
         }
 
         growBufferIfNecessary(length);
@@ -125,17 +141,38 @@ public class ZstdJavaOutputStream
         if (uncompressed.length >= maxBufferSize &&
                 uncompressedPosition == uncompressed.length &&
                 uncompressed.length - context.parameters.getWindowSize() > context.parameters.getBlockSize()) {
-            writeChunk(false);
+            try {
+                writeChunk(false);
+            }
+            catch (IOException | RuntimeException e) {
+                fail(e);
+                throw e;
+            }
         }
     }
 
-    // visible for Hadoop stream
+    @Override
     void finishWithoutClosingSource()
             throws IOException
     {
-        if (!closed) {
+        if (finished) {
+            // a failed end of frame leaves the frame unusable, so it is not retried
+            if (failure != null) {
+                throw failedException();
+            }
+            return;
+        }
+
+        finished = true;
+        try {
+            if (failure != null) {
+                throw failedException();
+            }
             writeChunk(true);
-            closed = true;
+        }
+        catch (IOException | RuntimeException e) {
+            fail(e);
+            throw e;
         }
     }
 
@@ -144,11 +181,25 @@ public class ZstdJavaOutputStream
             throws IOException
     {
         if (!closed) {
-            writeChunk(true);
-
             closed = true;
-            outputStream.close();
+            // a failure to finish the frame stays primary; a failure to close the destination is suppressed into it
+            try (outputStream) {
+                finishWithoutClosingSource();
+            }
         }
+    }
+
+    private void fail(Throwable e)
+    {
+        if (failure == null) {
+            failure = e;
+        }
+    }
+
+    // the first failure is the cause, so a later call reports why the stream cannot be used
+    private IOException failedException()
+    {
+        return new IOException("Stream has failed", failure);
     }
 
     private void writeChunk(boolean lastChunk)
