@@ -35,6 +35,9 @@ public class HadoopCodecDecompressor
     public int decompress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
             throws MalformedInputException
     {
+        if (inputOffset < 0 || inputLength < 0 || inputOffset + inputLength > input.length) {
+            throw new IllegalArgumentException("Invalid offset or length: offset=" + inputOffset + ", length=" + inputLength + ", array length=" + input.length);
+        }
         try (InputStream in = codec.createInputStream(new ByteArrayInputStream(input, inputOffset, inputLength))) {
             int bytesRead = 0;
             while (bytesRead < maxOutputLength) {
