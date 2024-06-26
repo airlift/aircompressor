@@ -26,8 +26,8 @@ import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdJavaOutputStream
-        extends OutputStream
+public final class ZstdJavaOutputStream
+        extends ZstdOutputStreamBase
 {
     private final OutputStream outputStream;
     private final CompressionContext context;
@@ -43,6 +43,8 @@ public class ZstdJavaOutputStream
     // end of unprocessed data in uncompressed buffer
     private int uncompressedPosition;
 
+    // set once a finish is attempted, whether or not it succeeded; the underlying stream may still be open
+    private boolean finished;
     private boolean closed;
 
     public ZstdJavaOutputStream(OutputStream outputStream)
@@ -66,6 +68,9 @@ public class ZstdJavaOutputStream
         if (closed) {
             throw new IOException("Stream is closed");
         }
+        if (finished) {
+            throw new IOException("Stream is finished");
+        }
 
         growBufferIfNecessary(1);
 
@@ -87,6 +92,9 @@ public class ZstdJavaOutputStream
     {
         if (closed) {
             throw new IOException("Stream is closed");
+        }
+        if (finished) {
+            throw new IOException("Stream is finished");
         }
 
         growBufferIfNecessary(length);
@@ -129,13 +137,14 @@ public class ZstdJavaOutputStream
         }
     }
 
-    // visible for Hadoop stream
+    @Override
     void finishWithoutClosingSource()
             throws IOException
     {
-        if (!closed) {
+        if (!finished) {
+            // a failed end of frame leaves the frame unusable, so it is not retried
+            finished = true;
             writeChunk(true);
-            closed = true;
         }
     }
 
@@ -144,10 +153,11 @@ public class ZstdJavaOutputStream
             throws IOException
     {
         if (!closed) {
-            writeChunk(true);
-
             closed = true;
-            outputStream.close();
+            // a failure to finish the frame stays primary; a failure to close the destination is suppressed into it
+            try (outputStream) {
+                finishWithoutClosingSource();
+            }
         }
     }
 
