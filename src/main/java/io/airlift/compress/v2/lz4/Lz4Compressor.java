@@ -22,4 +22,12 @@ public sealed interface Lz4Compressor
         permits Lz4JavaCompressor, Lz4NativeCompressor
 {
     int compress(MemorySegment input, MemorySegment output);
+
+    static Lz4Compressor create()
+    {
+        if (Lz4NativeCompressor.isEnabled()) {
+            return new Lz4NativeCompressor();
+        }
+        return new Lz4JavaCompressor();
+    }
 }

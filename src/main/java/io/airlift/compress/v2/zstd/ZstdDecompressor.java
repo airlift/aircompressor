@@ -19,4 +19,12 @@ public interface ZstdDecompressor
         extends Decompressor
 {
     long getDecompressedSize(byte[] input, int offset, int length);
+
+    static ZstdDecompressor create()
+    {
+        if (ZstdNativeDecompressor.isEnabled()) {
+            return new ZstdNativeDecompressor();
+        }
+        return new ZstdJavaDecompressor();
+    }
 }
