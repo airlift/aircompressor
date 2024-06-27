@@ -22,4 +22,12 @@ public sealed interface SnappyCompressor
         permits SnappyJavaCompressor, SnappyNativeCompressor
 {
     int compress(MemorySegment input, MemorySegment output);
+
+    static SnappyCompressor create()
+    {
+        if (SnappyNativeCompressor.isEnabled()) {
+            return new SnappyNativeCompressor();
+        }
+        return new SnappyJavaCompressor();
+    }
 }

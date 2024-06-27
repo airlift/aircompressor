@@ -22,4 +22,12 @@ public sealed interface Lz4Decompressor
         permits Lz4JavaDecompressor, Lz4NativeDecompressor
 {
     int decompress(MemorySegment input, MemorySegment output);
+
+    static Lz4Decompressor create()
+    {
+        if (Lz4NativeDecompressor.isEnabled()) {
+            return new Lz4NativeDecompressor();
+        }
+        return new Lz4JavaDecompressor();
+    }
 }

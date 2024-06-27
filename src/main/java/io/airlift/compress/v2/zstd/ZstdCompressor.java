@@ -21,4 +21,12 @@ public interface ZstdCompressor
         extends Compressor
 {
     int compress(MemorySegment input, MemorySegment output);
+
+    static ZstdCompressor create()
+    {
+        if (ZstdNativeCompressor.isEnabled()) {
+            return new ZstdNativeCompressor();
+        }
+        return new ZstdJavaCompressor();
+    }
 }
