@@ -8,8 +8,8 @@ to interact directly with native libraries without the need for JNI.
 
 # Usage
 
-Each algorithm provides a simple block compression API using the `io.airlift.compress.Compressor` 
-and `io.airlift.compress.Decompressor` classes. Block compression is the simplest form of
+Each algorithm provides a simple block compression API using the `io.airlift.compress.v2.Compressor` 
+and `io.airlift.compress.v2.Decompressor` classes. Block compression is the simplest form of
 which simply compresses a small block of data provided as a `byte[]`, or more generally a
 `java.lang.foreign.MemorySegment`. Each algorithm may have one or more streaming format
 which typically produces a sequence of block compressed chunks.
