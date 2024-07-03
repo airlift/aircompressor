@@ -47,7 +47,7 @@ import static java.util.Objects.requireNonNull;
 
 public final class NativeLoader
 {
-    private static final File TEMP_DIR = new File(System.getProperty("aircompressor.tmpdir"), System.getProperty("java.io.tmpdir"));
+    private static final File TEMP_DIR = new File(System.getProperty("aircompressor.tmpdir", System.getProperty("java.io.tmpdir")));
     private static final MethodHandle LINKAGE_ERROR_CONSTRUCTOR;
 
     static {
