@@ -32,12 +32,12 @@ int uncompressedSize = decompressor.decompress(compressed, 0, compressedSize, un
 Arena arena = ...
 MemorySegment data = ...
 
-Compressor compressor = new Lz4JavaCompressor();
+Compressor compressor = Lz4Compressor.create();
 MemorySegment compressed = arena.allocate(compressor.maxCompressedLength(toIntExact(data.byteSize())));
 int compressedSize = compressor.compress(data, compressed);
 compressed = compressed.asSlice(0, compressedSize);
 
-Decompressor decompressor = new Lz4JavaDecompressor();
+Decompressor decompressor = Lz4Decompressor.create();
 MemorySegment uncompressed = arena.allocate(data.byteSize());
 int uncompressedSize = decompressor.decompress(compressed, uncompressed);
 uncompressed = uncompressed.asSlice(0, uncompressedSize);
