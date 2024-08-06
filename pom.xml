@@ -32,6 +32,7 @@
     <scm>
         <connection>scm:git:git://github.com/airlift/aircompressor.git</connection>
         <developerConnection>scm:git:git@github.com:airlift/aircompressor.git</developerConnection>
+        <tag>HEAD</tag>
         <url>https://github.com/airlift/aircompressor/tree/master</url>
     </scm>
 
