@@ -45,6 +45,7 @@ public final class HadoopNative
             throw new RuntimeException("failed to load Hadoop native library", error);
         }
         try {
+            System.out.println("!!!!!!!!!! LOAD HADOOP NATIVE !!!!!!!!!!!!!!!");
             loadLibrary("hadoop");
             setStatic(NativeCodeLoader.class.getDeclaredField("nativeCodeLoaded"), true);
 
