@@ -19,6 +19,6 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.java-version }}
       - name: Maven Install
-        run: mvn install -B -V -DskipTests -Dair.check.skip-all
+        run: ./mvnw install -B -V -DskipTests -Dair.check.skip-all
       - name: Maven Tests
-        run: mvn install -B -P ci
+        run: ./mvnw install -B -P ci
