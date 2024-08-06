@@ -59,6 +59,9 @@
         <air.test.parallel>methods</air.test.parallel>
         <air.test.thread-count>4</air.test.thread-count>
         <air.test.jvmsize>2G</air.test.jvmsize>
+
+        <!-- do not run tests on release -->
+        <air.release.preparation-goals>clean verify -DskipTests</air.release.preparation-goals>
     </properties>
 
     <dependencies>
