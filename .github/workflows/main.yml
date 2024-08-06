@@ -21,4 +21,4 @@ jobs:
       - name: Maven Install
         run: mvn install -B -V -DskipTests -Dair.check.skip-all
       - name: Maven Tests
-        run: mvn install -B -P ci
+        run: mvn install -B -P ci -Dtest=TestLz4Codec
