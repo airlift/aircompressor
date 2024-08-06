@@ -1,0 +1,75 @@
+# Hooks that will run on the CI to generate the summary of the steps
+hooks:
+  condition: '"{{ Env.CI }}" == true'
+  script:
+    before:
+      - filter:
+          includes: ['session']
+        run: |
+          echo "### {{command}}" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Outcome |" >> $GITHUB_STEP_SUMMARY
+          echo "| ---- | ------- |" >> $GITHUB_STEP_SUMMARY
+    success:
+      - filter:
+          excludes: ['session']
+        run: 'echo "| {{event.name}} | :white_check_mark: |" >> $GITHUB_STEP_SUMMARY'
+      - filter:
+          includes: ['session']
+        run: echo "" >> $GITHUB_STEP_SUMMARY
+    failure:
+      - filter:
+          excludes: ['session']
+        run: 'echo "| {{event.name}} | :x: |" >> $GITHUB_STEP_SUMMARY'
+      - filter:
+          includes: ['session']
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Failure" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "{{event.stacktrace}}\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+# Project configuration
+project:
+  name: aircompressor
+  description: Compression algorithms for Java
+  license: Apache-2
+  java:
+    groupId: io.airlift
+    multiProject: true
+
+# Ordered as defined in the https://jreleaser.org/guide/latest/concepts/workflow.html#_full_release
+signing:
+  active: ALWAYS
+  armored: true
+
+# Deploy to OSSRH
+deploy:
+  maven:
+    pomchecker:
+      failOnWarning: false # We don't want to fail the build on warnings
+      failOnError: false # We don't want to fail the build on errors
+    nexus2:
+      maven-central:
+        active: ALWAYS
+        url: https://oss.sonatype.org/service/local
+        snapshotUrl: https://oss.sonatype.org/content/repositories/snapshots/
+        closeRepository: true
+        releaseRepository: true
+        stagingRepositories:
+          - target/checkout/target/staging-deploy
+
+# Release to Github
+release:
+  github:
+    owner: airlift
+    overwrite: true # if tag already exists, overwrite it
+    skipTag: true # created by the release plugin
+    branch: master
+    uploadAssets: NEVER
+    tagName: '{{projectVersion}}'
+    files: false
+    draft: false
+    releaseNotes:
+      enabled: true
+      configurationFile: .github/release.yml

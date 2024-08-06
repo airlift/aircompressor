@@ -1,0 +1,115 @@
+name: Release new version
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push artifacts to Central and commits to the repository'
+        required: true
+        default: true
+        type: 'boolean'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      STAGED_REPOSITORY: target/checkout/target/staging-deploy
+
+    steps:
+      - name: Check if release is running from master
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/master" ]; then
+            echo "Release is only allowed from master branch"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '22'
+          distribution: 'temurin'
+          gpg-private-key: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+          cache: 'maven'
+
+      - name: Configure git
+        run: |
+          git config user.name "Airlift Release"
+          git config user.email "airlift-bot@airlift.io"
+
+      - name: Lock branch before release
+        uses: github/lock@v2
+        id: release-lock
+        with:
+          mode: 'lock'
+
+      - name: Run mvn release:prepare
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B release:prepare -Poss-release,oss-stage
+
+      - name: Determine release version
+        run: |
+          export VERSION=$(grep 'scm.tag=' release.properties | cut -d'=' -f2)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Releasing version: ${VERSION}"
+
+      - name: Run mvn release:perform to local staging
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B release:perform -Poss-release,oss-stage
+
+      - name: Display git status and history
+        run: |
+          git status
+          git log --oneline -n 2
+
+      - name: List locally staged artifacts
+        run: |
+          find ${{ env.STAGED_REPOSITORY }} -type f
+
+      - name: Run JReleaser
+        uses: jreleaser/release-action@v2
+        env:
+          JRELEASER_PROJECT_VERSION: ${{ env.VERSION }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ vars.JRELEASER_GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
+          JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
+          JRELEASER_NEXUS2_END_STAGE: ${{ inputs.push && 'RELEASE' || 'CLOSE' }}
+          JRELEASER_SKIP_RELEASE: ${{ inputs.push && 'false' || 'true' }}
+        with:
+          setup-java: false
+
+      - name: Push git changes
+        if: ${{ inputs.push }}
+        run: |
+          git status
+          git push origin master
+
+      - name: Unlock branch after a release
+        uses: github/lock@v2
+        id: release-unlock
+        with:
+          mode: 'unlock'
+
+      - name: Upload JReleaser logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jreleaser-logs
+          path: |
+            out/jreleaser/trace.log
+            out/jreleaser/output.properties
