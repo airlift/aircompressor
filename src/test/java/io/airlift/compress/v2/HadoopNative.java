@@ -17,6 +17,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.io.compress.GzipCodec;
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibFactory;
 import org.apache.hadoop.util.NativeCodeLoader;
@@ -25,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -66,7 +68,16 @@ public final class HadoopNative
     {
         Configuration conf = new Configuration();
         if (!ZlibFactory.isNativeZlibLoaded(conf)) {
-            throw new RuntimeException("native zlib is not loaded");
+            Throwable cause = null;
+            try {
+                Method initIDs = ZlibCompressor.class.getDeclaredMethod("initIDs");
+                initIDs.setAccessible(true);
+                initIDs.invoke(null);
+            }
+            catch (ReflectiveOperationException e) {
+                cause = e;
+            }
+            throw new RuntimeException("native zlib is not loaded", cause);
         }
 
         CompressionCodecFactory factory = new CompressionCodecFactory(conf);
