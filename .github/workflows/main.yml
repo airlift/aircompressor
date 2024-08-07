@@ -20,5 +20,23 @@ jobs:
           java-version: ${{ matrix.java-version }}
       - name: Maven Install
         run: ./mvnw install -B -V -DskipTests -Dair.check.skip-all
-      - name: Maven Tests
+      - name: Maven Tests 0
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 1
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 2
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 3
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 4
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 5
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 6
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 7
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 8
+        run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
+      - name: Maven Tests 9
         run: ./mvnw install -B -P ci -Dtest=TestLz4Codec
