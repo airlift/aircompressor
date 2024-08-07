@@ -13,10 +13,14 @@
  */
 package io.airlift.compress.v2;
 
+import io.airlift.compress.v2.lz4.Lz4NativeCompressor;
+import io.airlift.compress.v2.snappy.SnappyNativeCompressor;
+import io.airlift.compress.v2.zstd.ZstdNativeCompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.io.compress.GzipCodec;
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
 import org.apache.hadoop.io.compress.zlib.ZlibFactory;
 import org.apache.hadoop.util.NativeCodeLoader;
@@ -25,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -44,7 +49,11 @@ public final class HadoopNative
         if (error != null) {
             throw new RuntimeException("failed to load Hadoop native library", error);
         }
+        new Lz4NativeCompressor();
+        new ZstdNativeCompressor();
+        new SnappyNativeCompressor();
         try {
+            System.out.println("!!!!!!!!!! LOAD HADOOP NATIVE !!!!!!!!!!!!!!!");
             loadLibrary("hadoop");
             setStatic(NativeCodeLoader.class.getDeclaredField("nativeCodeLoaded"), true);
 
@@ -65,7 +74,11 @@ public final class HadoopNative
     {
         Configuration conf = new Configuration();
         if (!ZlibFactory.isNativeZlibLoaded(conf)) {
-            throw new RuntimeException("native zlib is not loaded");
+            Throwable cause = initZlib(ZlibCompressor.class);
+            if (cause == null) {
+                cause = initZlib(ZlibDecompressor.class);
+            }
+            throw new RuntimeException("native zlib is not loaded", cause);
         }
 
         CompressionCodecFactory factory = new CompressionCodecFactory(conf);
@@ -76,6 +89,19 @@ public final class HadoopNative
         org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
         if (!(decompressor instanceof ZlibDecompressor)) {
             throw new RuntimeException("wrong gzip decompressor: " + decompressor.getClass().getName());
+        }
+    }
+
+    private static Throwable initZlib(Class<?> clazz)
+    {
+        try {
+            Method initIDs = clazz.getDeclaredMethod("initIDs");
+            initIDs.setAccessible(true);
+            initIDs.invoke(null);
+            return null;
+        }
+        catch (ReflectiveOperationException e) {
+            return e;
         }
     }
 

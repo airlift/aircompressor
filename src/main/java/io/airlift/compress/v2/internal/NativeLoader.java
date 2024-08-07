@@ -159,6 +159,7 @@ public final class NativeLoader
             throw new LinkageError("Native library loading is disabled");
         }
 
+        System.out.println("!!!!!!!!!! NEW LOAD %s !!!!!!!!!!!!!!!".formatted(name));
         try {
             String libraryPath = getLibraryPath(name);
             URL url = NativeLoader.class.getResource(libraryPath);
