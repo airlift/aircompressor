@@ -14,6 +14,8 @@
 package io.airlift.compress.v2;
 
 import io.airlift.compress.v2.lz4.Lz4NativeCompressor;
+import io.airlift.compress.v2.snappy.SnappyNativeCompressor;
+import io.airlift.compress.v2.zstd.ZstdNativeCompressor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
@@ -48,6 +50,8 @@ public final class HadoopNative
             throw new RuntimeException("failed to load Hadoop native library", error);
         }
         new Lz4NativeCompressor();
+        new ZstdNativeCompressor();
+        new SnappyNativeCompressor();
         try {
             System.out.println("!!!!!!!!!! LOAD HADOOP NATIVE !!!!!!!!!!!!!!!");
             loadLibrary("hadoop");
