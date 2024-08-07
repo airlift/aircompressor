@@ -68,14 +68,9 @@ public final class HadoopNative
     {
         Configuration conf = new Configuration();
         if (!ZlibFactory.isNativeZlibLoaded(conf)) {
-            Throwable cause = null;
-            try {
-                Method initIDs = ZlibCompressor.class.getDeclaredMethod("initIDs");
-                initIDs.setAccessible(true);
-                initIDs.invoke(null);
-            }
-            catch (ReflectiveOperationException e) {
-                cause = e;
+            Throwable cause = initZlib(ZlibCompressor.class);
+            if (cause == null) {
+                cause = initZlib(ZlibDecompressor.class);
             }
             throw new RuntimeException("native zlib is not loaded", cause);
         }
@@ -88,6 +83,19 @@ public final class HadoopNative
         org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
         if (!(decompressor instanceof ZlibDecompressor)) {
             throw new RuntimeException("wrong gzip decompressor: " + decompressor.getClass().getName());
+        }
+    }
+
+    private static Throwable initZlib(Class<?> clazz)
+    {
+        try {
+            Method initIDs = clazz.getDeclaredMethod("initIDs");
+            initIDs.setAccessible(true);
+            initIDs.invoke(null);
+            return null;
+        }
+        catch (ReflectiveOperationException e) {
+            return e;
         }
     }
 
