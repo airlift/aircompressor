@@ -21,8 +21,6 @@ import io.airlift.compress.v2.HadoopCodecCompressor;
 import io.airlift.compress.v2.HadoopCodecDecompressor;
 import io.airlift.compress.v2.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.v2.thirdparty.ZstdJniDecompressor;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.compress.CompressionCodec;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -30,15 +28,6 @@ import java.io.IOException;
 class TestZstdCodec
         extends AbstractTestCompression
 {
-    private final CompressionCodec verifyCodec;
-
-    TestZstdCodec()
-    {
-        org.apache.hadoop.io.compress.ZStandardCodec codec = new org.apache.hadoop.io.compress.ZStandardCodec();
-        codec.setConf(new Configuration());
-        this.verifyCodec = codec;
-    }
-
     @Override
     protected boolean isMemorySegmentSupported()
     {
