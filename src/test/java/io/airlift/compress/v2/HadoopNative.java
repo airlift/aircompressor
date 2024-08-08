@@ -13,12 +13,6 @@
  */
 package io.airlift.compress.v2;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.io.compress.GzipCodec;
-import org.apache.hadoop.io.compress.zlib.ZlibDecompressor;
-import org.apache.hadoop.io.compress.zlib.ZlibFactory;
 import org.apache.hadoop.util.NativeCodeLoader;
 
 import java.io.File;
@@ -51,31 +45,11 @@ public final class HadoopNative
             loadLibrary("gplcompression");
             loadLibrary("lzo2");
 
-            requireNativeZlib();
-
             loaded = true;
         }
         catch (Throwable t) {
             error = t;
             throw new RuntimeException("failed to load Hadoop native library", error);
-        }
-    }
-
-    private static void requireNativeZlib()
-    {
-        Configuration conf = new Configuration();
-        if (!ZlibFactory.isNativeZlibLoaded(conf)) {
-            throw new RuntimeException("native zlib is not loaded");
-        }
-
-        CompressionCodecFactory factory = new CompressionCodecFactory(conf);
-        CompressionCodec codec = factory.getCodecByClassName(GzipCodec.class.getName());
-        if (codec == null) {
-            throw new RuntimeException("failed to load GzipCodec");
-        }
-        org.apache.hadoop.io.compress.Decompressor decompressor = codec.createDecompressor();
-        if (!(decompressor instanceof ZlibDecompressor)) {
-            throw new RuntimeException("wrong gzip decompressor: " + decompressor.getClass().getName());
         }
     }
 
