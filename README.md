@@ -104,6 +104,13 @@ that have Hadoop dependencies, each algorithm also provides a `CompressionCodec`
 
 This library requires a Java 22+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform.
 
+# Configuration
+
+Temporary directory used to unpack and load native libraries can be configured using the `aircompressor.tmpdir` system property,
+with a default value of `java.io.tmpdir`. This is useful when the default temporary directory is mounted as `noexec`.
+
+Loading of native libraries can be disabled entirely by setting the `io.airlift.compress.v2.disable-native` system property.
+
 # Users
 
 This library is used in projects such as Trino (https://trino.io), a distributed SQL engine.
