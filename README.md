@@ -1,5 +1,5 @@
 # Compression for Java
-[![Maven Central](https://img.shields.io/maven-central/v/io.airlift/aircompressor.svg?label=Maven%20Central)](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.airlift%22%20AND%20a%3A%22aircompressor%22)
+[![Maven Central](https://img.shields.io/maven-central/v/io.airlift/aircompressor-v3.svg?label=Maven%20Central)](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.airlift%22%20AND%20a%3A%22aircompressor-v3%22)
 
 This library provides a set of compression algorithms implemented in pure Java and 
 where possible native implementations. The Java implementations use `sun.misc.Unsafe`
@@ -8,8 +8,8 @@ to interact directly with native libraries without the need for JNI.
 
 # Usage
 
-Each algorithm provides a simple block compression API using the `io.airlift.compress.v2.Compressor` 
-and `io.airlift.compress.v2.Decompressor` classes. Block compression is the simplest form of
+Each algorithm provides a simple block compression API using the `io.airlift.compress.v3.Compressor` 
+and `io.airlift.compress.v3.Decompressor` classes. Block compression is the simplest form of
 which simply compresses a small block of data provided as a `byte[]`, or more generally a
 `java.lang.foreign.MemorySegment`. Each algorithm may have one or more streaming format
 which typically produces a sequence of block compressed chunks.
@@ -109,7 +109,7 @@ This library requires a Java 22+ virtual machine containing the `sun.misc.Unsafe
 Temporary directory used to unpack and load native libraries can be configured using the `aircompressor.tmpdir` system property,
 with a default value of `java.io.tmpdir`. This is useful when the default temporary directory is mounted as `noexec`.
 
-Loading of native libraries can be disabled entirely by setting the `io.airlift.compress.v2.disable-native` system property.
+Loading of native libraries can be disabled entirely by setting the `io.airlift.compress.v3.disable-native` system property.
 
 # Users
 
