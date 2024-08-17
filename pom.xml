@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>112</version>
+        <version>163</version>
     </parent>
 
     <groupId>io.airlift</groupId>
@@ -32,9 +32,9 @@
     <scm>
         <connection>scm:git:git://github.com/airlift/aircompressor.git</connection>
         <developerConnection>scm:git:git@github.com:airlift/aircompressor.git</developerConnection>
+        <tag>HEAD</tag>
         <url>https://github.com/airlift/aircompressor/tree/master</url>
-      <tag>HEAD</tag>
-  </scm>
+    </scm>
 
     <distributionManagement>
         <repository>
