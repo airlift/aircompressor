@@ -27,12 +27,12 @@ public class TestUtil
     public static Object[][] test24bitIntegers()
     {
         return new Object[][] {
-                {new byte[] {1, 0, 0, 0}, 0, 1},
-                {new byte[] {12, -83, 0, 0}, 0, 44300},
-                {new byte[] {0, 0, -128}, 0, 8388608},
-                {new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215},
-                {new byte[] {63, 25, 72, 0}, 0, 4725055},
-                {new byte[] {0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1}
+                {new byte[]{1, 0, 0, 0}, 0, 1},
+                {new byte[]{12, -83, 0, 0}, 0, 44300},
+                {new byte[]{0, 0, -128}, 0, 8388608},
+                {new byte[]{(byte) 0xFF, (byte) 0xFF, (byte) 0xFF}, 0, 16777215},
+                {new byte[]{63, 25, 72, 0}, 0, 4725055},
+                {new byte[]{0, 0, 0, 0, 0, 0, 1, 0, 0}, 6, 1}
         };
     }
 

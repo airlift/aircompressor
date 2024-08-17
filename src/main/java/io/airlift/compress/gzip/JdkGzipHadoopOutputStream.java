@@ -88,7 +88,7 @@ class JdkGzipHadoopOutputStream
             super(output, bufferSize);
         }
 
-        public void end()
+        public void end() throws IOException
         {
             // free the memory as early as possible
             def.end();
