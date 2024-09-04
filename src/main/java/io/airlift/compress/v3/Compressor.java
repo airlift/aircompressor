@@ -28,4 +28,9 @@ public interface Compressor
      * @return number of bytes written to the output
      */
     int compress(MemorySegment input, MemorySegment output);
+
+    default int getRetainedSizeInBytes(int inputLength)
+    {
+        return 0;
+    }
 }

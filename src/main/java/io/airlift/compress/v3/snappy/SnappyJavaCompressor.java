@@ -75,6 +75,12 @@ public final class SnappyJavaCompressor
         }
     }
 
+    @Override
+    public int getRetainedSizeInBytes(int inputLength)
+    {
+        return SnappyRawCompressor.getHashTableSize(inputLength);
+    }
+
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");

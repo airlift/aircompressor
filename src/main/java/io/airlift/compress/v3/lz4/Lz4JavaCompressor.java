@@ -69,6 +69,12 @@ public final class Lz4JavaCompressor
         }
     }
 
+    @Override
+    public int getRetainedSizeInBytes(int inputLength)
+    {
+        return Lz4RawCompressor.computeTableSize(inputLength);
+    }
+
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");

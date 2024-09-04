@@ -300,7 +300,7 @@ final class Lz4RawCompressor
         return output;
     }
 
-    private static int computeTableSize(int inputSize)
+    static int computeTableSize(int inputSize)
     {
         // smallest power of 2 larger than inputSize
         int target = Integer.highestOneBit(inputSize - 1) << 1;
