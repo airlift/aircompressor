@@ -18,6 +18,7 @@ import static io.airlift.compress.v3.zstd.Constants.MAX_WINDOW_LOG;
 import static io.airlift.compress.v3.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.v3.zstd.Util.cycleLog;
 import static io.airlift.compress.v3.zstd.Util.highestBit;
+import static java.lang.Math.clamp;
 
 class CompressionParameters
 {
@@ -316,7 +317,7 @@ class CompressionParameters
         int row = DEFAULT_COMPRESSION_LEVEL;
 
         if (compressionLevel != 0) { // TODO: figure out better way to indicate default compression level
-            row = Math.min(Math.max(0, compressionLevel), MAX_COMPRESSION_LEVEL);
+            row = clamp(compressionLevel, 0, MAX_COMPRESSION_LEVEL);
         }
 
         return DEFAULT_COMPRESSION_PARAMETERS[table][row];

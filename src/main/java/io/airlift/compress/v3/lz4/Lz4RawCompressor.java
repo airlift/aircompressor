@@ -20,6 +20,7 @@ import static io.airlift.compress.v3.lz4.Lz4Constants.MIN_MATCH;
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_LONG;
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_SHORT;
 import static io.airlift.compress.v3.lz4.UnsafeUtil.UNSAFE;
+import static java.lang.Math.clamp;
 
 final class Lz4RawCompressor
 {
@@ -306,6 +307,6 @@ final class Lz4RawCompressor
         int target = Integer.highestOneBit(inputSize - 1) << 1;
 
         // keep it between MIN_TABLE_SIZE and MAX_TABLE_SIZE
-        return Math.max(Math.min(target, MAX_TABLE_SIZE), MIN_TABLE_SIZE);
+        return clamp(target, MIN_TABLE_SIZE, MAX_TABLE_SIZE);
     }
 }
