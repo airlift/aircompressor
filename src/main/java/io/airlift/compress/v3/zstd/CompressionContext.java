@@ -15,6 +15,7 @@ package io.airlift.compress.v3.zstd;
 
 import static io.airlift.compress.v3.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.v3.zstd.Util.checkArgument;
+import static java.lang.Math.clamp;
 
 class CompressionContext
 {
@@ -31,7 +32,7 @@ class CompressionContext
     {
         this.parameters = parameters;
 
-        int windowSize = Math.max(1, Math.min(parameters.getWindowSize(), inputSize));
+        int windowSize = clamp(inputSize, 1, parameters.getWindowSize());
         int blockSize = Math.min(MAX_BLOCK_SIZE, windowSize);
         int divider = (parameters.getSearchLength() == 3) ? 3 : 4;
 

@@ -21,6 +21,7 @@ import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_INT;
 import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_LONG;
 import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_SHORT;
 import static io.airlift.compress.v3.snappy.UnsafeUtil.UNSAFE;
+import static java.lang.Math.clamp;
 
 final class SnappyRawCompressor
 {
@@ -356,7 +357,7 @@ final class SnappyRawCompressor
         int target = Integer.highestOneBit(inputSize - 1) << 1;
 
         // keep it between MIN_TABLE_SIZE and MAX_TABLE_SIZE
-        return Math.max(Math.min(target, MAX_HASH_TABLE_SIZE), 256);
+        return clamp(target, 256, MAX_HASH_TABLE_SIZE);
     }
 
     // Any hash function will produce a valid compressed stream, but a good
