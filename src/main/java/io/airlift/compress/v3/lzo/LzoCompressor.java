@@ -71,6 +71,12 @@ public class LzoCompressor
         }
     }
 
+    @Override
+    public int getRetainedSizeInBytes(int inputLength)
+    {
+        return MAX_TABLE_SIZE;
+    }
+
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");

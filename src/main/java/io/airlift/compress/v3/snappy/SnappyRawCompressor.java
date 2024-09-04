@@ -344,7 +344,7 @@ final class SnappyRawCompressor
     }
 
     @SuppressWarnings("IllegalToken")
-    private static int getHashTableSize(int inputSize)
+    static int getHashTableSize(int inputSize)
     {
         // Use smaller hash table when input.size() is smaller, since we
         // fill the table, incurring O(hash table size) overhead for
