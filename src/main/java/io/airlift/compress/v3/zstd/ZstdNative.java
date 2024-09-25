@@ -53,6 +53,8 @@ final class ZstdNative
     // TODO should we just hardcode this to 3?
     public static final int DEFAULT_COMPRESSION_LEVEL;
 
+    private static final long CONTENT_SIZE_UNKNOWN = -1L;
+
     static {
         NativeLoader.Symbols<MethodHandles> symbols = NativeLoader.loadSymbols("zstd", MethodHandles.class, lookup());
         LINKAGE_ERROR = symbols.linkageError();
@@ -154,7 +156,7 @@ final class ZstdNative
             throw new Error("Unexpected exception", e);
         }
 
-        if (isError(result)) {
+        if (CONTENT_SIZE_UNKNOWN != result && result < 0) {
             throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
         }
         return result;
