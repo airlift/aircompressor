@@ -104,10 +104,10 @@ final class Lz4RawCompressor
 
         // First Byte
         // put position in hash
-        table[hash(UNSAFE.getLong(inputBase, input), mask)] = (int) (input - inputAddress);
+        table[hash(UNSAFE.getInt(inputBase, input), mask)] = (int) (input - inputAddress);
 
         input++;
-        int nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
+        int nextHash = hash(UNSAFE.getInt(inputBase, input), mask);
 
         boolean done = false;
         do {
@@ -130,7 +130,7 @@ final class Lz4RawCompressor
 
                 // get position on hash
                 matchIndex = inputAddress + table[hash];
-                nextHash = hash(UNSAFE.getLong(inputBase, nextInputIndex), mask);
+                nextHash = hash(UNSAFE.getInt(inputBase, nextInputIndex), mask);
 
                 // put position on hash
                 table[hash] = (int) (input - inputAddress);
@@ -165,16 +165,16 @@ final class Lz4RawCompressor
                 }
 
                 long position = input - 2;
-                table[hash(UNSAFE.getLong(inputBase, position), mask)] = (int) (position - inputAddress);
+                table[hash(UNSAFE.getInt(inputBase, position), mask)] = (int) (position - inputAddress);
 
                 // Test next position
-                int hash = hash(UNSAFE.getLong(inputBase, input), mask);
+                int hash = hash(UNSAFE.getInt(inputBase, input), mask);
                 matchIndex = inputAddress + table[hash];
                 table[hash] = (int) (input - inputAddress);
 
                 if (matchIndex + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, matchIndex) != UNSAFE.getInt(inputBase, input)) {
                     input++;
-                    nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
+                    nextHash = hash(UNSAFE.getInt(inputBase, input), mask);
                     break;
                 }
 
