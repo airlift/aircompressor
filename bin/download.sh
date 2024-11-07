@@ -54,17 +54,17 @@ download_macos()
 
 # Snappy
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1_amd64.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_amd64.deb" \
   "/usr/lib/x86_64-linux-gnu/libsnappy.so.1.2.1" \
   "linux-amd64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1_arm64.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libsnappy.so.1.2.1" \
   "linux-aarch64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1_ppc64el.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libsnappy.so.1.2.1" \
   "linux-ppc64le/libsnappy.so"
 
@@ -98,38 +98,38 @@ download_macos \
 
 # LZ4
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.4-2_amd64.deb" \
-  "/usr/lib/x86_64-linux-gnu/liblz4.so.1.9.4" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_amd64.deb" \
+  "/usr/lib/x86_64-linux-gnu/liblz4.so.1.10.0" \
   "linux-amd64/liblz4.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.4-2_arm64.deb" \
-  "/usr/lib/aarch64-linux-gnu/liblz4.so.1.9.4" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_arm64.deb" \
+  "/usr/lib/aarch64-linux-gnu/liblz4.so.1.10.0" \
   "linux-aarch64/liblz4.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.4-2_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/liblz4.so.1.9.4" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_ppc64el.deb" \
+  "/usr/lib/powerpc64le-linux-gnu/liblz4.so.1.10.0" \
   "linux-ppc64le/liblz4.so"
 
 download_macos \
-  lz4 1.9.4 liblz4.1.9.4.dylib amd64 macos-amd64/liblz4.dylib
+  lz4 1.10.0 liblz4.1.10.0.dylib amd64 macos-amd64/liblz4.dylib
 
 download_macos \
-  lz4 1.9.4 liblz4.1.9.4.dylib arm64 macos-aarch64/liblz4.dylib
+  lz4 1.10.0 liblz4.1.10.0.dylib arm64 macos-aarch64/liblz4.dylib
 
 # bzip2
 download_linux \
-  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-5.1_amd64.deb" \
+  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb" \
   "/usr/lib/x86_64-linux-gnu/libbz2.so.1.0.4" \
   "linux-amd64/libbz2.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-5.1_arm64.deb" \
+  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libbz2.so.1.0.4" \
   "linux-aarch64/libbz2.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-5.1_ppc64el.deb" \
+  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libbz2.so.1.0.4" \
   "linux-ppc64le/libbz2.so"
