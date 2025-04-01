@@ -17,16 +17,27 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.lz4.Lz4Native.DEFAULT_ACCELERATION;
+import static io.airlift.compress.v3.lz4.Lz4Native.MAX_ACCELERATION;
 import static java.lang.Math.toIntExact;
 
 public final class Lz4NativeCompressor
         implements Lz4Compressor
 {
     private final MemorySegment state = Arena.ofAuto().allocate(Lz4Native.STATE_SIZE);
+    private final int acceleration;
 
     public Lz4NativeCompressor()
     {
+        this(DEFAULT_ACCELERATION);
+    }
+
+    public Lz4NativeCompressor(int acceleration)
+    {
+        if (acceleration < DEFAULT_ACCELERATION || acceleration > MAX_ACCELERATION) {
+            throw new IllegalArgumentException("LZ4 acceleration should be in the [%d, %d] range but got %d".formatted(DEFAULT_ACCELERATION, MAX_ACCELERATION, acceleration));
+        }
         Lz4Native.verifyEnabled();
+        this.acceleration = acceleration;
     }
 
     public static boolean isEnabled()
@@ -45,12 +56,12 @@ public final class Lz4NativeCompressor
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice(inputOffset, inputLength);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return Lz4Native.compress(inputSegment, inputLength, outputSegment, maxOutputLength, DEFAULT_ACCELERATION, state);
+        return Lz4Native.compress(inputSegment, inputLength, outputSegment, maxOutputLength, acceleration, state);
     }
 
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
-        return Lz4Native.compress(input, toIntExact(input.byteSize()), output, toIntExact(output.byteSize()), DEFAULT_ACCELERATION, state);
+        return Lz4Native.compress(input, toIntExact(input.byteSize()), output, toIntExact(output.byteSize()), acceleration, state);
     }
 }

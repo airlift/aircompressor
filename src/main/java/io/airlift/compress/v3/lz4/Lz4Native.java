@@ -47,6 +47,7 @@ final class Lz4Native
 
     // Defined in lz4.h: https://github.com/lz4/lz4/blob/v1.9.4/lib/lz4.c#L51
     public static final int DEFAULT_ACCELERATION = 1;
+    public static final int MAX_ACCELERATION = 65537;
     public static final int STATE_SIZE;
 
     static {
