@@ -12,6 +12,7 @@ jobs:
       matrix:
         java-version:
           - 22
+          - 24
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
