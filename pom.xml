@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>202</version>
+        <version>229</version>
     </parent>
 
     <groupId>io.airlift</groupId>
