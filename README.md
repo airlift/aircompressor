@@ -45,7 +45,7 @@ uncompressed = uncompressed.asSlice(0, uncompressedSize);
 
 # Algorithms
 
-## [Zstandard (Zstd)](https://www.zstd.net/) **(Recommended)**
+## [Zstandard (Zstd)](https://facebook.github.io/zstd/) **(Recommended)**
 Zstandard is the recommended algorithm for most compression. It provides
 superior compression and performance at all levels compared to zlib. Zstandard is
 an excellent choice for most use cases, especially storage and bandwidth constrained
@@ -57,7 +57,7 @@ The native implementation of Zstandard is provided by the `ZstdNativeCompressor`
 
 The Zstandard streaming format is supported by `ZstdInputStream` and `ZstdOutputStream`.
 
-## [LZ4](https://www.lz4.org/)
+## [LZ4](https://lz4.org/)
 LZ4 is an extremely fast compression algorithm that provides compression ratios comparable
 to Snappy and LZO. LZ4 is an excellent choice for applications that require high-performance
 compression and decompression.
