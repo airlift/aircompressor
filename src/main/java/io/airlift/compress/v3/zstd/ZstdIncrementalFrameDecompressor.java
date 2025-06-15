@@ -188,8 +188,6 @@ public class ZstdIncrementalFrameDecompressor
                     blockHeader = UNSAFE.getByte(inputBase, input) & 0xFF |
                             (UNSAFE.getByte(inputBase, input + 1) & 0xFF) << 8 |
                             (UNSAFE.getByte(inputBase, input + 2) & 0xFF) << 16;
-                    int expected = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
-                    verify(blockHeader == expected, input, "oops");
                 }
                 input += SIZE_OF_BLOCK_HEADER;
                 state = State.READ_BLOCK;
