@@ -107,4 +107,13 @@ class TestUnsafeUtil {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("MemorySegment scope is not alive");
     }
+
+    @Test
+    void testGetAddressNonByteArray() {
+        long[] array = new long[10];
+        MemorySegment memorySegment = MemorySegment.ofArray(array);
+        assertThatThrownBy(() -> UnsafeUtil.getAddress(memorySegment))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("MemorySegment is not backed by a byte array");
+    }
 }

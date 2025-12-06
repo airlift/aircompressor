@@ -72,7 +72,10 @@ final class UnsafeUtil
         if (segment.isNative()) {
             return segment.address();
         }
-        assert segment.heapBase().orElse(null) instanceof byte[];
+
+        if (!(segment.heapBase().orElse(null) instanceof byte[])) {
+            throw new IllegalArgumentException("MemorySegment is not backed by a byte array");
+        }
         return segment.address() + ARRAY_BYTE_BASE_OFFSET;
     }
 }
