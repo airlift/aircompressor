@@ -15,8 +15,12 @@ package io.airlift.compress.v3.snappy;
 
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
+import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.thirdparty.XerialSnappyCompressor;
 import io.airlift.compress.v3.thirdparty.XerialSnappyDecompressor;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestSnappyJava
         extends AbstractTestSnappy
@@ -43,5 +47,14 @@ class TestSnappyJava
     protected Decompressor getVerifyDecompressor()
     {
         return new XerialSnappyDecompressor();
+    }
+
+    @Test
+    void testZeroMatchOffsetFails()
+    {
+        byte[] zeroMatchOffset = new byte[] {16, 1, 0, 1, 0, 1, 0, 1, 0};
+        assertThatThrownBy(() -> new SnappyJavaDecompressor().decompress(zeroMatchOffset, 0, zeroMatchOffset.length, new byte[64], 0, 64))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageContaining("Malformed input: offset=2");
     }
 }
