@@ -15,9 +15,13 @@ package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
+import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.thirdparty.JPountzLz4Compressor;
 import io.airlift.compress.v3.thirdparty.JPountzLz4Decompressor;
 import net.jpountz.lz4.LZ4Factory;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestLz4
         extends AbstractTestLz4
@@ -44,5 +48,14 @@ class TestLz4
     protected Decompressor getVerifyDecompressor()
     {
         return new JPountzLz4Decompressor(LZ4Factory.fastestInstance());
+    }
+
+    @Test
+    void testZeroMatchOffset()
+    {
+        byte[] compressed = new byte[] {15, 0, 0, -1, -1, -118, 49, -1, -1, 0};
+        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, new byte[1024], 0, 1024))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageContaining("offset outside destination buffer: offset=3");
     }
 }

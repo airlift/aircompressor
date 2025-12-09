@@ -63,6 +63,6 @@ public abstract class AbstractTestLz4
         byte[] data = buffer.toByteArray();
 
         assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
-                .hasMessageMatching("Malformed input.*|Unknown error occurred.*");
+                .hasMessageMatching("Malformed input.*|Unknown error occurred.*|offset outside destination buffer.*");
     }
 }
