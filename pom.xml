@@ -38,14 +38,14 @@
 
     <distributionManagement>
         <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Release Repository</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <id>sonatype-central-portal</id>
+            <name>Sonatype Central Portal</name>
+            <url>https://central.sonatype.com/repository/maven/</url>
         </repository>
         <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <id>sonatype-central-portal</id>
+            <name>Sonatype Central Portal</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
@@ -63,6 +63,11 @@
 
         <!-- do not run tests on release -->
         <air.release.preparation-goals>clean verify -DskipTests</air.release.preparation-goals>
+
+        <!-- Stage files to the local directory, njord will push them to central -->
+        <altDeploymentRepository>id::default::njord:</altDeploymentRepository>
+        <njord.publishingType>automatic</njord.publishingType>
+        <njord.waitForStates>true</njord.waitForStates>
     </properties>
 
     <dependencies>
@@ -158,7 +163,20 @@
                         <release combine.self="override" />
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>eu.maveniverse.maven.plugins</groupId>
+                    <artifactId>njord</artifactId>
+                    <version>0.8.7</version>
+                </plugin>
             </plugins>
         </pluginManagement>
+
+        <extensions>
+            <extension>
+                <groupId>eu.maveniverse.maven.njord</groupId>
+                <artifactId>extension3</artifactId>
+                <version>0.8.7</version>
+            </extension>
+        </extensions>
     </build>
 </project>
