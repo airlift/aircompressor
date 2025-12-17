@@ -150,7 +150,7 @@ public final class SnappyRawDecompressor
                 // bit 8).
                 int matchOffset = entry & 0x700;
                 matchOffset += trailer;
-                if (matchOffset < 0) {
+                if (matchOffset <= 0) {
                     throw new MalformedInputException(input - inputAddress);
                 }
 
