@@ -93,6 +93,16 @@ public class TestLz4
         byte[] data = buffer.toByteArray();
 
         assertThatThrownBy(() -> new Lz4Decompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
-                .isInstanceOf(MalformedInputException.class);
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageMatching("Malformed input.*|Unknown error occurred.*|offset outside destination buffer.*");
+    }
+
+    @Test
+    void testZeroMatchOffset()
+    {
+        byte[] compressed = new byte[] {15, 0, 0, -1, -1, -118, 49, -1, -1, 0};
+        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, new byte[1024], 0, 1024))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageContaining("offset outside destination buffer: offset=3");
     }
 }
