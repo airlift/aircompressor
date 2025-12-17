@@ -77,4 +77,13 @@ public class TestSnappy
                 .isInstanceOf(MalformedInputException.class)
                 .hasMessageStartingWith("negative compressed length");
     }
+
+    @Test
+    void testZeroMatchOffsetFails()
+    {
+        byte[] zeroMatchOffset = new byte[] {16, 1, 0, 1, 0, 1, 0, 1, 0};
+        assertThatThrownBy(() -> new SnappyDecompressor().decompress(zeroMatchOffset, 0, zeroMatchOffset.length, new byte[64], 0, 64))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageContaining("Malformed input: offset=2");
+    }
 }

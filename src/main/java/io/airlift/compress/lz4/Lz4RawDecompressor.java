@@ -114,7 +114,7 @@ public final class Lz4RawDecompressor
             input += SIZE_OF_SHORT;
 
             long matchAddress = output - offset;
-            if (matchAddress < outputAddress) {
+            if (matchAddress < outputAddress || matchAddress >= output) {
                 throw new MalformedInputException(input - inputAddress, "offset outside destination buffer");
             }
 
