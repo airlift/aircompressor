@@ -76,6 +76,12 @@
             <artifactId>hadoop-apache</artifactId>
             <version>3.3.5-3</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>lz4-java</artifactId>
+                    <groupId>org.lz4</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.github.luben</groupId>
@@ -129,9 +135,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.lz4</groupId>
+            <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.8.0</version>
+            <version>1.10.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
