@@ -161,6 +161,13 @@
                     <configuration>
                         <target>${project.build.targetJdk}</target>
                         <release combine.self="override" />
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.openjdk.jmh</groupId>
+                                <artifactId>jmh-generator-annprocess</artifactId>
+                                <version>${dep.jmh.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
                 <plugin>
