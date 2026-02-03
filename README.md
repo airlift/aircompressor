@@ -90,6 +90,60 @@ Deflate data using Zstandard which provides superior compression and performance
 The implementation of Deflate is provided by `DeflateCompressor` and `DeflateDecompressor`.
 This is implemented in the built-in Java libraries which internally use the native code.
 
+# Hash Functions
+
+## [XXHash3](https://xxhash.com/) **(Recommended)**
+XXHash3 is the latest generation of the XXHash family, providing faster hashing than XXHash64
+at all input sizes. It supports both 64-bit and 128-bit hash outputs.
+
+XXHash3 is only available as a native implementation via `XxHash3Native`. There is no Java
+implementation available. The 128-bit variant has approximately 12ns of constant overhead due
+to Java FFM pulling the 128-bit result back into Java. At small inputs (<512 bytes) this
+overhead is noticeable, but at larger sizes (8KB+) it becomes a rounding error as hash
+computation dominates (measured on M4 Apple Silicon).
+
+```java
+// One-shot hashing (64-bit)
+long hash = XxHash3Native.hash(data);
+
+// One-shot hashing (128-bit)
+XxHash128 hash = XxHash3Native.hash128(data);
+
+// Streaming hashing (64-bit)
+try (XxHash3Hasher hasher = XxHash3Native.newHasher()) {
+    hasher.update(chunk1);
+    hasher.update(chunk2);
+    long hash = hasher.digest();
+}
+
+// Streaming hashing (128-bit)
+try (XxHash3Hasher128 hasher = XxHash3Native.newHasher128()) {
+    hasher.update(chunk1);
+    hasher.update(chunk2);
+    XxHash128 hash = hasher.digest();
+}
+```
+
+## [XXHash64](https://xxhash.com/)
+XXHash64 is an extremely fast non-cryptographic hash function with excellent distribution properties.
+
+The native implementation is provided by `XxHash64NativeHasher` and the Java implementation
+is provided by `XxHash64JavaHasher`. The `XxHash64Hasher` interface provides static methods
+that automatically select the best available implementation.
+
+```java
+// One-shot hashing
+long hash = XxHash64Hasher.hash(data);
+long hash = XxHash64Hasher.hash(data, seed);
+
+// Streaming hashing
+try (XxHash64Hasher hasher = XxHash64Hasher.create()) {
+    hasher.update(chunk1);
+    hasher.update(chunk2);
+    long hash = hasher.digest();
+}
+```
+
 # Hadoop Compression
 
 In addition to the raw block encoders, there are implementations of the
