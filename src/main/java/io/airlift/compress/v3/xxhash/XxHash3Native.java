@@ -107,6 +107,20 @@ public final class XxHash3Native
 
     // 64-bit hash variants
 
+    public static long hash(long value)
+    {
+        return hash(value, 0);
+    }
+
+    public static long hash(long value, long seed)
+    {
+        XxHash3Bindings.verifyEnabled();
+        byte[] scratch = new byte[8];
+        MemorySegment segment = MemorySegment.ofArray(scratch);
+        segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
+        return XxHash3Bindings.hash64(segment, 8, seed);
+    }
+
     public static long hash(byte[] input)
     {
         return hash(input, 0, input.length);

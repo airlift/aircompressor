@@ -41,6 +41,17 @@ public sealed interface XxHash64Hasher
 
     // ========== Static one-shot methods ==========
 
+    static long hash(long value)
+    {
+        return hash(value, DEFAULT_SEED);
+    }
+
+    static long hash(long value, long seed)
+    {
+        // always call the Java version, for this simple case
+        return XxHash64JavaHasher.hash(value, seed);
+    }
+
     static long hash(byte[] input)
     {
         return hash(input, 0, input.length, DEFAULT_SEED);

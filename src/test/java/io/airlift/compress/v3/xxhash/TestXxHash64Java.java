@@ -53,4 +53,16 @@ class TestXxHash64Java
     {
         return XxHash64JavaHasher.hash(input, 0);
     }
+
+    @Override
+    protected long hash(long value)
+    {
+        return XxHash64JavaHasher.hash(value, 0);
+    }
+
+    @Override
+    protected long hash(long value, long seed)
+    {
+        return XxHash64JavaHasher.hash(value, seed);
+    }
 }
