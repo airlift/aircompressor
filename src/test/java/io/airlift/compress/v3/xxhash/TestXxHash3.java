@@ -547,4 +547,59 @@ class TestXxHash3
             assertThat(hasher.digest()).isEqualTo(XxHash3Native.hash(prefixed));
         }
     }
+
+    // ========== Single long hash tests ==========
+
+    @Test
+    void testHashLong()
+    {
+        assumeTrue(XxHash3Native.isEnabled(), "XxHash3 native library not available");
+
+        // hash(long) should produce the same result as hashing the 8 bytes in LE order
+        long value = 0x0102030405060708L;
+        byte[] bytes = new byte[] {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // LE order
+
+        assertThat(XxHash3Native.hash(value)).isEqualTo(XxHash3Native.hash(bytes));
+    }
+
+    @Test
+    void testHashLongWithSeed()
+    {
+        assumeTrue(XxHash3Native.isEnabled(), "XxHash3 native library not available");
+
+        // hash(long, seed) should produce the same result as hashing the 8 bytes with seed
+        long value = 0x0102030405060708L;
+        byte[] bytes = new byte[] {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // LE order
+        long seed = PRIME64;
+
+        assertThat(XxHash3Native.hash(value, seed)).isEqualTo(XxHash3Native.hash(bytes, seed));
+    }
+
+    @Test
+    void testHashLongKnownValues()
+    {
+        assumeTrue(XxHash3Native.isEnabled(), "XxHash3 native library not available");
+
+        // Test that different seeds produce different results
+        assertThat(XxHash3Native.hash(0L)).isNotEqualTo(XxHash3Native.hash(0L, PRIME64));
+        assertThat(XxHash3Native.hash(Long.MAX_VALUE)).isNotEqualTo(XxHash3Native.hash(Long.MAX_VALUE, PRIME64));
+
+        // Test consistency - calling with same input should return same result
+        assertThat(XxHash3Native.hash(12345L)).isEqualTo(XxHash3Native.hash(12345L));
+        assertThat(XxHash3Native.hash(12345L, PRIME64)).isEqualTo(XxHash3Native.hash(12345L, PRIME64));
+    }
+
+    @Test
+    void testHashLongMatchesStreaming()
+    {
+        assumeTrue(XxHash3Native.isEnabled(), "XxHash3 native library not available");
+
+        // hash(long) should produce same result as streaming updateLE
+        long value = 0xDEADBEEFCAFEBABEL;
+
+        try (XxHash3Hasher hasher = XxHash3Native.newHasher()) {
+            hasher.updateLE(value);
+            assertThat(hasher.digest()).isEqualTo(XxHash3Native.hash(value));
+        }
+    }
 }

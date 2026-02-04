@@ -63,6 +63,13 @@ public final class XxHash64JavaHasher
         this.bodyLength = 0;
     }
 
+    public static long hash(long value, long seed)
+    {
+        long hash = seed + PRIME64_5 + Long.BYTES;
+        hash = updateTail(hash, value);
+        return finalShuffle(hash);
+    }
+
     public static long hash(byte[] input, int offset, int length, long seed)
     {
         checkFromIndexSize(offset, length, input.length);

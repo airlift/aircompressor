@@ -43,6 +43,10 @@ abstract class AbstractTestXxHash64
 
     protected abstract long hash(MemorySegment input);
 
+    protected abstract long hash(long value);
+
+    protected abstract long hash(long value, long seed);
+
     // Sanity buffer pattern from xxhash reference
     protected static byte[] createSanityBuffer(int length)
     {
@@ -308,6 +312,53 @@ abstract class AbstractTestXxHash64
         try (XxHash64Hasher hasher = createHasher()) {
             hasher.updateLE(length).update(data);
             assertThat(hasher.digest()).isEqualTo(hash(prefixed));
+        }
+    }
+
+    // ========== Single long hash tests ==========
+
+    @Test
+    void testHashLong()
+    {
+        // hash(long) should produce the same result as hashing the 8 bytes in LE order
+        long value = 0x0102030405060708L;
+        byte[] bytes = new byte[] {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // LE order
+
+        assertThat(hash(value)).isEqualTo(hash(bytes));
+    }
+
+    @Test
+    void testHashLongWithSeed()
+    {
+        // hash(long, seed) should produce the same result as hashing the 8 bytes with seed
+        long value = 0x0102030405060708L;
+        byte[] bytes = new byte[] {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // LE order
+        long seed = PRIME32;
+
+        assertThat(hash(value, seed)).isEqualTo(hash(bytes, seed));
+    }
+
+    @Test
+    void testHashLongKnownValues()
+    {
+        // Test that different seeds produce different results
+        assertThat(hash(0L)).isNotEqualTo(hash(0L, PRIME32));
+        assertThat(hash(Long.MAX_VALUE)).isNotEqualTo(hash(Long.MAX_VALUE, PRIME32));
+
+        // Test consistency - calling with same input should return same result
+        assertThat(hash(12345L)).isEqualTo(hash(12345L));
+        assertThat(hash(12345L, PRIME32)).isEqualTo(hash(12345L, PRIME32));
+    }
+
+    @Test
+    void testHashLongMatchesStreaming()
+    {
+        // hash(long) should produce same result as streaming updateLE
+        long value = 0xDEADBEEFCAFEBABEL;
+
+        try (XxHash64Hasher hasher = createHasher()) {
+            hasher.updateLE(value);
+            assertThat(hasher.digest()).isEqualTo(hash(value));
         }
     }
 }

@@ -58,6 +58,18 @@ class TestXxHash64
         return XxHash64Hasher.hash(input);
     }
 
+    @Override
+    protected long hash(long value)
+    {
+        return XxHash64Hasher.hash(value);
+    }
+
+    @Override
+    protected long hash(long value, long seed)
+    {
+        return XxHash64Hasher.hash(value, seed);
+    }
+
     // ========== Java vs Native consistency tests ==========
 
     @Test
