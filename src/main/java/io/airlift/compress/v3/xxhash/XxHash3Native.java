@@ -62,6 +62,11 @@ public final class XxHash3Native
     private static final ValueLayout.OfLong JAVA_LONG_LE_UNALIGNED = ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
     private static final ValueLayout.OfInt JAVA_INT_LE_UNALIGNED = ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.LITTLE_ENDIAN);
 
+    // XXHash3 constants for 8-byte hashing (XXH3_64_4to8 algorithm)
+    private static final long PRIME_MX2 = 0x9FB21C651E98DF25L;
+    private static final long SECRET_0 = 0x1cad21f72c81017cL;  // kSecret bytes 8-15 as LE long
+    private static final long SECRET_1 = 0xdb979083e96dd4deL;  // kSecret bytes 16-23 as LE long
+
     private XxHash3Native() {}
 
     // ========== Factory methods for streaming ==========
@@ -112,13 +117,21 @@ public final class XxHash3Native
         return hash(value, 0);
     }
 
-    public static long hash(long value, long seed)
+    public static long hash(long input, long seed)
     {
-        XxHash3Bindings.verifyEnabled();
-        byte[] scratch = new byte[8];
-        MemorySegment segment = MemorySegment.ofArray(scratch);
-        segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
-        return XxHash3Bindings.hash64(segment, 8, seed);
+        // Pure Java implementation of XXH3_64_4to8 algorithm for exactly 8 bytes
+        int inputLo = (int) input;
+        int inputHi = (int) (input >>> 32);
+
+        long modifiedSeed = seed ^ ((Integer.reverseBytes((int) seed) & 0xFFFFFFFFL) << 32);
+        long combined = (inputHi & 0xFFFFFFFFL) | ((inputLo & 0xFFFFFFFFL) << 32);
+
+        long value = ((SECRET_0 ^ SECRET_1) - modifiedSeed) ^ combined;
+        value ^= Long.rotateLeft(value, 49) ^ Long.rotateLeft(value, 24);
+        value *= PRIME_MX2;
+        value ^= (value >>> 35) + 8;
+        value *= PRIME_MX2;
+        return value ^ (value >>> 28);
     }
 
     public static long hash(byte[] input)
