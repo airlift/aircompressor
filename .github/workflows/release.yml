@@ -2,12 +2,6 @@ name: Release new version
 
 on:
   workflow_dispatch:
-    inputs:
-      push:
-        description: 'Push artifacts to Central and commits to the repository'
-        required: true
-        default: true
-        type: 'boolean'
 
 jobs:
   release:
@@ -15,8 +9,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    env:
-      STAGED_REPOSITORY: target/checkout/target/staging-deploy
 
     steps:
       - name: Check if release is running from master
@@ -55,7 +47,7 @@ jobs:
         env:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
         run: |
-          ./mvnw -B release:prepare -Poss-release,oss-stage
+          ./mvnw -B release:prepare -Poss-release
 
       - name: Determine release version
         run: |
@@ -67,49 +59,48 @@ jobs:
         env:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
         run: |
-          ./mvnw -B release:perform -Poss-release,oss-stage
+          ./mvnw -B release:perform -Poss-release
 
       - name: Display git status and history
         run: |
           git status
           git log --oneline -n 2
 
-      - name: List locally staged artifacts
-        run: |
-          find ${{ env.STAGED_REPOSITORY }} -type f
-
-      - name: Run JReleaser
-        uses: jreleaser/release-action@v2
+      - name: Run njord:validate
         env:
-          JRELEASER_PROJECT_VERSION: ${{ env.VERSION }}
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ vars.JRELEASER_GPG_PUBLIC_KEY }}
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
-          JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
-          JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
-          JRELEASER_NEXUS2_END_STAGE: ${{ inputs.push && 'RELEASE' || 'CLOSE' }}
-          JRELEASER_SKIP_RELEASE: ${{ inputs.push && 'false' || 'true' }}
-        with:
-          setup-java: false
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
+          MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
+        run: |
+          ./mvnw njord:list
+          ./mvnw njord:status
+          ./mvnw njord:validate
+
+      - name: Run njord:publish
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
+          MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
+        run:
+          ./mvnw njord:publish -Poss-release
 
       - name: Push git changes
-        if: ${{ inputs.push }}
         run: |
           git status
+          git describe
           git push origin master
+          git push origin --tags
 
       - name: Unlock branch after a release
         uses: github/lock@v2
         id: release-unlock
         with:
           mode: 'unlock'
-
-      - name: Upload JReleaser logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jreleaser-logs
-          path: |
-            out/jreleaser/trace.log
-            out/jreleaser/output.properties
+      - name: Create release notes
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          gh release create "${VERSION}" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${VERSION}" \
+              --generate-notes
