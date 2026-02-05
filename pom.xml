@@ -6,12 +6,12 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>202</version>
+        <version>349</version>
     </parent>
 
     <groupId>io.airlift</groupId>
     <artifactId>aircompressor-v3</artifactId>
-    <version>3.5-SNAPSHOT</version>
+    <version>3.6-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>aircompressor</name>
@@ -63,11 +63,6 @@
 
         <!-- do not run tests on release -->
         <air.release.preparation-goals>clean verify -DskipTests</air.release.preparation-goals>
-
-        <!-- Stage files to the local directory, njord will push them to central -->
-        <altDeploymentRepository>id::default::njord:</altDeploymentRepository>
-        <njord.publishingType>automatic</njord.publishingType>
-        <njord.waitForStates>true</njord.waitForStates>
     </properties>
 
     <dependencies>
@@ -103,6 +98,7 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
+            <classifier>classes</classifier>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -179,12 +175,14 @@
                     <configuration>
                         <target>${project.build.targetJdk}</target>
                         <release combine.self="override" />
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.openjdk.jmh</groupId>
+                                <artifactId>jmh-generator-annprocess</artifactId>
+                                <version>${dep.jmh.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>eu.maveniverse.maven.plugins</groupId>
-                    <artifactId>njord</artifactId>
-                    <version>0.8.7</version>
                 </plugin>
             </plugins>
         </pluginManagement>

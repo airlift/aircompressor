@@ -133,3 +133,25 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libbz2.so.1.0.4" \
   "linux-ppc64le/libbz2.so"
+
+# XXHash
+download_linux \
+  "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_amd64.deb" \
+  "/usr/lib/x86_64-linux-gnu/libxxhash.so.0.8.3" \
+  "linux-amd64/libxxhash.so"
+
+download_linux \
+  "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_arm64.deb" \
+  "/usr/lib/aarch64-linux-gnu/libxxhash.so.0.8.3" \
+  "linux-aarch64/libxxhash.so"
+
+download_linux \
+  "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_ppc64el.deb" \
+  "/usr/lib/powerpc64le-linux-gnu/libxxhash.so.0.8.3" \
+  "linux-ppc64le/libxxhash.so"
+
+download_macos \
+  xxhash 0.8.3 libxxhash.0.8.3.dylib amd64 macos-amd64/libxxhash.dylib
+
+download_macos \
+  xxhash 0.8.3 libxxhash.0.8.3.dylib arm64 macos-aarch64/libxxhash.dylib
