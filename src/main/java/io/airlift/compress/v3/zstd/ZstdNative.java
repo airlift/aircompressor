@@ -33,6 +33,33 @@ final class ZstdNative
             MethodHandle decompress,
             @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle uncompressedLength,
+            // Decompression streaming
+            @NativeSignature(name = "ZSTD_createDStream", returnType = MemorySegment.class, argumentTypes = {})
+            MethodHandle createDecompressStream,
+            @NativeSignature(name = "ZSTD_freeDStream", returnType = void.class, argumentTypes = MemorySegment.class)
+            MethodHandle freeDecompressStream,
+            @NativeSignature(name = "ZSTD_initDStream", returnType = long.class, argumentTypes = MemorySegment.class)
+            MethodHandle initDecompressStream,
+            @NativeSignature(name = "ZSTD_decompressStream_simpleArgs", returnType = long.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class})
+            MethodHandle decompressStreamSimpleArgs,
+            @NativeSignature(name = "ZSTD_DStreamInSize", returnType = long.class, argumentTypes = {})
+            MethodHandle decompressStreamInputSize,
+            @NativeSignature(name = "ZSTD_DStreamOutSize", returnType = long.class, argumentTypes = {})
+            MethodHandle decompressStreamOutputSize,
+            // Compression streaming
+            @NativeSignature(name = "ZSTD_createCStream", returnType = MemorySegment.class, argumentTypes = {})
+            MethodHandle createCompressStream,
+            @NativeSignature(name = "ZSTD_freeCStream", returnType = void.class, argumentTypes = MemorySegment.class)
+            MethodHandle freeCompressStream,
+            @NativeSignature(name = "ZSTD_initCStream", returnType = long.class, argumentTypes = {MemorySegment.class, int.class})
+            MethodHandle initCompressStream,
+            @NativeSignature(name = "ZSTD_compressStream2_simpleArgs", returnType = long.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, int.class})
+            MethodHandle compressStream2SimpleArgs,
+            @NativeSignature(name = "ZSTD_CStreamInSize", returnType = long.class, argumentTypes = {})
+            MethodHandle compressStreamInputSize,
+            @NativeSignature(name = "ZSTD_CStreamOutSize", returnType = long.class, argumentTypes = {})
+            MethodHandle compressStreamOutputSize,
+            // Error handling and utilities
             @NativeSignature(name = "ZSTD_isError", returnType = int.class, argumentTypes = long.class)
             MethodHandle isError,
             @NativeSignature(name = "ZSTD_getErrorName", returnType = MemorySegment.class, argumentTypes = long.class)
@@ -47,13 +74,33 @@ final class ZstdNative
     private static final MethodHandle COMPRESS_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
+    // Decompression streaming
+    private static final MethodHandle CREATE_DECOMPRESS_STREAM_METHOD;
+    private static final MethodHandle FREE_DECOMPRESS_STREAM_METHOD;
+    private static final MethodHandle INIT_DECOMPRESS_STREAM_METHOD;
+    private static final MethodHandle DECOMPRESS_STREAM_SIMPLE_ARGS_METHOD;
+    // Compression streaming
+    private static final MethodHandle CREATE_COMPRESS_STREAM_METHOD;
+    private static final MethodHandle FREE_COMPRESS_STREAM_METHOD;
+    private static final MethodHandle INIT_COMPRESS_STREAM_METHOD;
+    private static final MethodHandle COMPRESS_STREAM_2_SIMPLE_ARGS_METHOD;
+    // Error handling
     private static final MethodHandle IS_ERROR_METHOD;
     private static final MethodHandle GET_ERROR_NAME_METHOD;
 
     // TODO should we just hardcode this to 3?
     public static final int DEFAULT_COMPRESSION_LEVEL;
 
+    // Streaming buffer sizes
+    public static final int DECOMPRESS_STREAM_INPUT_SIZE;
+    public static final int COMPRESS_STREAM_OUTPUT_SIZE;
+
     private static final long CONTENT_SIZE_UNKNOWN = -1L;
+
+    // ZSTD_EndDirective values for compressStream2
+    public static final int ZSTD_E_CONTINUE = 0;
+    public static final int ZSTD_E_FLUSH = 1;
+    public static final int ZSTD_E_END = 2;
 
     static {
         NativeLoader.Symbols<MethodHandles> symbols = NativeLoader.loadSymbols("zstd", MethodHandles.class, lookup());
@@ -63,11 +110,24 @@ final class ZstdNative
         COMPRESS_METHOD = methodHandles.compress();
         DECOMPRESS_METHOD = methodHandles.decompress();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
+        // Decompression streaming
+        CREATE_DECOMPRESS_STREAM_METHOD = methodHandles.createDecompressStream();
+        FREE_DECOMPRESS_STREAM_METHOD = methodHandles.freeDecompressStream();
+        INIT_DECOMPRESS_STREAM_METHOD = methodHandles.initDecompressStream();
+        DECOMPRESS_STREAM_SIMPLE_ARGS_METHOD = methodHandles.decompressStreamSimpleArgs();
+        // Compression streaming
+        CREATE_COMPRESS_STREAM_METHOD = methodHandles.createCompressStream();
+        FREE_COMPRESS_STREAM_METHOD = methodHandles.freeCompressStream();
+        INIT_COMPRESS_STREAM_METHOD = methodHandles.initCompressStream();
+        COMPRESS_STREAM_2_SIMPLE_ARGS_METHOD = methodHandles.compressStream2SimpleArgs();
+        // Error handling
         IS_ERROR_METHOD = methodHandles.isError();
         GET_ERROR_NAME_METHOD = methodHandles.getErrorName();
         if (LINKAGE_ERROR.isEmpty()) {
             try {
                 DEFAULT_COMPRESSION_LEVEL = (int) methodHandles.defaultCLevel().invokeExact();
+                DECOMPRESS_STREAM_INPUT_SIZE = (int) (long) methodHandles.decompressStreamInputSize().invokeExact();
+                COMPRESS_STREAM_OUTPUT_SIZE = (int) (long) methodHandles.compressStreamOutputSize().invokeExact();
             }
             catch (Throwable e) {
                 throw new ExceptionInInitializerError(e);
@@ -75,6 +135,8 @@ final class ZstdNative
         }
         else {
             DEFAULT_COMPRESSION_LEVEL = -1;
+            DECOMPRESS_STREAM_INPUT_SIZE = -1;
+            COMPRESS_STREAM_OUTPUT_SIZE = -1;
         }
     }
 
@@ -158,6 +220,149 @@ final class ZstdNative
 
         if (CONTENT_SIZE_UNKNOWN != result && result < 0) {
             throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+        }
+        return result;
+    }
+
+    public static MemorySegment createDecompressStream()
+    {
+        try {
+            return (MemorySegment) CREATE_DECOMPRESS_STREAM_METHOD.invokeExact();
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static void freeDecompressStream(MemorySegment stream)
+    {
+        try {
+            FREE_DECOMPRESS_STREAM_METHOD.invokeExact(stream);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static long initDecompressStream(MemorySegment stream)
+    {
+        long result;
+        try {
+            result = (long) INIT_DECOMPRESS_STREAM_METHOD.invokeExact(stream);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+
+        if (isError(result)) {
+            throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+        }
+        return result;
+    }
+
+    public static long decompressStreamSimpleArgs(
+            MemorySegment stream,
+            MemorySegment dst,
+            long dstCapacity,
+            MemorySegment dstPos,
+            MemorySegment src,
+            long srcSize,
+            MemorySegment srcPos)
+    {
+        long result;
+        try {
+            result = (long) DECOMPRESS_STREAM_SIMPLE_ARGS_METHOD.invokeExact(stream, dst, dstCapacity, dstPos, src, srcSize, srcPos);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+
+        if (isError(result)) {
+            throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+        }
+        return result;
+    }
+
+    public static MemorySegment createCompressStream()
+    {
+        try {
+            return (MemorySegment) CREATE_COMPRESS_STREAM_METHOD.invokeExact();
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static void freeCompressStream(MemorySegment stream)
+    {
+        try {
+            FREE_COMPRESS_STREAM_METHOD.invokeExact(stream);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static long initCompressStream(MemorySegment stream, int compressionLevel)
+    {
+        long result;
+        try {
+            result = (long) INIT_COMPRESS_STREAM_METHOD.invokeExact(stream, compressionLevel);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+
+        if (isError(result)) {
+            throw new IllegalArgumentException("Unknown error occurred during compression: " + getErrorName(result));
+        }
+        return result;
+    }
+
+    public static long compressStream2SimpleArgs(
+            MemorySegment stream,
+            MemorySegment dst,
+            long dstCapacity,
+            MemorySegment dstPos,
+            MemorySegment src,
+            long srcSize,
+            MemorySegment srcPos,
+            int endOp)
+    {
+        long result;
+        try {
+            result = (long) COMPRESS_STREAM_2_SIMPLE_ARGS_METHOD.invokeExact(stream, dst, dstCapacity, dstPos, src, srcSize, srcPos, endOp);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+
+        if (isError(result)) {
+            throw new IllegalArgumentException("Unknown error occurred during compression: " + getErrorName(result));
         }
         return result;
     }
