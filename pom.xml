@@ -236,12 +236,5 @@
                 </executions>
             </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>eu.maveniverse.maven.njord</groupId>
-                <artifactId>extension3</artifactId>
-                <version>0.8.7</version>
-            </extension>
-        </extensions>
     </build>
 </project>
