@@ -37,6 +37,12 @@ import io.airlift.compress.v3.snappy.SnappyJavaCompressor;
 import io.airlift.compress.v3.snappy.SnappyJavaDecompressor;
 import io.airlift.compress.v3.snappy.SnappyNativeCompressor;
 import io.airlift.compress.v3.snappy.SnappyNativeDecompressor;
+import io.airlift.compress.v3.xxhash.XxHash128;
+import io.airlift.compress.v3.xxhash.XxHash3Hasher;
+import io.airlift.compress.v3.xxhash.XxHash3Hasher128;
+import io.airlift.compress.v3.xxhash.XxHash3Native;
+import io.airlift.compress.v3.xxhash.XxHash64JavaHasher;
+import io.airlift.compress.v3.xxhash.XxHash64NativeHasher;
 import io.airlift.compress.v3.zstd.ZstdCodec;
 import io.airlift.compress.v3.zstd.ZstdJavaCompressor;
 import io.airlift.compress.v3.zstd.ZstdJavaDecompressor;
@@ -283,18 +289,65 @@ public class FuzzTests
     private record ConsistencyAlgorithm(
             String name,
             Supplier<Compressor> compressor,
+            Supplier<Decompressor> decompressor,
             Supplier<CompressionCodec> codec)
     {
     }
 
     private static final ConsistencyAlgorithm[] CONSISTENCY_ALGORITHMS = {
-            new ConsistencyAlgorithm("lz4", Lz4JavaCompressor::new, Lz4Codec::new),
-            new ConsistencyAlgorithm("snappy", SnappyJavaCompressor::new, SnappyCodec::new),
-            new ConsistencyAlgorithm("zstd", ZstdJavaCompressor::new, ZstdCodec::new),
-            new ConsistencyAlgorithm("lzo", LzoCompressor::new, LzoCodec::new)
+            new ConsistencyAlgorithm("lz4", Lz4JavaCompressor::new, Lz4JavaDecompressor::new, Lz4Codec::new),
+            new ConsistencyAlgorithm("snappy", SnappyJavaCompressor::new, SnappyJavaDecompressor::new, SnappyCodec::new),
+            new ConsistencyAlgorithm("zstd", ZstdJavaCompressor::new, ZstdJavaDecompressor::new, ZstdCodec::new),
+            new ConsistencyAlgorithm("lzo", LzoCompressor::new, LzoDecompressor::new, LzoCodec::new)
     };
 
     private static final int CONSISTENCY_ALGORITHMS_NUMBER = 4;
+
+    static
+    {
+        if (CONSISTENCY_ALGORITHMS.length != CONSISTENCY_ALGORITHMS_NUMBER) {
+            throw new AssertionError("CONSISTENCY_ALGORITHMS.length != CONSISTENCY_ALGORITHMS_NUMBER");
+        }
+    }
+
+    /**
+     * Verifies that block compression and streaming compression produce the same
+     * decompressed output for the same input (lz4, snappy, zstd, lzo).
+     */
+    @FuzzTest
+    public void fuzzBlockVsStreamConsistency(@InRange(min = 0, max = CONSISTENCY_ALGORITHMS_NUMBER - 1) int algId, byte @NotNull [] input)
+            throws IOException
+    {
+        ConsistencyAlgorithm algorithm = CONSISTENCY_ALGORITHMS[algId];
+
+        // Block round-trip
+        Compressor compressor = algorithm.compressor().get();
+        Decompressor decompressor = algorithm.decompressor().get();
+        byte[] compressed = new byte[compressor.maxCompressedLength(input.length)];
+        int compressedSize = compressor.compress(input, 0, input.length, compressed, 0, compressed.length);
+        byte[] blockResult = new byte[input.length];
+        decompressor.decompress(compressed, 0, compressedSize, blockResult, 0, blockResult.length);
+
+        // Stream round-trip
+        CompressionCodec codec = algorithm.codec().get();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (CompressionOutputStream cos = codec.createOutputStream(out)) {
+            cos.write(input);
+        }
+        byte[] streamCompressed = out.toByteArray();
+        byte[] streamResult;
+        try (CompressionInputStream cis = codec.createInputStream(new ByteArrayInputStream(streamCompressed))) {
+            streamResult = cis.readAllBytes();
+        }
+
+        // Both paths must produce the original input
+        if (!Arrays.equals(input, blockResult)) {
+            throw new RuntimeException("Block round-trip mismatch for " + algorithm.name());
+        }
+        if (!Arrays.equals(input, streamResult)) {
+            throw new RuntimeException("Stream round-trip mismatch for " + algorithm.name());
+        }
+    }
 
     // ============================================================================================
     // Hadoop Codecs
@@ -529,6 +582,92 @@ public class FuzzTests
         // Compare decompressed results
         if (!Arrays.equals(crossApache, crossAir)) {
             throw new AssertionError("Cross-decompression mismatch for " + name);
+        }
+    }
+
+    // ============================================================================================
+    // XXHash
+    // ============================================================================================
+
+    /**
+     * Verifies XXHash64 consistency: Java vs native one-shot hashing, and
+     * one-shot vs streaming (full and chunked updates).
+     */
+    @FuzzTest
+    public void fuzzXxHash64Consistency(byte @NotNull [] input, long seed)
+    {
+        // One-shot Java hash
+        long javaHash = XxHash64JavaHasher.hash(input, 0, input.length, seed);
+
+        // One-shot Native hash (if available)
+        if (XxHash64NativeHasher.isEnabled()) {
+            long nativeHash = XxHash64NativeHasher.hash(input, 0, input.length, seed);
+            if (javaHash != nativeHash) {
+                throw new RuntimeException("XxHash64 Java vs Native one-shot mismatch for seed " + seed);
+            }
+        }
+
+        // Streaming Java hash (single update)
+        try (XxHash64JavaHasher hasher = new XxHash64JavaHasher(seed)) {
+            hasher.update(input);
+            long streamingHash = hasher.digest();
+            if (javaHash != streamingHash) {
+                throw new RuntimeException("XxHash64 one-shot vs streaming mismatch for seed " + seed);
+            }
+        }
+
+        // Streaming Java hash (chunked updates)
+        try (XxHash64JavaHasher hasher = new XxHash64JavaHasher(seed)) {
+            int mid = input.length / 2;
+            hasher.update(input, 0, mid);
+            hasher.update(input, mid, input.length - mid);
+            long chunkedHash = hasher.digest();
+            if (javaHash != chunkedHash) {
+                throw new RuntimeException("XxHash64 one-shot vs chunked streaming mismatch for seed " + seed);
+            }
+        }
+    }
+
+    /**
+     * Verifies XXHash3 consistency: one-shot vs streaming for both 64-bit
+     * and 128-bit variants, including chunked updates.
+     */
+    @FuzzTest
+    public void fuzzXxHash3Consistency(byte @NotNull [] input, long seed)
+    {
+        if (!XxHash3Native.isEnabled()) {
+            return;
+        }
+
+        // 64-bit: one-shot vs streaming
+        long hash64 = XxHash3Native.hash(input, 0, input.length, seed);
+        try (XxHash3Hasher hasher = XxHash3Native.newHasher(seed)) {
+            hasher.update(input);
+            long streamingHash = hasher.digest();
+            if (hash64 != streamingHash) {
+                throw new RuntimeException("XxHash3 64-bit one-shot vs streaming mismatch for seed " + seed);
+            }
+        }
+
+        // 64-bit: chunked streaming
+        try (XxHash3Hasher hasher = XxHash3Native.newHasher(seed)) {
+            int mid = input.length / 2;
+            hasher.update(input, 0, mid);
+            hasher.update(input, mid, input.length - mid);
+            long chunkedHash = hasher.digest();
+            if (hash64 != chunkedHash) {
+                throw new RuntimeException("XxHash3 64-bit one-shot vs chunked streaming mismatch for seed " + seed);
+            }
+        }
+
+        // 128-bit: one-shot vs streaming
+        XxHash128 hash128 = XxHash3Native.hash128(input, 0, input.length, seed);
+        try (XxHash3Hasher128 hasher128 = XxHash3Native.newHasher128(seed)) {
+            hasher128.update(input);
+            XxHash128 streamingHash128 = hasher128.digest();
+            if (!hash128.equals(streamingHash128)) {
+                throw new RuntimeException("XxHash3 128-bit one-shot vs streaming mismatch for seed " + seed);
+            }
         }
     }
 }
