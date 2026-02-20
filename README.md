@@ -79,7 +79,7 @@ The Snappy framed format is supported by `SnappyFramedInputStream` and `SnappyFr
 LZO is only provided for compatibility with existing systems that use LZO. We recommend 
 rewriting LZO data using Zstandard or LZ4. 
 
-The Java implementation of LZO is provided by `LzoJavaCompressor` and `LzoJavaDecompressor`.
+The Java implementation of LZO is provided by `LzoCompressor` and `LzoDecompressor`.
 Due to licensing issues, the LZO only has a Java implementation which is based on LZ4.
 
 ## Deflate
