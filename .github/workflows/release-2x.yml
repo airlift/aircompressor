@@ -1,0 +1,107 @@
+name: Release new 2.x version
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Check if release is running from release-2.x
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/release-2.x" ]; then
+            echo "Release is only allowed from master release-2.x"
+            exit 1
+          fi
+
+      - name: Checkout code for release-2.x
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: release-2.x
+
+      - name: Install java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          gpg-private-key: ${{ secrets.JRELEASER_GPG_SECRET_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+          cache: 'maven'
+
+      - name: Configure git
+        run: |
+          git config user.name "Airlift Release"
+          git config user.email "airlift-bot@airlift.io"
+
+      - name: Lock branch before release
+        uses: github/lock@v2
+        id: release-lock
+        with:
+          mode: 'lock'
+
+      - name: Run ./mvnw release:prepare
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B release:prepare
+
+      - name: Determine release version
+        run: |
+          export VERSION=$(grep 'scm.tag=' release.properties | cut -d'=' -f2)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "Releasing version: ${VERSION}"
+
+      - name: Run ./mvnw release:perform to local staging
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+        run: |
+          ./mvnw -B release:perform
+
+      - name: Display git status and history, checkout release tag
+        run: |
+          git status
+          git log --oneline -n 2
+
+      - name: Run njord:validate
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
+          MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
+        run: |
+          ./mvnw njord:list
+          ./mvnw njord:status
+          ./mvnw njord:validate
+
+      - name: Run njord:publish
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
+          MAVENCENTRAL_USERNAME: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_USERNAME }}
+          MAVENCENTRAL_PASSWORD: ${{ secrets.JRELEASER_NEXUS2_MAVEN_CENTRAL_TOKEN }}
+        run:
+          ./mvnw njord:publish
+
+      - name: Push git changes
+        run: |
+          git status
+          git describe
+          git push origin release-2.x
+          git push origin --tags
+
+      - name: Unlock branch after a release
+        uses: github/lock@v2
+        id: release-unlock
+        with:
+          mode: 'unlock'
+      - name: Create release notes
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        run: |
+          gh release create "${VERSION}" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${VERSION}" \
+              --generate-notes

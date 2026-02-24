@@ -32,22 +32,9 @@
     <scm>
         <connection>scm:git:git://github.com/airlift/aircompressor.git</connection>
         <developerConnection>scm:git:git@github.com:airlift/aircompressor.git</developerConnection>
-        <url>https://github.com/airlift/aircompressor/tree/master</url>
-      <tag>HEAD</tag>
+        <url>https://github.com/airlift/aircompressor/tree/release-2.x</url>
+        <tag>release-2.x</tag>
   </scm>
-
-    <distributionManagement>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Release Repository</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Sonatype Nexus Snapshots</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
 
     <properties>
         <air.java.version>1.8</air.java.version>
@@ -60,6 +47,20 @@
         <air.test.parallel>methods</air.test.parallel>
         <air.test.thread-count>4</air.test.thread-count>
         <air.test.jvmsize>2G</air.test.jvmsize>
+
+        <dep.njord.version>0.9.4</dep.njord.version>
+        <njord.publishingType>automatic</njord.publishingType>
+        <njord.waitForStates>true</njord.waitForStates>
+
+        <!-- do not run tests on release -->
+        <air.release.preparation-goals>clean verify -DskipTests</air.release.preparation-goals>
+        <!-- Properties for controlling distributionManagement -->
+        <air.repository.snapshot.id>sonatype-central-portal</air.repository.snapshot.id>
+        <air.repository.snapshot.name>Sonatype Central Portal</air.repository.snapshot.name>
+        <air.repository.snapshot.url>https://central.sonatype.com/repository/maven-snapshots/</air.repository.snapshot.url>
+        <air.repository.release.id>sonatype-central-portal</air.repository.release.id>
+        <air.repository.release.name>Sonatype Central Portal</air.repository.release.name>
+        <air.repository.release.url>https://repo.maven.apache.org/maven2/</air.repository.release.url>
     </properties>
 
     <dependencies>
@@ -146,8 +147,25 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>eu.maveniverse.maven.njord</groupId>
+                <artifactId>extension3</artifactId>
+                <version>${dep.njord.version}</version>
+            </extension>
+        </extensions>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>eu.maveniverse.maven.plugins</groupId>
+                    <artifactId>njord</artifactId>
+                    <version>${dep.njord.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.4</version>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
