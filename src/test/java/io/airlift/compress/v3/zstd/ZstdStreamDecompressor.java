@@ -34,7 +34,7 @@ public class ZstdStreamDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        ZstdInputStream inputStream = new ZstdInputStream(new ByteArrayInputStream(input, inputOffset, inputLength));
+        ZstdJavaInputStream inputStream = new ZstdJavaInputStream(new ByteArrayInputStream(input, inputOffset, inputLength));
         try {
             int readSize = inputStream.read(output, outputOffset, maxOutputLength);
             if (inputStream.read() != -1) {
