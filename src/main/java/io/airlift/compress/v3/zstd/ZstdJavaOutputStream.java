@@ -26,7 +26,7 @@ import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdOutputStream
+public class ZstdJavaOutputStream
         extends OutputStream
 {
     private final OutputStream outputStream;
@@ -45,7 +45,7 @@ public class ZstdOutputStream
 
     private boolean closed;
 
-    public ZstdOutputStream(OutputStream outputStream)
+    public ZstdJavaOutputStream(OutputStream outputStream)
             throws IOException
     {
         this.outputStream = requireNonNull(outputStream, "outputStream is null");

@@ -24,12 +24,12 @@ class ZstdHadoopInputStream
         extends HadoopInputStream
 {
     private final InputStream in;
-    private ZstdInputStream zstdInputStream;
+    private ZstdJavaInputStream zstdInputStream;
 
     public ZstdHadoopInputStream(InputStream in)
     {
         this.in = requireNonNull(in, "in is null");
-        zstdInputStream = new ZstdInputStream(in);
+        zstdInputStream = new ZstdJavaInputStream(in);
     }
 
     @Override
@@ -56,7 +56,7 @@ class ZstdHadoopInputStream
     @Override
     public void resetState()
     {
-        zstdInputStream = new ZstdInputStream(in);
+        zstdInputStream = new ZstdJavaInputStream(in);
     }
 
     @Override

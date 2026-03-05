@@ -23,7 +23,7 @@ import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
-public class ZstdInputStream
+public class ZstdJavaInputStream
         extends InputStream
 {
     private static final int MIN_BUFFER_SIZE = 4096;
@@ -39,7 +39,7 @@ public class ZstdInputStream
 
     private boolean closed;
 
-    public ZstdInputStream(InputStream inputStream)
+    public ZstdJavaInputStream(InputStream inputStream)
     {
         this.inputStream = requireNonNull(inputStream, "inputStream is null");
     }
