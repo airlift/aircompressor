@@ -25,7 +25,7 @@ class ZstdHadoopOutputStream
 {
     private final OutputStream out;
     private boolean initialized;
-    private ZstdOutputStream zstdOutputStream;
+    private ZstdJavaOutputStream zstdOutputStream;
 
     public ZstdHadoopOutputStream(OutputStream out)
     {
@@ -86,7 +86,7 @@ class ZstdHadoopOutputStream
     {
         if (zstdOutputStream == null) {
             initialized = true;
-            zstdOutputStream = new ZstdOutputStream(out);
+            zstdOutputStream = new ZstdJavaOutputStream(out);
         }
     }
 }
