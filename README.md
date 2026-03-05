@@ -55,7 +55,7 @@ The native implementation of Zstandard is provided by the `ZstdNativeCompressor`
 `ZstdNativeDecompressor` classes. The Java implementation is provided by the
 `ZstdJavaCompressor` and `ZstdJavaDecompressor` classes.
 
-The Zstandard streaming format is supported by `ZstdInputStream` and `ZstdOutputStream`.
+The Zstandard streaming format is supported by `ZstdJavaInputStream` and `ZstdJavaOutputStream`.
 
 ## [LZ4](https://lz4.org/)
 LZ4 is an extremely fast compression algorithm that provides compression ratios comparable
