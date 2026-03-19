@@ -56,8 +56,7 @@ public class DeflateCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        Deflater deflater = new Deflater(compressionLevel, true);
-        try {
+        try (Deflater deflater = new Deflater(compressionLevel, true)) {
             deflater.setInput(input, inputOffset, inputLength);
             deflater.finish();
 
@@ -66,9 +65,6 @@ public class DeflateCompressor
                 throw new IllegalStateException("Output buffer too small");
             }
             return compressedDataLength;
-        }
-        finally {
-            deflater.end();
         }
     }
 
@@ -80,8 +76,7 @@ public class DeflateCompressor
             throw new IllegalArgumentException("Output buffer must be at least " + maxCompressedLength + " bytes");
         }
 
-        Deflater deflater = new Deflater(compressionLevel, true);
-        try {
+        try (Deflater deflater = new Deflater(compressionLevel, true)) {
             deflater.setInput(input.asByteBuffer());
             deflater.finish();
 
@@ -90,9 +85,6 @@ public class DeflateCompressor
                 throw new IllegalStateException("maxCompressedLength formula is incorrect, because deflate produced more data");
             }
             return compressedDataLength;
-        }
-        finally {
-            deflater.end();
         }
     }
 

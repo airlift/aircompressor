@@ -34,8 +34,7 @@ public class DeflateDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        Inflater inflater = new Inflater(true);
-        try {
+        try (Inflater inflater = new Inflater(true)) {
             inflater.setInput(input, inputOffset, inputLength);
 
             int uncompressedLength = 0;
@@ -58,9 +57,6 @@ public class DeflateDecompressor
         catch (DataFormatException e) {
             throw new RuntimeException("Invalid compressed stream", e);
         }
-        finally {
-            inflater.end();
-        }
     }
 
     @Override
@@ -68,8 +64,7 @@ public class DeflateDecompressor
             throws MalformedInputException
     {
         ByteBuffer inputByteBuffer = input.asByteBuffer();
-        Inflater inflater = new Inflater(true);
-        try {
+        try (Inflater inflater = new Inflater(true)) {
             inflater.setInput(inputByteBuffer);
 
             ByteBuffer outputByteBuffer = output.asByteBuffer();
@@ -92,9 +87,6 @@ public class DeflateDecompressor
         }
         catch (DataFormatException e) {
             throw new RuntimeException("Invalid compressed stream", e);
-        }
-        finally {
-            inflater.end();
         }
     }
 
