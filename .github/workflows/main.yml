@@ -11,7 +11,6 @@ jobs:
       fail-fast: false
       matrix:
         java-version:
-          - 22
           - 25
     steps:
       - uses: actions/checkout@v4
