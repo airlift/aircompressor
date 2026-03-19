@@ -36,25 +36,25 @@ public class TestDeflate
     @Override
     protected Compressor getCompressor()
     {
-        return new DeflateCompressor();
+        return new DeflateJavaCompressor();
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new DeflateDecompressor();
+        return new DeflateJavaDecompressor();
     }
 
     @Override
     protected Compressor getVerifyCompressor()
     {
-        return new DeflateCompressor();
+        return new DeflateJavaCompressor();
     }
 
     @Override
     protected Decompressor getVerifyDecompressor()
     {
-        return new DeflateDecompressor();
+        return new DeflateJavaDecompressor();
     }
 
     @Test
