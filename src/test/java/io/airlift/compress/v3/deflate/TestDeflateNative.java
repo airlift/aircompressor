@@ -13,16 +13,34 @@
  */
 package io.airlift.compress.v3.deflate;
 
+import io.airlift.compress.v3.AbstractTestCompression;
+import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
 
-public interface DeflateDecompressor
-        extends Decompressor
+public class TestDeflateNative
+        extends AbstractTestCompression
 {
-    static DeflateDecompressor create()
+    @Override
+    protected Compressor getCompressor()
     {
-        if (DeflateNativeDecompressor.isEnabled()) {
-            return new DeflateNativeDecompressor();
-        }
+        return new DeflateNativeCompressor();
+    }
+
+    @Override
+    protected Decompressor getDecompressor()
+    {
+        return new DeflateNativeDecompressor();
+    }
+
+    @Override
+    protected Compressor getVerifyCompressor()
+    {
+        return new DeflateJavaCompressor();
+    }
+
+    @Override
+    protected Decompressor getVerifyDecompressor()
+    {
         return new DeflateJavaDecompressor();
     }
 }
