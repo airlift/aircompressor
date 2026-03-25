@@ -24,12 +24,13 @@ class ZstdHadoopOutputStream
         extends HadoopOutputStream
 {
     private final OutputStream out;
-    private boolean initialized;
+    private final boolean useNative;
     private ZstdOutputStream zstdOutputStream;
 
-    public ZstdHadoopOutputStream(OutputStream out)
+    public ZstdHadoopOutputStream(OutputStream out, boolean useNative)
     {
         this.out = requireNonNull(out, "out is null");
+        this.useNative = useNative;
     }
 
     @Override
@@ -70,10 +71,8 @@ class ZstdHadoopOutputStream
             throws IOException
     {
         try {
-            // it the stream has never been initialized, create a valid empty file
-            if (!initialized) {
-                openStreamIfNecessary();
-            }
+            // If the stream has never been initialized, create a valid empty file
+            openStreamIfNecessary();
             finish();
         }
         finally {
@@ -85,8 +84,12 @@ class ZstdHadoopOutputStream
             throws IOException
     {
         if (zstdOutputStream == null) {
-            initialized = true;
-            zstdOutputStream = new ZstdOutputStream(out);
+            if (useNative) {
+                zstdOutputStream = new ZstdNativeOutputStream(out);
+            }
+            else {
+                zstdOutputStream = new ZstdJavaOutputStream(out);
+            }
         }
     }
 }

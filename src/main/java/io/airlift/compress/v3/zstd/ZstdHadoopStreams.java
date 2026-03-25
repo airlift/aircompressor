@@ -27,6 +27,18 @@ import static java.util.Collections.singletonList;
 public class ZstdHadoopStreams
         implements HadoopStreams
 {
+    private final boolean useNative;
+
+    public ZstdHadoopStreams()
+    {
+        this(true);  // Default to native when available
+    }
+
+    public ZstdHadoopStreams(boolean useNative)
+    {
+        this.useNative = useNative && ZstdNative.isEnabled();
+    }
+
     @Override
     public String getDefaultFileExtension()
     {
@@ -43,13 +55,13 @@ public class ZstdHadoopStreams
     public HadoopInputStream createInputStream(InputStream in)
             throws IOException
     {
-        return new ZstdHadoopInputStream(in);
+        return new ZstdHadoopInputStream(in, useNative);
     }
 
     @Override
     public HadoopOutputStream createOutputStream(OutputStream out)
             throws IOException
     {
-        return new ZstdHadoopOutputStream(out);
+        return new ZstdHadoopOutputStream(out, useNative);
     }
 }
