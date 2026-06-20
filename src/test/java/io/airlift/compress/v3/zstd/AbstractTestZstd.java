@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -135,6 +136,39 @@ public abstract class AbstractTestZstd
         int decompressedSize = getDecompressor().decompress(compressed, 0, compressedSize, decompressed, 0, decompressed.length);
 
         assertByteArraysEqual(original, 0, original.length, decompressed, 0, decompressedSize);
+    }
+
+    @Test
+    void testStreamCompressionRatioAfterWindowSlide()
+            throws IOException
+    {
+        // Data with repetitions that always fit within the window. ZstdOutputStream slides its window
+        // several times while compressing it, and matches must still be found after each slide.
+        Random random = new Random(42);
+        byte[] vocabulary = new byte[256 * 1024];
+        random.nextBytes(vocabulary);
+
+        ByteArrayOutputStream originalStream = new ByteArrayOutputStream();
+        while (originalStream.size() < 16 * 1024 * 1024) {
+            originalStream.write(vocabulary, random.nextInt(vocabulary.length - 4096), 64 + random.nextInt(4000));
+            originalStream.write(random.nextInt());
+        }
+        byte[] original = originalStream.toByteArray();
+
+        ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
+        try (ZstdOutputStream output = new ZstdOutputStream(compressedStream)) {
+            for (int i = 0; i < original.length; i += 8192) {
+                output.write(original, i, Math.min(8192, original.length - i));
+            }
+        }
+        byte[] compressed = compressedStream.toByteArray();
+
+        byte[] decompressed = new byte[original.length];
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, decompressed, 0, decompressed.length);
+        assertByteArraysEqual(original, 0, original.length, decompressed, 0, decompressedSize);
+
+        // Without matches across window slides the ratio degrades to over 50%
+        assertThat(compressed.length).isLessThan(original.length / 5);
     }
 
     @Test
