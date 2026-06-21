@@ -62,6 +62,26 @@ class TestLz4JavaSafeDecompressor
         assertMatchesOracle(new byte[1]);
     }
 
+    @Test
+    void testShortcutPaths()
+    {
+        // periodic data over a sweep of periods drives matches at every small offset (incl. 8..15, which the
+        // fast-loop shortcut now handles); the length sweep hits the boundary where the shortcut turns off
+        for (int period = 1; period <= 40; period++) {
+            byte[] data = new byte[200_000];
+            for (int i = 0; i < data.length; i++) {
+                data[i] = (byte) (i % period);
+            }
+            assertMatchesOracle(data);
+        }
+        for (int len = 0; len <= 300; len++) {
+            assertMatchesOracle("abcdefghijklmnopqrst".repeat(30).substring(0, len).getBytes());
+            byte[] r = new byte[len];
+            new java.util.Random(len).nextBytes(r);
+            assertMatchesOracle(r);
+        }
+    }
+
     private static void assertMatchesOracle(byte[] original)
     {
         Lz4JavaCompressor compressor = new Lz4JavaCompressor();
