@@ -22,6 +22,10 @@ import io.airlift.compress.v3.deflate.DeflateJavaDecompressor;
 import io.airlift.compress.v3.deflate.DeflateNativeCompressor;
 import io.airlift.compress.v3.deflate.DeflateNativeDecompressor;
 import io.airlift.compress.v3.lz4.Lz4Codec;
+import io.airlift.compress.v3.lz4.Lz4FrameJavaCompressor;
+import io.airlift.compress.v3.lz4.Lz4FrameJavaDecompressor;
+import io.airlift.compress.v3.lz4.Lz4FrameNativeCompressor;
+import io.airlift.compress.v3.lz4.Lz4FrameNativeDecompressor;
 import io.airlift.compress.v3.lz4.Lz4JavaCompressor;
 import io.airlift.compress.v3.lz4.Lz4JavaDecompressor;
 import io.airlift.compress.v3.lz4.Lz4NativeCompressor;
@@ -57,6 +61,8 @@ public enum Algorithm
 {
     airlift_lz4(new Lz4JavaDecompressor(), new Lz4JavaCompressor()),
     airlift_lz4_native(new Lz4NativeDecompressor(), new Lz4NativeCompressor()),
+    airlift_lz4_frame(new Lz4FrameJavaDecompressor(), new Lz4FrameJavaCompressor()),
+    airlift_lz4_frame_native(new Lz4FrameNativeDecompressor(), new Lz4FrameNativeCompressor()),
     airlift_snappy(new SnappyJavaDecompressor(), new SnappyJavaCompressor()),
     airlift_snappy_native(new SnappyNativeDecompressor(), new SnappyNativeCompressor()),
     airlift_lzo(new LzoDecompressor(), new LzoCompressor()),
