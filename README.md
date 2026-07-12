@@ -144,6 +144,28 @@ try (XxHash64Hasher hasher = XxHash64Hasher.create()) {
 }
 ```
 
+## [XXHash32](https://xxhash.com/)
+XXHash32 is the 32-bit variant of the XXHash family. It is provided primarily for formats that
+require a 32-bit hash, such as the LZ4 frame format. For general-purpose hashing, prefer XXHash3
+or XXHash64.
+
+The native implementation is provided by `XxHash32NativeHasher` and the Java implementation
+is provided by `XxHash32JavaHasher`. The `XxHash32Hasher` interface provides static methods
+that automatically select the best available implementation.
+
+```java
+// One-shot hashing
+int hash = XxHash32Hasher.hash(data);
+int hash = XxHash32Hasher.hash(data, seed);
+
+// Streaming hashing
+try (XxHash32Hasher hasher = XxHash32Hasher.create()) {
+    hasher.update(chunk1);
+    hasher.update(chunk2);
+    int hash = hasher.digest();
+}
+```
+
 # Hadoop Compression
 
 In addition to the raw block encoders, there are implementations of the
