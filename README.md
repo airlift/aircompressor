@@ -65,6 +65,12 @@ compression and decompression.
 The native implementation of LZ4 is provided by `Lz4NativeCompressor` and `Lz4NativeDecompressor`.
 The Java implementation is provided by `Lz4JavaCompressor` and `Lz4JavaDecompressor`.
 
+The [LZ4 frame format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Frame_format.md), which is the
+format produced by the `lz4` command line tool, is supported by `Lz4FrameNativeCompressor` and
+`Lz4FrameNativeDecompressor` (native), and `Lz4FrameJavaCompressor` and `Lz4FrameJavaDecompressor`
+(Java). The framing itself is always performed in Java; the implementations differ only in the
+raw block codec used to compress and decompress the block contents.
+
 ## [Snappy](https://google.github.io/snappy/)
 Snappy is not as fast as LZ4, but provides a guarantee on memory usage that makes it a good
 choice for extremely resource-limited environments (e.g. embedded systems like a network 
