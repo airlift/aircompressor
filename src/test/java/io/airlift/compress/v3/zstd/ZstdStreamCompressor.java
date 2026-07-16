@@ -45,7 +45,7 @@ public class ZstdStreamCompressor
         verifyRange(output, outputOffset, maxOutputLength);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(maxOutputLength);
-        try (ZstdOutputStream zstdOutputStream = new ZstdOutputStream(byteArrayOutputStream)) {
+        try (ZstdJavaOutputStream zstdOutputStream = new ZstdJavaOutputStream(byteArrayOutputStream)) {
             int writtenBytes = 0;
             while (writtenBytes < inputLength) {
                 // limit write size to max block size, which exercises internal buffer growth and flushing logic
