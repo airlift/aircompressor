@@ -169,23 +169,22 @@ class ZstdFrameDecompressor
 
                 int decodedSize;
                 switch (blockType) {
-                    case RAW_BLOCK:
+                    case RAW_BLOCK -> {
                         verify(input + blockSize <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeRawBlock(inputBase, input, blockSize, outputBase, output, outputLimit);
                         input += blockSize;
-                        break;
-                    case RLE_BLOCK:
+                    }
+                    case RLE_BLOCK -> {
                         verify(input + 1 <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeRleBlock(blockSize, inputBase, input, outputBase, output, outputLimit);
                         input += 1;
-                        break;
-                    case COMPRESSED_BLOCK:
+                    }
+                    case COMPRESSED_BLOCK -> {
                         verify(input + blockSize <= inputLimit, input, "Not enough input bytes");
                         decodedSize = decodeCompressedBlock(inputBase, input, blockSize, outputBase, output, outputLimit, frameHeader.windowSize, outputAddress);
                         input += blockSize;
-                        break;
-                    default:
-                        throw fail(input, "Invalid block type");
+                    }
+                    default -> throw fail(input, "Invalid block type");
                 }
 
                 output += decodedSize;
@@ -610,7 +609,7 @@ class ZstdFrameDecompressor
     private long computeMatchLengthTable(int matchLengthType, Object inputBase, long input, long inputLimit)
     {
         switch (matchLengthType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
@@ -618,19 +617,14 @@ class ZstdFrameDecompressor
 
                 FseTableReader.initializeRleTable(matchLengthTable, value);
                 currentMatchLengthTable = matchLengthTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                currentMatchLengthTable = DEFAULT_MATCH_LENGTH_TABLE;
-                break;
-            case SEQUENCE_ENCODING_REPEAT:
-                verify(currentMatchLengthTable != null, input, "Expected match length table to be present");
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> currentMatchLengthTable = DEFAULT_MATCH_LENGTH_TABLE;
+            case SEQUENCE_ENCODING_REPEAT -> verify(currentMatchLengthTable != null, input, "Expected match length table to be present");
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 input += fse.readFseTable(matchLengthTable, inputBase, input, inputLimit, MAX_MATCH_LENGTH_SYMBOL, MATCH_LENGTH_TABLE_LOG);
                 currentMatchLengthTable = matchLengthTable;
-                break;
-            default:
-                throw fail(input, "Invalid match length encoding type");
+            }
+            default -> throw fail(input, "Invalid match length encoding type");
         }
         return input;
     }
@@ -638,7 +632,7 @@ class ZstdFrameDecompressor
     private long computeOffsetsTable(int offsetCodesType, Object inputBase, long input, long inputLimit)
     {
         switch (offsetCodesType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
@@ -646,19 +640,14 @@ class ZstdFrameDecompressor
 
                 FseTableReader.initializeRleTable(offsetCodesTable, value);
                 currentOffsetCodesTable = offsetCodesTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                currentOffsetCodesTable = DEFAULT_OFFSET_CODES_TABLE;
-                break;
-            case SEQUENCE_ENCODING_REPEAT:
-                verify(currentOffsetCodesTable != null, input, "Expected match length table to be present");
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> currentOffsetCodesTable = DEFAULT_OFFSET_CODES_TABLE;
+            case SEQUENCE_ENCODING_REPEAT -> verify(currentOffsetCodesTable != null, input, "Expected match length table to be present");
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 input += fse.readFseTable(offsetCodesTable, inputBase, input, inputLimit, DEFAULT_MAX_OFFSET_CODE_SYMBOL, OFFSET_TABLE_LOG);
                 currentOffsetCodesTable = offsetCodesTable;
-                break;
-            default:
-                throw fail(input, "Invalid offset code encoding type");
+            }
+            default -> throw fail(input, "Invalid offset code encoding type");
         }
         return input;
     }
@@ -666,7 +655,7 @@ class ZstdFrameDecompressor
     private long computeLiteralsTable(int literalsLengthType, Object inputBase, long input, long inputLimit)
     {
         switch (literalsLengthType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 verify(input < inputLimit, input, "Not enough input bytes");
 
                 byte value = UNSAFE.getByte(inputBase, input++);
@@ -674,19 +663,14 @@ class ZstdFrameDecompressor
 
                 FseTableReader.initializeRleTable(literalsLengthTable, value);
                 currentLiteralsLengthTable = literalsLengthTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                currentLiteralsLengthTable = DEFAULT_LITERALS_LENGTH_TABLE;
-                break;
-            case SEQUENCE_ENCODING_REPEAT:
-                verify(currentLiteralsLengthTable != null, input, "Expected match length table to be present");
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> currentLiteralsLengthTable = DEFAULT_LITERALS_LENGTH_TABLE;
+            case SEQUENCE_ENCODING_REPEAT -> verify(currentLiteralsLengthTable != null, input, "Expected match length table to be present");
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 input += fse.readFseTable(literalsLengthTable, inputBase, input, inputLimit, MAX_LITERALS_LENGTH_SYMBOL, LITERAL_LENGTH_TABLE_LOG);
                 currentLiteralsLengthTable = literalsLengthTable;
-                break;
-            default:
-                throw fail(input, "Invalid literals length encoding type");
+            }
+            default -> throw fail(input, "Invalid literals length encoding type");
         }
         return input;
     }
@@ -796,23 +780,21 @@ class ZstdFrameDecompressor
 
         int type = (UNSAFE.getByte(inputBase, input) >> 2) & 0b11;
         switch (type) {
-            case 0:
-            case 2:
+            case 0, 2 -> {
                 outputSize = (UNSAFE.getByte(inputBase, input) & 0xFF) >>> 3;
                 input++;
-                break;
-            case 1:
+            }
+            case 1 -> {
                 outputSize = (UNSAFE.getShort(inputBase, input) & 0xFFFF) >>> 4;
                 input += 2;
-                break;
-            case 3:
+            }
+            case 3 -> {
                 // we need at least 4 bytes (3 for the header, 1 for the payload)
                 verify(blockSize >= SIZE_OF_INT, input, "Not enough input bytes");
                 outputSize = (UNSAFE.getInt(inputBase, input) & 0xFF_FFFF) >>> 4;
                 input += 3;
-                break;
-            default:
-                throw fail(input, "Invalid RLE literals header encoding type");
+            }
+            default -> throw fail(input, "Invalid RLE literals header encoding type");
         }
 
         verify(outputSize <= MAX_BLOCK_SIZE, input, "Output exceeds maximum block size");
@@ -834,25 +816,23 @@ class ZstdFrameDecompressor
 
         int literalSize;
         switch (type) {
-            case 0:
-            case 2:
+            case 0, 2 -> {
                 literalSize = (UNSAFE.getByte(inputBase, input) & 0xFF) >>> 3;
                 input++;
-                break;
-            case 1:
+            }
+            case 1 -> {
                 literalSize = (UNSAFE.getShort(inputBase, input) & 0xFFFF) >>> 4;
                 input += 2;
-                break;
-            case 3:
+            }
+            case 3 -> {
                 // read 3 little-endian bytes
                 int header = ((UNSAFE.getByte(inputBase, input) & 0xFF) |
                         ((UNSAFE.getShort(inputBase, input + 1) & 0xFFFF) << 8));
 
                 literalSize = header >>> 4;
                 input += 3;
-                break;
-            default:
-                throw fail(input, "Invalid raw literals header encoding type");
+            }
+            default -> throw fail(input, "Invalid raw literals header encoding type");
         }
 
         verify(input + literalSize <= inputLimit, input, "Not enough input bytes");
@@ -908,43 +888,45 @@ class ZstdFrameDecompressor
         // decode dictionary id
         long dictionaryId = -1;
         switch (dictionaryDescriptor) {
-            case 1:
+            case 1 -> {
                 dictionaryId = UNSAFE.getByte(inputBase, input) & 0xFF;
                 input += SIZE_OF_BYTE;
-                break;
-            case 2:
+            }
+            case 2 -> {
                 dictionaryId = UNSAFE.getShort(inputBase, input) & 0xFFFF;
                 input += SIZE_OF_SHORT;
-                break;
-            case 3:
+            }
+            case 3 -> {
                 dictionaryId = UNSAFE.getInt(inputBase, input) & 0xFFFF_FFFFL;
                 input += SIZE_OF_INT;
-                break;
+            }
+            default -> {}
         }
         verify(dictionaryId == -1, input, "Custom dictionaries not supported");
 
         // decode content size
         long contentSize = -1;
         switch (contentSizeDescriptor) {
-            case 0:
+            case 0 -> {
                 if (singleSegment) {
                     contentSize = UNSAFE.getByte(inputBase, input) & 0xFF;
                     input += SIZE_OF_BYTE;
                 }
-                break;
-            case 1:
+            }
+            case 1 -> {
                 contentSize = UNSAFE.getShort(inputBase, input) & 0xFFFF;
                 contentSize += 256;
                 input += SIZE_OF_SHORT;
-                break;
-            case 2:
+            }
+            case 2 -> {
                 contentSize = UNSAFE.getInt(inputBase, input) & 0xFFFF_FFFFL;
                 input += SIZE_OF_INT;
-                break;
-            case 3:
+            }
+            case 3 -> {
                 contentSize = UNSAFE.getLong(inputBase, input);
                 input += SIZE_OF_LONG;
-                break;
+            }
+            default -> throw new AssertionError();
         }
 
         boolean hasChecksum = (frameHeaderDescriptor & 0b100) != 0;

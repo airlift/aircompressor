@@ -207,7 +207,7 @@ public class ZstdIncrementalFrameDecompressor
 
                 int decodedSize;
                 switch (blockType) {
-                    case RAW_BLOCK: {
+                    case RAW_BLOCK -> {
                         if (inputLimit - input < blockSize) {
                             inputRequired(inputAddress, outputOffset, input, output, blockSize);
                             return;
@@ -215,9 +215,8 @@ public class ZstdIncrementalFrameDecompressor
                         verify(windowLimit - windowPosition >= blockSize, input, "window buffer is too small");
                         decodedSize = decodeRawBlock(inputBase, input, blockSize, windowBase, windowPosition, windowLimit);
                         input += blockSize;
-                        break;
                     }
-                    case RLE_BLOCK: {
+                    case RLE_BLOCK -> {
                         if (inputLimit - input < 1) {
                             inputRequired(inputAddress, outputOffset, input, output, 1);
                             return;
@@ -225,9 +224,8 @@ public class ZstdIncrementalFrameDecompressor
                         verify(windowLimit - windowPosition >= blockSize, input, "window buffer is too small");
                         decodedSize = decodeRleBlock(blockSize, inputBase, input, windowBase, windowPosition, windowLimit);
                         input += 1;
-                        break;
                     }
-                    case COMPRESSED_BLOCK: {
+                    case COMPRESSED_BLOCK -> {
                         if (inputLimit - input < blockSize) {
                             inputRequired(inputAddress, outputOffset, input, output, blockSize);
                             return;
@@ -235,10 +233,8 @@ public class ZstdIncrementalFrameDecompressor
                         verify(windowLimit - windowPosition >= MAX_BLOCK_SIZE, input, "window buffer is too small");
                         decodedSize = frameDecompressor.decodeCompressedBlock(inputBase, input, blockSize, windowBase, windowPosition, windowLimit, frameHeader.windowSize, windowAddress);
                         input += blockSize;
-                        break;
                     }
-                    default:
-                        throw fail(input, "Invalid block type");
+                    default -> throw fail(input, "Invalid block type");
                 }
                 windowPosition += decodedSize;
                 if (lastBlock) {
