@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>112</version>
+        <version>113</version>
     </parent>
 
     <groupId>io.airlift</groupId>
@@ -48,7 +48,8 @@
         <air.test.thread-count>4</air.test.thread-count>
         <air.test.jvmsize>2G</air.test.jvmsize>
 
-        <dep.njord.version>0.9.4</dep.njord.version>
+        <dep.plugin.surefire.version>3.0.0-M9</dep.plugin.surefire.version>
+        <dep.njord.version>0.9.9</dep.njord.version>
         <njord.publishingType>automatic</njord.publishingType>
         <njord.waitForStates>true</njord.waitForStates>
 
@@ -67,7 +68,7 @@
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.10.2</version>
+            <version>1.11.1</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -85,17 +86,19 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.5-11</version>
+            <version>1.5.7-11</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+            <version>33.6.0-jre</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
+            <version>7.0.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -121,33 +124,37 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.iq80.snappy</groupId>
             <artifactId>snappy</artifactId>
-            <version>0.4</version>
+            <version>0.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-core</artifactId>
+            <version>1.37</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
             <artifactId>jmh-generator-annprocess</artifactId>
+            <version>1.37</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
+            <version>7.5.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>
-            <version>1.1.10.5</version>
+            <version>1.1.10.8</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
