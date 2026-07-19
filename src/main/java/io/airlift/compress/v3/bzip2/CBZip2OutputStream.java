@@ -512,27 +512,26 @@ class CBZip2OutputStream
             this.crc32.updateCRC(currentCharShadow, runLengthShadow);
 
             switch (runLengthShadow) {
-                case 1:
+                case 1 -> {
                     dataShadow.block[lastShadow + 2] = ch;
                     this.last = lastShadow + 1;
-                    break;
+                }
 
-                case 2:
+                case 2 -> {
                     dataShadow.block[lastShadow + 2] = ch;
                     dataShadow.block[lastShadow + 3] = ch;
                     this.last = lastShadow + 2;
-                    break;
+                }
 
-                case 3: {
+                case 3 -> {
                     final byte[] block = dataShadow.block;
                     block[lastShadow + 2] = ch;
                     block[lastShadow + 3] = ch;
                     block[lastShadow + 4] = ch;
                     this.last = lastShadow + 3;
                 }
-                break;
 
-                default: {
+                default -> {
                     runLengthShadow -= 4;
                     dataShadow.inUse[runLengthShadow] = true;
                     final byte[] block = dataShadow.block;
@@ -543,7 +542,6 @@ class CBZip2OutputStream
                     block[lastShadow + 6] = (byte) runLengthShadow;
                     this.last = lastShadow + 5;
                 }
-                break;
             }
         }
         else {

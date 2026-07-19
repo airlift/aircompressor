@@ -386,39 +386,29 @@ class CBZip2InputStream
         final int retChar = this.currentChar;
 
         switch (this.currentState) {
-            case EOF:
+            case EOF -> {
                 return END_OF_STREAM; // return -1
+            }
 
-            case NO_PROCESS_STATE:
+            case NO_PROCESS_STATE -> {
                 return END_OF_BLOCK; // return -2
+            }
 
-            case START_BLOCK_STATE:
-                throw new IllegalStateException();
+            case START_BLOCK_STATE -> throw new IllegalStateException();
 
-            case RAND_PART_A_STATE:
-                throw new IllegalStateException();
+            case RAND_PART_A_STATE -> throw new IllegalStateException();
 
-            case RAND_PART_B_STATE:
-                setupRandPartB();
-                break;
+            case RAND_PART_B_STATE -> setupRandPartB();
 
-            case RAND_PART_C_STATE:
-                setupRandPartC();
-                break;
+            case RAND_PART_C_STATE -> setupRandPartC();
 
-            case NO_RAND_PART_A_STATE:
-                throw new IllegalStateException();
+            case NO_RAND_PART_A_STATE -> throw new IllegalStateException();
 
-            case NO_RAND_PART_B_STATE:
-                setupNoRandPartB();
-                break;
+            case NO_RAND_PART_B_STATE -> setupNoRandPartB();
 
-            case NO_RAND_PART_C_STATE:
-                setupNoRandPartC();
-                break;
+            case NO_RAND_PART_C_STATE -> setupNoRandPartC();
 
-            default:
-                throw new IllegalStateException();
+            default -> throw new IllegalStateException();
         }
 
         return retChar;

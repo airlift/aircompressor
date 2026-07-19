@@ -241,22 +241,22 @@ public final class SnappyFramedInputStream
         FrameAction frameAction;
         int flag = frameHeader[0] & 0xFF;
         switch (flag) {
-            case SnappyFramed.COMPRESSED_DATA_FLAG:
+            case SnappyFramed.COMPRESSED_DATA_FLAG -> {
                 frameAction = FrameAction.UNCOMPRESS;
                 minLength = 5;
-                break;
-            case SnappyFramed.UNCOMPRESSED_DATA_FLAG:
+            }
+            case SnappyFramed.UNCOMPRESSED_DATA_FLAG -> {
                 frameAction = FrameAction.RAW;
                 minLength = 5;
-                break;
-            case SnappyFramed.STREAM_IDENTIFIER_FLAG:
+            }
+            case SnappyFramed.STREAM_IDENTIFIER_FLAG -> {
                 if (length != 6) {
                     throw new IOException("stream identifier chunk with invalid length: " + length);
                 }
                 frameAction = FrameAction.SKIP;
                 minLength = 6;
-                break;
-            default:
+            }
+            default -> {
                 // Reserved unskippable chunks (chunk types 0x02-0x7f)
                 if (flag <= 0x7f) {
                     throw new IOException("unsupported unskippable chunk: " + Integer.toHexString(flag));
@@ -265,6 +265,7 @@ public final class SnappyFramedInputStream
                 // all that is left is Reserved skippable chunks (chunk types 0x80-0xfe)
                 frameAction = FrameAction.SKIP;
                 minLength = 0;
+            }
         }
 
         if (length < minLength) {

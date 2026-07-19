@@ -100,21 +100,20 @@ final class ZstdFrameCompressor
         }
 
         switch (contentSizeDescriptor) {
-            case 0:
+            case 0 -> {
                 if (singleSegment) {
                     UNSAFE.putByte(outputBase, output++, (byte) inputSize);
                 }
-                break;
-            case 1:
+            }
+            case 1 -> {
                 UNSAFE.putShort(outputBase, output, (short) (inputSize - 256));
                 output += SIZE_OF_SHORT;
-                break;
-            case 2:
+            }
+            case 2 -> {
                 UNSAFE.putInt(outputBase, output, inputSize);
                 output += SIZE_OF_INT;
-                break;
-            default:
-                throw new AssertionError();
+            }
+            default -> throw new AssertionError();
         }
 
         return (int) (output - outputAddress);
@@ -358,24 +357,21 @@ final class ZstdFrameCompressor
 
         // Build header
         switch (headerSize) {
-            case 3: { // 2 - 2 - 10 - 10
+            case 3 -> { // 2 - 2 - 10 - 10
                 int header = encodingType | ((singleStream ? 0 : 1) << 2) | (literalsSize << 4) | (totalSize << 14);
                 put24BitLittleEndian(outputBase, outputAddress, header);
-                break;
             }
-            case 4: { // 2 - 2 - 14 - 14
+            case 4 -> { // 2 - 2 - 14 - 14
                 int header = encodingType | (2 << 2) | (literalsSize << 4) | (totalSize << 18);
                 UNSAFE.putInt(outputBase, outputAddress, header);
-                break;
             }
-            case 5: { // 2 - 2 - 18 - 18
+            case 5 -> { // 2 - 2 - 18 - 18
                 int header = encodingType | (3 << 2) | (literalsSize << 4) | (totalSize << 22);
                 UNSAFE.putInt(outputBase, outputAddress, header);
                 UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_INT, (byte) (totalSize >>> 10));
-                break;
             }
-            default:  // not possible : headerSize is {3,4,5}
-                throw new IllegalStateException();
+            default ->  // not possible : headerSize is {3,4,5}
+                    throw new IllegalStateException();
         }
 
         return headerSize + totalSize;
@@ -386,17 +382,14 @@ final class ZstdFrameCompressor
         int headerSize = 1 + (inputSize > 31 ? 1 : 0) + (inputSize > 4095 ? 1 : 0);
 
         switch (headerSize) {
-            case 1: // 2 - 1 - 5
-                UNSAFE.putByte(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (inputSize << 3)));
-                break;
-            case 2: // 2 - 2 - 12
-                UNSAFE.putShort(outputBase, outputAddress, (short) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
-                break;
-            case 3: // 2 - 2 - 20
-                UNSAFE.putInt(outputBase, outputAddress, RLE_LITERALS_BLOCK | 3 << 2 | inputSize << 4);
-                break;
-            default:   // impossible. headerSize is {1,2,3}
-                throw new IllegalStateException();
+            case 1 -> // 2 - 1 - 5
+                    UNSAFE.putByte(outputBase, outputAddress, (byte) (RLE_LITERALS_BLOCK | (inputSize << 3)));
+            case 2 -> // 2 - 2 - 12
+                    UNSAFE.putShort(outputBase, outputAddress, (short) (RLE_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
+            case 3 -> // 2 - 2 - 20
+                    UNSAFE.putInt(outputBase, outputAddress, RLE_LITERALS_BLOCK | 3 << 2 | inputSize << 4);
+            default -> // impossible. headerSize is {1,2,3}
+                    throw new IllegalStateException();
         }
 
         UNSAFE.putByte(outputBase, outputAddress + headerSize, UNSAFE.getByte(inputBase, inputAddress));
@@ -424,17 +417,10 @@ final class ZstdFrameCompressor
         checkArgument(inputSize + headerSize <= outputSize, "Output buffer too small");
 
         switch (headerSize) {
-            case 1:
-                UNSAFE.putByte(outputBase, outputAddress, (byte) (RAW_LITERALS_BLOCK | (inputSize << 3)));
-                break;
-            case 2:
-                UNSAFE.putShort(outputBase, outputAddress, (short) (RAW_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
-                break;
-            case 3:
-                put24BitLittleEndian(outputBase, outputAddress, RAW_LITERALS_BLOCK | (3 << 2) | (inputSize << 4));
-                break;
-            default:
-                throw new AssertionError();
+            case 1 -> UNSAFE.putByte(outputBase, outputAddress, (byte) (RAW_LITERALS_BLOCK | (inputSize << 3)));
+            case 2 -> UNSAFE.putShort(outputBase, outputAddress, (short) (RAW_LITERALS_BLOCK | (1 << 2) | (inputSize << 4)));
+            case 3 -> put24BitLittleEndian(outputBase, outputAddress, RAW_LITERALS_BLOCK | (3 << 2) | (inputSize << 4));
+            default -> throw new AssertionError();
         }
 
         // TODO: ensure this test is correct

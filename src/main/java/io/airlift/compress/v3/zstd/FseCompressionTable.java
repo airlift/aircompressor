@@ -93,22 +93,19 @@ class FseCompressionTable
         int total = 0;
         for (int symbol = 0; symbol <= maxSymbol; symbol++) {
             switch (normalizedCounts[symbol]) {
-                case 0:
-                    deltaNumberOfBits[symbol] = ((tableLog + 1) << 16) - tableSize;
-                    break;
-                case -1:
-                case 1:
+                case 0 -> deltaNumberOfBits[symbol] = ((tableLog + 1) << 16) - tableSize;
+                case -1, 1 -> {
                     deltaNumberOfBits[symbol] = (tableLog << 16) - tableSize;
                     deltaFindState[symbol] = total - 1;
                     total++;
-                    break;
-                default:
+                }
+                default -> {
                     int maxBitsOut = tableLog - Util.highestBit(normalizedCounts[symbol] - 1);
                     int minStatePlus = normalizedCounts[symbol] << maxBitsOut;
                     deltaNumberOfBits[symbol] = (maxBitsOut << 16) - minStatePlus;
                     deltaFindState[symbol] = total - normalizedCounts[symbol];
                     total += normalizedCounts[symbol];
-                    break;
+                }
             }
         }
     }

@@ -215,18 +215,13 @@ class DoubleFastBlockCompressor
 
     private static int hash(Object inputBase, long inputAddress, int bits, int matchSearchLength)
     {
-        switch (matchSearchLength) {
-            case 8:
-                return hash8(UNSAFE.getLong(inputBase, inputAddress), bits);
-            case 7:
-                return hash7(UNSAFE.getLong(inputBase, inputAddress), bits);
-            case 6:
-                return hash6(UNSAFE.getLong(inputBase, inputAddress), bits);
-            case 5:
-                return hash5(UNSAFE.getLong(inputBase, inputAddress), bits);
-            default:
-                return hash4(UNSAFE.getInt(inputBase, inputAddress), bits);
-        }
+        return switch (matchSearchLength) {
+            case 8 -> hash8(UNSAFE.getLong(inputBase, inputAddress), bits);
+            case 7 -> hash7(UNSAFE.getLong(inputBase, inputAddress), bits);
+            case 6 -> hash6(UNSAFE.getLong(inputBase, inputAddress), bits);
+            case 5 -> hash5(UNSAFE.getLong(inputBase, inputAddress), bits);
+            default -> hash4(UNSAFE.getInt(inputBase, inputAddress), bits);
+        };
     }
 
     private static final int PRIME_4_BYTES = 0x9E3779B1;

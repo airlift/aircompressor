@@ -107,16 +107,14 @@ final class SequenceEncoder
 
         FseCompressionTable literalLengthTable;
         switch (literalsLengthEncodingType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 UNSAFE.putByte(outputBase, output, sequences.literalLengthCodes[0]);
                 output++;
                 workspace.literalLengthTable.initializeRleTable(maxSymbol);
                 literalLengthTable = workspace.literalLengthTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                literalLengthTable = DEFAULT_LITERAL_LENGTHS_TABLE;
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> literalLengthTable = DEFAULT_LITERAL_LENGTHS_TABLE;
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 output += buildCompressionTable(
                         workspace.literalLengthTable,
                         outputBase,
@@ -129,9 +127,8 @@ final class SequenceEncoder
                         maxSymbol,
                         workspace.normalizedCounts);
                 literalLengthTable = workspace.literalLengthTable;
-                break;
-            default:
-                throw new UnsupportedOperationException("not yet implemented");
+            }
+            default -> throw new UnsupportedOperationException("not yet implemented");
         }
 
         // offsets
@@ -146,16 +143,14 @@ final class SequenceEncoder
 
         FseCompressionTable offsetCodeTable;
         switch (offsetEncodingType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 UNSAFE.putByte(outputBase, output, sequences.offsetCodes[0]);
                 output++;
                 workspace.offsetCodeTable.initializeRleTable(maxSymbol);
                 offsetCodeTable = workspace.offsetCodeTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                offsetCodeTable = DEFAULT_OFFSETS_TABLE;
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> offsetCodeTable = DEFAULT_OFFSETS_TABLE;
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 output += buildCompressionTable(
                         workspace.offsetCodeTable,
                         outputBase,
@@ -168,9 +163,8 @@ final class SequenceEncoder
                         maxSymbol,
                         workspace.normalizedCounts);
                 offsetCodeTable = workspace.offsetCodeTable;
-                break;
-            default:
-                throw new UnsupportedOperationException("not yet implemented");
+            }
+            default -> throw new UnsupportedOperationException("not yet implemented");
         }
 
         // match lengths
@@ -182,16 +176,14 @@ final class SequenceEncoder
 
         FseCompressionTable matchLengthTable;
         switch (matchLengthEncodingType) {
-            case SEQUENCE_ENCODING_RLE:
+            case SEQUENCE_ENCODING_RLE -> {
                 UNSAFE.putByte(outputBase, output, sequences.matchLengthCodes[0]);
                 output++;
                 workspace.matchLengthTable.initializeRleTable(maxSymbol);
                 matchLengthTable = workspace.matchLengthTable;
-                break;
-            case SEQUENCE_ENCODING_BASIC:
-                matchLengthTable = DEFAULT_MATCH_LENGTHS_TABLE;
-                break;
-            case SEQUENCE_ENCODING_COMPRESSED:
+            }
+            case SEQUENCE_ENCODING_BASIC -> matchLengthTable = DEFAULT_MATCH_LENGTHS_TABLE;
+            case SEQUENCE_ENCODING_COMPRESSED -> {
                 output += buildCompressionTable(
                         workspace.matchLengthTable,
                         outputBase,
@@ -204,9 +196,8 @@ final class SequenceEncoder
                         maxSymbol,
                         workspace.normalizedCounts);
                 matchLengthTable = workspace.matchLengthTable;
-                break;
-            default:
-                throw new UnsupportedOperationException("not yet implemented");
+            }
+            default -> throw new UnsupportedOperationException("not yet implemented");
         }
 
         // flags
