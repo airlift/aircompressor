@@ -298,8 +298,8 @@ final class SnappyRawDecompressor
                             b = getUnsignedByteSafe(compressed, compressedAddress + bytesRead, compressedLimit);
                             bytesRead++;
                             result |= (b & 0x7f) << 28;
-                            if ((b & 0x80) != 0) {
-                                throw new MalformedInputException(compressedAddress + bytesRead, "last byte of compressed length int has high bit set");
+                            if ((b & 0xf0) != 0) {
+                                throw new MalformedInputException(compressedAddress + bytesRead, "last byte of compressed length int has high bits set");
                             }
                         }
                     }
