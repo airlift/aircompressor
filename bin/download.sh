@@ -142,7 +142,7 @@ download_linux \
   "linux-ppc64le/libxxhash.so"
 
 download_macos \
-  xxhash 0.8.3 libxxhash.0.8.3.dylib arm64 macos-aarch64/libxxhash.dylib
+  xxhash 0.8.4 libxxhash.0.8.4.dylib arm64 macos-aarch64/libxxhash.dylib
 
 # libdeflate
 download_linux \
