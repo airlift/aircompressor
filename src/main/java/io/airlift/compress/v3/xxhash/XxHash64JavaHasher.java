@@ -36,6 +36,9 @@ public final class XxHash64JavaHasher
     private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
 
     private final byte[] buffer = new byte[32];
+    // Reusable scratch buffer for updateLE(long)/updateLE(int); avoids allocating a temporary
+    // array on every call. Safe because a hasher instance is inherently single-threaded/stateful.
+    private final byte[] valueBuffer = new byte[8];
     private int bufferSize;
 
     private long bodyLength;
@@ -309,17 +312,15 @@ public final class XxHash64JavaHasher
     @Override
     public XxHash64Hasher updateLE(long value)
     {
-        byte[] bytes = new byte[8];
-        LONG_HANDLE.set(bytes, 0, value);
-        return update(bytes);
+        LONG_HANDLE.set(valueBuffer, 0, value);
+        return update(valueBuffer, 0, Long.BYTES);
     }
 
     @Override
     public XxHash64Hasher updateLE(int value)
     {
-        byte[] bytes = new byte[4];
-        INT_HANDLE.set(bytes, 0, value);
-        return update(bytes);
+        INT_HANDLE.set(valueBuffer, 0, value);
+        return update(valueBuffer, 0, Integer.BYTES);
     }
 
     private void updateBodyFromBuffer()
