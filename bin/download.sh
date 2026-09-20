@@ -146,19 +146,19 @@ download_macos \
 
 # libdeflate
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.23-2_amd64.deb" \
+  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.25-1_amd64.deb" \
   "/usr/lib/x86_64-linux-gnu/libdeflate.so.0" \
   "linux-amd64/libdeflate.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.23-2_arm64.deb" \
+  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.25-1_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libdeflate.so.0" \
   "linux-aarch64/libdeflate.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.23-2+b1_ppc64el.deb" \
+  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.25-1_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libdeflate.so.0" \
   "linux-ppc64le/libdeflate.so"
 
 download_macos \
-  libdeflate 1.23 libdeflate.0.dylib arm64 macos-aarch64/libdeflate.dylib
+  libdeflate 1.26 libdeflate.0.dylib arm64 macos-aarch64/libdeflate.dylib
