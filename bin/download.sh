@@ -54,22 +54,22 @@ download_macos()
 
 # Snappy
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_amd64.deb" \
-  "/usr/lib/x86_64-linux-gnu/libsnappy.so.1.2.1" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_amd64.deb" \
+  "/usr/lib/x86_64-linux-gnu/libsnappy.so.1.3.1" \
   "linux-amd64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_arm64.deb" \
-  "/usr/lib/aarch64-linux-gnu/libsnappy.so.1.2.1" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_arm64.deb" \
+  "/usr/lib/aarch64-linux-gnu/libsnappy.so.1.3.1" \
   "linux-aarch64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.2.1-1+b1_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libsnappy.so.1.2.1" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_ppc64el.deb" \
+  "/usr/lib/powerpc64le-linux-gnu/libsnappy.so.1.3.1" \
   "linux-ppc64le/libsnappy.so"
 
 download_macos \
-  snappy 1.1.10 libsnappy.1.1.10.dylib arm64 macos-aarch64/libsnappy.dylib
+  snappy 1.3.1 libsnappy.1.3.1.dylib arm64 macos-aarch64/libsnappy.dylib
 
 # Zstandard
 download_linux \
