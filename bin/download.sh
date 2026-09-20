@@ -69,9 +69,6 @@ download_linux \
   "linux-ppc64le/libsnappy.so"
 
 download_macos \
-  snappy 1.1.10 libsnappy.1.1.10.dylib amd64 macos-amd64/libsnappy.dylib
-
-download_macos \
   snappy 1.1.10 libsnappy.1.1.10.dylib arm64 macos-aarch64/libsnappy.dylib
 
 # Zstandard
@@ -91,9 +88,6 @@ download_linux \
   "linux-ppc64le/libzstd.so"
 
 download_macos \
-  zstd 1.5.6 libzstd.1.5.6.dylib amd64 macos-amd64/libzstd.dylib
-
-download_macos \
   zstd 1.5.6 libzstd.1.5.6.dylib arm64 macos-aarch64/libzstd.dylib
 
 # LZ4
@@ -111,9 +105,6 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/liblz4.so.1.10.0" \
   "linux-ppc64le/liblz4.so"
-
-download_macos \
-  lz4 1.10.0 liblz4.1.10.0.dylib amd64 macos-amd64/liblz4.dylib
 
 download_macos \
   lz4 1.10.0 liblz4.1.10.0.dylib arm64 macos-aarch64/liblz4.dylib
@@ -151,9 +142,6 @@ download_linux \
   "linux-ppc64le/libxxhash.so"
 
 download_macos \
-  xxhash 0.8.3 libxxhash.0.8.3.dylib amd64 macos-amd64/libxxhash.dylib
-
-download_macos \
   xxhash 0.8.3 libxxhash.0.8.3.dylib arm64 macos-aarch64/libxxhash.dylib
 
 # libdeflate
@@ -171,9 +159,6 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.23-2+b1_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libdeflate.so.0" \
   "linux-ppc64le/libdeflate.so"
-
-download_macos \
-  libdeflate 1.23 libdeflate.0.dylib amd64 macos-amd64/libdeflate.dylib
 
 download_macos \
   libdeflate 1.23 libdeflate.0.dylib arm64 macos-aarch64/libdeflate.dylib
