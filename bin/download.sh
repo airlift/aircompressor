@@ -73,22 +73,22 @@ download_macos \
 
 # Zstandard
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.6+dfsg-1_amd64.deb" \
-  "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.6" \
+  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-4_amd64.deb" \
+  "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7" \
   "linux-amd64/libzstd.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.6+dfsg-1_arm64.deb" \
-  "/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.6" \
+  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-4_arm64.deb" \
+  "/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.7" \
   "linux-aarch64/libzstd.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.6+dfsg-1_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libzstd.so.1.5.6" \
+  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-4_ppc64el.deb" \
+  "/usr/lib/powerpc64le-linux-gnu/libzstd.so.1.5.7" \
   "linux-ppc64le/libzstd.so"
 
 download_macos \
-  zstd 1.5.6 libzstd.1.5.6.dylib arm64 macos-aarch64/libzstd.dylib
+  zstd 1.5.7 libzstd.1.5.7.dylib arm64 macos-aarch64/libzstd.dylib
 
 # LZ4
 download_linux \
