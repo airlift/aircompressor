@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 
 import static io.airlift.compress.v3.zstd.Huffman.MAX_FSE_TABLE_LOG;
@@ -20,9 +21,9 @@ import static io.airlift.compress.v3.zstd.Huffman.MAX_SYMBOL;
 import static io.airlift.compress.v3.zstd.Huffman.MAX_SYMBOL_COUNT;
 import static io.airlift.compress.v3.zstd.Huffman.MAX_TABLE_LOG;
 import static io.airlift.compress.v3.zstd.Huffman.MIN_TABLE_LOG;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.v3.zstd.Util.checkArgument;
 import static io.airlift.compress.v3.zstd.Util.minTableLog;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 final class HuffmanCompressionTable
 {
@@ -199,7 +200,7 @@ final class HuffmanCompressionTable
         output.addBitsFast(values[symbol], numberOfBits[symbol]);
     }
 
-    public int write(Object outputBase, long outputAddress, int outputSize, HuffmanTableWriterWorkspace workspace)
+    public int write(MemorySegment outputBase, long outputAddress, int outputSize, HuffmanTableWriterWorkspace workspace)
     {
         byte[] weights = workspace.weights;
 
@@ -235,7 +236,7 @@ final class HuffmanCompressionTable
             //   - the compressed size is better than what we'd get with the raw encoding below
             //   - the compressed size is <= 127 bytes, which is the most that the encoding can hold for FSE-compressed weights (see RFC 8478 section 4.2.1.1). This is implied
             //     by the maxSymbol / 2 check, since maxSymbol must be <= 255
-            UNSAFE.putByte(outputBase, output, (byte) size);
+            outputBase.set(JAVA_BYTE, output, (byte) size);
             return size + 1; // header + size
         }
         else {
@@ -249,12 +250,12 @@ final class HuffmanCompressionTable
 
             // encode number of symbols
             // header = #entries + 127 per RFC
-            UNSAFE.putByte(outputBase, output, (byte) (127 + entryCount));
+            outputBase.set(JAVA_BYTE, output, (byte) (127 + entryCount));
             output++;
 
             weights[maxSymbol] = 0; // last weight is implicit, so set to 0 so that it doesn't get encoded below
             for (int i = 0; i < entryCount; i += 2) {
-                UNSAFE.putByte(outputBase, output, (byte) ((weights[i] << 4) + weights[i + 1]));
+                outputBase.set(JAVA_BYTE, output, (byte) ((weights[i] << 4) + weights[i + 1]));
                 output++;
             }
 
@@ -392,7 +393,7 @@ final class HuffmanCompressionTable
     /**
      * All elements within weightTable must be <= Huffman.MAX_TABLE_LOG
      */
-    private static int compressWeights(Object outputBase, long outputAddress, int outputSize, byte[] weights, int weightsLength, HuffmanTableWriterWorkspace workspace)
+    private static int compressWeights(MemorySegment outputBase, long outputAddress, int outputSize, byte[] weights, int weightsLength, HuffmanTableWriterWorkspace workspace)
     {
         if (weightsLength <= 1) {
             return 0; // Not compressible

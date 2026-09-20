@@ -13,10 +13,11 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 final class Histogram
 {
@@ -25,14 +26,14 @@ final class Histogram
     }
 
     // TODO: count parallel heuristic for large inputs
-    private static void count(Object inputBase, long inputAddress, int inputSize, int[] counts)
+    private static void count(MemorySegment inputBase, long inputAddress, int inputSize, int[] counts)
     {
         long input = inputAddress;
 
         Arrays.fill(counts, 0);
 
         for (int i = 0; i < inputSize; i++) {
-            int symbol = UNSAFE.getByte(inputBase, input) & 0xFF;
+            int symbol = inputBase.get(JAVA_BYTE, input) & 0xFF;
             input++;
             counts[symbol]++;
         }
@@ -60,6 +61,6 @@ final class Histogram
 
     public static void count(byte[] input, int length, int[] counts)
     {
-        count(input, ARRAY_BYTE_BASE_OFFSET, length, counts);
+        count(MemorySegment.ofArray(input), ARRAY_BYTE_BASE_OFFSET, length, counts);
     }
 }
