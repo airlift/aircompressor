@@ -38,6 +38,9 @@ public final class XxHash32JavaHasher
     private static final VarHandle INT_HANDLE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
 
     private final byte[] buffer = new byte[BLOCK_SIZE];
+    // Reusable scratch buffer for updateLE(int); avoids allocating a temporary array on every
+    // call. Safe because a hasher instance is inherently single-threaded/stateful.
+    private final byte[] valueBuffer = new byte[Integer.BYTES];
     private int bufferSize;
 
     private long bodyLength;
@@ -281,9 +284,8 @@ public final class XxHash32JavaHasher
     @Override
     public XxHash32Hasher updateLE(int value)
     {
-        byte[] bytes = new byte[4];
-        INT_HANDLE.set(bytes, 0, value);
-        return update(bytes);
+        INT_HANDLE.set(valueBuffer, 0, value);
+        return update(valueBuffer, 0, Integer.BYTES);
     }
 
     private void updateBodyFromBuffer()
