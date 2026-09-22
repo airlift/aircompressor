@@ -24,18 +24,35 @@ class ZstdHadoopInputStream
         extends HadoopInputStream
 {
     private final InputStream in;
+    private final boolean useNative;
     private ZstdInputStream zstdInputStream;
 
-    public ZstdHadoopInputStream(InputStream in)
+    public ZstdHadoopInputStream(InputStream in, boolean useNative)
     {
         this.in = requireNonNull(in, "in is null");
-        zstdInputStream = new ZstdInputStream(in);
+        this.useNative = useNative;
+    }
+
+    // Lazy init avoids native stream allocations for codec instances that are never read,
+    // and lets resetState() drop the current stream so the next read starts a fresh one.
+    private void createDecompressingStreamIfNecessary()
+            throws IOException
+    {
+        if (zstdInputStream == null) {
+            if (useNative) {
+                zstdInputStream = new ZstdNativeInputStream(in);
+            }
+            else {
+                zstdInputStream = new ZstdJavaInputStream(in);
+            }
+        }
     }
 
     @Override
     public int read()
             throws IOException
     {
+        createDecompressingStreamIfNecessary();
         return zstdInputStream.read();
     }
 
@@ -43,6 +60,7 @@ class ZstdHadoopInputStream
     public int read(byte[] b)
             throws IOException
     {
+        createDecompressingStreamIfNecessary();
         return zstdInputStream.read(b);
     }
 
@@ -50,19 +68,26 @@ class ZstdHadoopInputStream
     public int read(byte[] outputBuffer, int outputOffset, int outputLength)
             throws IOException
     {
+        createDecompressingStreamIfNecessary();
         return zstdInputStream.read(outputBuffer, outputOffset, outputLength);
     }
 
     @Override
     public void resetState()
     {
-        zstdInputStream = new ZstdInputStream(in);
+        // Hadoop calls resetState() between logical streams; recreate lazily on next read.
+        zstdInputStream = null;
     }
 
     @Override
     public void close()
             throws IOException
     {
-        zstdInputStream.close();
+        if (zstdInputStream != null) {
+            zstdInputStream.close();
+        }
+        else {
+            in.close();
+        }
     }
 }
