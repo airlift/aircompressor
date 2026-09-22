@@ -20,6 +20,7 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.util.Optional;
 
+import static java.lang.Long.compareUnsigned;
 import static java.lang.invoke.MethodHandles.lookup;
 
 final class ZstdNative
@@ -54,6 +55,9 @@ final class ZstdNative
     public static final int DEFAULT_COMPRESSION_LEVEL;
 
     private static final long CONTENT_SIZE_UNKNOWN = -1L;
+
+    // ZSTD_isError(code) == unsigned(code) > (size_t)(-ZSTD_error_maxCode); ZSTD_error_maxCode is 120 in zstd 1.5.7.
+    private static final long ERROR_THRESHOLD = -120L;
 
     static {
         NativeLoader.Symbols<MethodHandles> symbols = NativeLoader.loadSymbols("zstd", MethodHandles.class, lookup());
@@ -162,16 +166,19 @@ final class ZstdNative
         return result;
     }
 
-    private static boolean isError(long code)
+    static boolean isError(long code)
+    {
+        return compareUnsigned(code, ERROR_THRESHOLD) > 0;
+    }
+
+    // Visible for testing
+    static boolean nativeIsError(long code)
     {
         try {
             return (int) IS_ERROR_METHOD.invokeExact(code) != 0;
         }
-        catch (Error e) {
-            throw e;
-        }
         catch (Throwable e) {
-            throw new Error("Unexpected exception", e);
+            throw new AssertionError("should not reach here", e);
         }
     }
 
