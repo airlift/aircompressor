@@ -37,6 +37,16 @@ final class XxHash3Bindings
 {
     private static final VarHandle LONG_HANDLE = java.lang.invoke.MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
 
+    // Reusable per-thread scratch for 16-byte struct returns, so hash128/digest128 avoid allocating
+    // a byte[16] and a capturing SegmentAllocator on every call.
+    private record Struct128(byte[] bytes, SegmentAllocator allocator) {}
+
+    private static final ThreadLocal<Struct128> STRUCT_128 = ThreadLocal.withInitial(() -> {
+        byte[] bytes = new byte[16];
+        MemorySegment segment = MemorySegment.ofArray(bytes);
+        return new Struct128(bytes, (_, _) -> segment);
+    });
+
     private XxHash3Bindings() {}
 
     // Record for functions that can use @NativeSignature (primitives and MemorySegment only)
@@ -198,9 +208,9 @@ final class XxHash3Bindings
     public static XxHash128 hash128(MemorySegment input, long length)
     {
         try {
-            byte[] bytes = new byte[16];
-            SegmentAllocator allocator = (_, _) -> MemorySegment.ofArray(bytes);
-            MemorySegment _ = (MemorySegment) HASH128_METHOD.invokeExact(allocator, input, length);
+            Struct128 scratch = STRUCT_128.get();
+            MemorySegment _ = (MemorySegment) HASH128_METHOD.invokeExact(scratch.allocator(), input, length);
+            byte[] bytes = scratch.bytes();
             return new XxHash128((long) LONG_HANDLE.get(bytes, 0), (long) LONG_HANDLE.get(bytes, 8));
         }
         catch (Throwable e) {
@@ -211,9 +221,9 @@ final class XxHash3Bindings
     public static XxHash128 hash128(MemorySegment input, long length, long seed)
     {
         try {
-            byte[] bytes = new byte[16];
-            SegmentAllocator allocator = (_, _) -> MemorySegment.ofArray(bytes);
-            MemorySegment _ = (MemorySegment) HASH128_WITH_SEED_METHOD.invokeExact(allocator, input, length, seed);
+            Struct128 scratch = STRUCT_128.get();
+            MemorySegment _ = (MemorySegment) HASH128_WITH_SEED_METHOD.invokeExact(scratch.allocator(), input, length, seed);
+            byte[] bytes = scratch.bytes();
             return new XxHash128((long) LONG_HANDLE.get(bytes, 0), (long) LONG_HANDLE.get(bytes, 8));
         }
         catch (Throwable e) {
@@ -341,9 +351,9 @@ final class XxHash3Bindings
     public static XxHash128 digest128(MemorySegment state)
     {
         try {
-            byte[] bytes = new byte[16];
-            SegmentAllocator allocator = (_, _) -> MemorySegment.ofArray(bytes);
-            MemorySegment _ = (MemorySegment) DIGEST128_METHOD.invokeExact(allocator, state);
+            Struct128 scratch = STRUCT_128.get();
+            MemorySegment _ = (MemorySegment) DIGEST128_METHOD.invokeExact(scratch.allocator(), state);
+            byte[] bytes = scratch.bytes();
             return new XxHash128((long) LONG_HANDLE.get(bytes, 0), (long) LONG_HANDLE.get(bytes, 8));
         }
         catch (Throwable e) {
