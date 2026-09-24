@@ -18,13 +18,9 @@ import io.airlift.compress.v3.Compressor;
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.lzo.LzoRawCompressor.MAX_TABLE_SIZE;
-import static io.airlift.compress.v3.lzo.UnsafeUtil.getAddress;
-import static io.airlift.compress.v3.lzo.UnsafeUtil.getBase;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
-import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 /**
  * This class is not thread-safe
@@ -46,29 +42,20 @@ public class LzoCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
-
-        return LzoRawCompressor.compress(input, inputAddress, inputLength, output, outputAddress, maxOutputLength, table);
+        return LzoRawCompressor.compress(MemorySegment.ofArray(input), inputOffset, inputLength, MemorySegment.ofArray(output), outputOffset, maxOutputLength, table);
     }
 
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
-        try {
-            return LzoRawCompressor.compress(
-                    getBase(input),
-                    getAddress(input),
-                    toIntExact(input.byteSize()),
-                    getBase(output),
-                    getAddress(output),
-                    toIntExact(output.byteSize()),
-                    table);
-        }
-        finally {
-            reachabilityFence(input);
-            reachabilityFence(output);
-        }
+        return LzoRawCompressor.compress(
+                input,
+                0,
+                toIntExact(input.byteSize()),
+                output,
+                0,
+                toIntExact(output.byteSize()),
+                table);
     }
 
     @Override

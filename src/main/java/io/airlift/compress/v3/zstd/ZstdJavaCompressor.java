@@ -16,13 +16,8 @@ package io.airlift.compress.v3.zstd;
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.zstd.Constants.MAX_BLOCK_SIZE;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.getAddress;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.getBase;
-import static java.lang.Math.addExact;
 import static java.lang.String.format;
-import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdJavaCompressor
         implements ZstdCompressor
@@ -45,37 +40,20 @@ public class ZstdJavaCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
-
-        return ZstdFrameCompressor.compress(input, inputAddress, inputAddress + inputLength, output, outputAddress, outputAddress + maxOutputLength, CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
+        return ZstdFrameCompressor.compress(MemorySegment.ofArray(input), inputOffset, (long) inputOffset + inputLength, MemorySegment.ofArray(output), outputOffset, (long) outputOffset + maxOutputLength, CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
     }
 
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
-        try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
-            long inputLimit = addExact(inputAddress, input.byteSize());
-
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
-            long outputLimit = addExact(outputAddress, output.byteSize());
-
-            return ZstdFrameCompressor.compress(
-                    inputBase,
-                    inputAddress,
-                    inputLimit,
-                    outputBase,
-                    outputAddress,
-                    outputLimit,
-                    CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
-        }
-        finally {
-            reachabilityFence(input);
-            reachabilityFence(output);
-        }
+        return ZstdFrameCompressor.compress(
+                input,
+                0,
+                input.byteSize(),
+                output,
+                0,
+                output.byteSize(),
+                CompressionParameters.DEFAULT_COMPRESSION_LEVEL);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)
