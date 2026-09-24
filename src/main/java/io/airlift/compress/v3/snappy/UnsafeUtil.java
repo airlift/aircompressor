@@ -62,8 +62,19 @@ final class UnsafeUtil
 
     public static long getAddress(MemorySegment segment)
     {
+        if (!segment.isAccessibleBy(Thread.currentThread())) {
+            throw new IllegalArgumentException("MemorySegment is not accessible by current thread");
+        }
+        if (!segment.scope().isAlive()) {
+            throw new IllegalArgumentException("MemorySegment scope is not alive");
+        }
+
         if (segment.isNative()) {
             return segment.address();
+        }
+
+        if (!(segment.heapBase().orElse(null) instanceof byte[])) {
+            throw new IllegalArgumentException("MemorySegment is not backed by a byte array");
         }
         return segment.address() + ARRAY_BYTE_BASE_OFFSET;
     }
