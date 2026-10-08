@@ -17,13 +17,8 @@ import io.airlift.compress.v3.MalformedInputException;
 
 import java.lang.foreign.MemorySegment;
 
-import static io.airlift.compress.v3.lz4.UnsafeUtil.getAddress;
-import static io.airlift.compress.v3.lz4.UnsafeUtil.getBase;
-import static java.lang.Math.addExact;
 import static java.lang.String.format;
-import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public final class Lz4JavaDecompressor
         implements Lz4Decompressor
@@ -35,38 +30,22 @@ public final class Lz4JavaDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
-        long outputLimit = outputAddress + maxOutputLength;
+        long inputLimit = (long) inputOffset + inputLength;
+        long outputLimit = (long) outputOffset + maxOutputLength;
 
-        return Lz4RawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
+        return Lz4RawDecompressor.decompress(MemorySegment.ofArray(input), inputOffset, inputLimit, MemorySegment.ofArray(output), outputOffset, outputLimit);
     }
 
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
     {
-        try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
-            long inputLimit = addExact(inputAddress, input.byteSize());
-
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
-            long outputLimit = addExact(outputAddress, output.byteSize());
-
-            return Lz4RawDecompressor.decompress(
-                    inputBase,
-                    inputAddress,
-                    inputLimit,
-                    outputBase,
-                    outputAddress,
-                    outputLimit);
-        }
-        finally {
-            reachabilityFence(input);
-            reachabilityFence(output);
-        }
+        return Lz4RawDecompressor.decompress(
+                input,
+                0,
+                input.byteSize(),
+                output,
+                0,
+                output.byteSize());
     }
 
     private static void verifyRange(byte[] data, int offset, int length)

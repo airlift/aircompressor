@@ -15,13 +15,14 @@ package io.airlift.compress.v3.zstd;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 
 import static io.airlift.compress.v3.zstd.Util.checkPositionIndexes;
 import static io.airlift.compress.v3.zstd.Util.checkState;
 import static java.lang.Math.max;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdInputStream
         extends InputStream
@@ -32,6 +33,7 @@ public class ZstdInputStream
     private final ZstdIncrementalFrameDecompressor decompressor = new ZstdIncrementalFrameDecompressor();
 
     private byte[] inputBuffer = new byte[decompressor.getInputRequired()];
+    private MemorySegment inputSegment = MemorySegment.ofArray(inputBuffer);
     private int inputBufferOffset;
     private int inputBufferLimit;
 
@@ -87,7 +89,7 @@ public class ZstdInputStream
             }
 
             decompressor.partialDecompress(
-                    inputBuffer,
+                    inputSegment,
                     inputBufferOffset + ARRAY_BYTE_BASE_OFFSET,
                     inputBufferLimit + ARRAY_BYTE_BASE_OFFSET,
                     outputBuffer,
@@ -117,6 +119,7 @@ public class ZstdInputStream
 
         if (inputBuffer.length < requiredSize) {
             inputBuffer = Arrays.copyOf(inputBuffer, max(requiredSize, MIN_BUFFER_SIZE));
+            inputSegment = MemorySegment.ofArray(inputBuffer);
         }
 
         while (inputBufferLimit < inputBuffer.length) {

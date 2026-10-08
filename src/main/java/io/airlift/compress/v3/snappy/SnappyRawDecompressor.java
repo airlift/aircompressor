@@ -15,10 +15,14 @@ package io.airlift.compress.v3.snappy;
 
 import io.airlift.compress.v3.MalformedInputException;
 
+import java.lang.foreign.MemorySegment;
+
 import static io.airlift.compress.v3.snappy.SnappyConstants.LITERAL;
 import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_INT;
 import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_LONG;
-import static io.airlift.compress.v3.snappy.UnsafeUtil.UNSAFE;
+import static io.airlift.compress.v3.snappy.LittleEndianLayouts.INT_LE;
+import static io.airlift.compress.v3.snappy.LittleEndianLayouts.LONG_LE;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 final class SnappyRawDecompressor
 {
@@ -27,16 +31,16 @@ final class SnappyRawDecompressor
 
     private SnappyRawDecompressor() {}
 
-    public static int getUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
+    public static int getUncompressedLength(MemorySegment compressed, long compressedAddress, long compressedLimit)
     {
         return readUncompressedLength(compressed, compressedAddress, compressedLimit)[0];
     }
 
     public static int decompress(
-            final Object inputBase,
+            final MemorySegment inputBase,
             final long inputAddress,
             final long inputLimit,
-            final Object outputBase,
+            final MemorySegment outputBase,
             final long outputAddress,
             final long outputLimit)
     {
@@ -68,10 +72,10 @@ final class SnappyRawDecompressor
     }
 
     private static int uncompressAll(
-            final Object inputBase,
+            final MemorySegment inputBase,
             final long inputAddress,
             final long inputLimit,
-            final Object outputBase,
+            final MemorySegment outputBase,
             final long outputAddress,
             final long outputLimit)
     {
@@ -81,13 +85,13 @@ final class SnappyRawDecompressor
         long input = inputAddress;
 
         while (input < inputLimit) {
-            int opCode = UNSAFE.getByte(inputBase, input++) & 0xFF;
+            int opCode = inputBase.get(JAVA_BYTE, input++) & 0xFF;
             int entry = opLookupTable[opCode] & 0xFFFF;
 
             int trailerBytes = entry >>> 11;
             int trailer = 0;
             if (input + SIZE_OF_INT < inputLimit) {
-                trailer = UNSAFE.getInt(inputBase, input) & wordmask[trailerBytes];
+                trailer = inputBase.get(INT_LE, input) & wordmask[trailerBytes];
             }
             else {
                 if (input + trailerBytes > inputLimit) {
@@ -95,13 +99,13 @@ final class SnappyRawDecompressor
                 }
                 switch (trailerBytes) {
                     case 4:
-                        trailer = (UNSAFE.getByte(inputBase, input + 3) & 0xff) << 24;
+                        trailer = (inputBase.get(JAVA_BYTE, input + 3) & 0xff) << 24;
                     case 3:
-                        trailer |= (UNSAFE.getByte(inputBase, input + 2) & 0xff) << 16;
+                        trailer |= (inputBase.get(JAVA_BYTE, input + 2) & 0xff) << 16;
                     case 2:
-                        trailer |= (UNSAFE.getByte(inputBase, input + 1) & 0xff) << 8;
+                        trailer |= (inputBase.get(JAVA_BYTE, input + 1) & 0xff) << 8;
                     case 1:
-                        trailer |= (UNSAFE.getByte(inputBase, input) & 0xff);
+                        trailer |= (inputBase.get(JAVA_BYTE, input) & 0xff);
                 }
             }
             if (trailer < 0) {
@@ -128,14 +132,14 @@ final class SnappyRawDecompressor
                     }
 
                     // slow, precise copy
-                    UNSAFE.copyMemory(inputBase, input, outputBase, output, literalLength);
+                    MemorySegment.copy(inputBase, input, outputBase, output, literalLength);
                     input += literalLength;
                     output += literalLength;
                 }
                 else {
                     // fast copy. We may over-copy but there's enough room in input and output to not overrun them
                     do {
-                        UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
+                        outputBase.set(LONG_LE, output, inputBase.get(LONG_LE, input));
                         input += SIZE_OF_LONG;
                         output += SIZE_OF_LONG;
                     }
@@ -166,7 +170,7 @@ final class SnappyRawDecompressor
                 if (output > fastOutputLimit) {
                     // slow match copy
                     while (output < matchOutputLimit) {
-                        UNSAFE.putByte(outputBase, output++, UNSAFE.getByte(outputBase, matchAddress++));
+                        outputBase.set(JAVA_BYTE, output++, outputBase.get(JAVA_BYTE, matchAddress++));
                     }
                 }
                 else {
@@ -176,37 +180,37 @@ final class SnappyRawDecompressor
                         int increment32 = DEC_32_TABLE[matchOffset];
                         int decrement64 = DEC_64_TABLE[matchOffset];
 
-                        UNSAFE.putByte(outputBase, output, UNSAFE.getByte(outputBase, matchAddress));
-                        UNSAFE.putByte(outputBase, output + 1, UNSAFE.getByte(outputBase, matchAddress + 1));
-                        UNSAFE.putByte(outputBase, output + 2, UNSAFE.getByte(outputBase, matchAddress + 2));
-                        UNSAFE.putByte(outputBase, output + 3, UNSAFE.getByte(outputBase, matchAddress + 3));
+                        outputBase.set(JAVA_BYTE, output, outputBase.get(JAVA_BYTE, matchAddress));
+                        outputBase.set(JAVA_BYTE, output + 1, outputBase.get(JAVA_BYTE, matchAddress + 1));
+                        outputBase.set(JAVA_BYTE, output + 2, outputBase.get(JAVA_BYTE, matchAddress + 2));
+                        outputBase.set(JAVA_BYTE, output + 3, outputBase.get(JAVA_BYTE, matchAddress + 3));
                         output += SIZE_OF_INT;
                         matchAddress += increment32;
 
-                        UNSAFE.putInt(outputBase, output, UNSAFE.getInt(outputBase, matchAddress));
+                        outputBase.set(INT_LE, output, outputBase.get(INT_LE, matchAddress));
                         output += SIZE_OF_INT;
                         matchAddress -= decrement64;
                     }
                     else {
-                        UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                        outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                         matchAddress += SIZE_OF_LONG;
                         output += SIZE_OF_LONG;
                     }
 
                     if (matchOutputLimit > fastOutputLimit) {
                         while (output < fastOutputLimit) {
-                            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                            outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                             matchAddress += SIZE_OF_LONG;
                             output += SIZE_OF_LONG;
                         }
 
                         while (output < matchOutputLimit) {
-                            UNSAFE.putByte(outputBase, output++, UNSAFE.getByte(outputBase, matchAddress++));
+                            outputBase.set(JAVA_BYTE, output++, outputBase.get(JAVA_BYTE, matchAddress++));
                         }
                     }
                     else {
                         while (output < matchOutputLimit) {
-                            UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                            outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                             matchAddress += SIZE_OF_LONG;
                             output += SIZE_OF_LONG;
                         }
@@ -274,7 +278,7 @@ final class SnappyRawDecompressor
      * Reads the variable length integer encoded a the specified offset, and
      * returns this length with the number of bytes read.
      */
-    static int[] readUncompressedLength(Object compressed, long compressedAddress, long compressedLimit)
+    static int[] readUncompressedLength(MemorySegment compressed, long compressedAddress, long compressedLimit)
     {
         int result;
         int bytesRead = 0;
@@ -312,11 +316,11 @@ final class SnappyRawDecompressor
         return new int[] {result, bytesRead};
     }
 
-    private static int getUnsignedByteSafe(Object base, long address, long limit)
+    private static int getUnsignedByteSafe(MemorySegment base, long address, long limit)
     {
         if (address >= limit) {
             throw new MalformedInputException(limit - address, "Input is truncated");
         }
-        return UNSAFE.getByte(base, address) & 0xFF;
+        return base.get(JAVA_BYTE, address) & 0xFF;
     }
 }

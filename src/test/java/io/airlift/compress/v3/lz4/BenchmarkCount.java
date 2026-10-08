@@ -34,7 +34,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import java.lang.foreign.MemorySegment;
 
 @State(Scope.Thread)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -71,7 +71,7 @@ public class BenchmarkCount
     @Benchmark
     public long count()
     {
-        return Lz4RawCompressor.count(data, ARRAY_BYTE_BASE_OFFSET + matchLength + 1, ARRAY_BYTE_BASE_OFFSET + data.length, ARRAY_BYTE_BASE_OFFSET);
+        return Lz4RawCompressor.count(MemorySegment.ofArray(data), matchLength + 1, data.length, 0);
     }
 
     public static void main(String[] args)

@@ -13,10 +13,12 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import io.airlift.compress.v3.MalformedInputException;
 
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_SHORT;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
+import static io.airlift.compress.v3.zstd.MemoryAccess.SHORT_LE;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 final class Util
 {
@@ -107,16 +109,16 @@ final class Util
         return cycleLog;
     }
 
-    public static int get24BitLittleEndian(Object inputBase, long inputAddress)
+    public static int get24BitLittleEndian(MemorySegment inputBase, long inputAddress)
     {
-        return (UNSAFE.getShort(inputBase, inputAddress) & 0xFFFF)
-                | ((UNSAFE.getByte(inputBase, inputAddress + SIZE_OF_SHORT) & 0xFF) << Short.SIZE);
+        return (inputBase.get(SHORT_LE, inputAddress) & 0xFFFF)
+                | ((inputBase.get(JAVA_BYTE, inputAddress + SIZE_OF_SHORT) & 0xFF) << Short.SIZE);
     }
 
-    public static void put24BitLittleEndian(Object outputBase, long outputAddress, int value)
+    public static void put24BitLittleEndian(MemorySegment outputBase, long outputAddress, int value)
     {
-        UNSAFE.putShort(outputBase, outputAddress, (short) value);
-        UNSAFE.putByte(outputBase, outputAddress + SIZE_OF_SHORT, (byte) (value >>> Short.SIZE));
+        outputBase.set(SHORT_LE, outputAddress, (short) value);
+        outputBase.set(JAVA_BYTE, outputAddress + SIZE_OF_SHORT, (byte) (value >>> Short.SIZE));
     }
 
     // provides the minimum logSize to safely represent a distribution

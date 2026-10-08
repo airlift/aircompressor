@@ -15,12 +15,17 @@ package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.MalformedInputException;
 
+import java.lang.foreign.MemorySegment;
+
 import static io.airlift.compress.v3.lz4.Lz4Constants.LAST_LITERAL_SIZE;
 import static io.airlift.compress.v3.lz4.Lz4Constants.MIN_MATCH;
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_INT;
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_LONG;
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_SHORT;
-import static io.airlift.compress.v3.lz4.UnsafeUtil.UNSAFE;
+import static io.airlift.compress.v3.lz4.LittleEndianLayouts.INT_LE;
+import static io.airlift.compress.v3.lz4.LittleEndianLayouts.LONG_LE;
+import static io.airlift.compress.v3.lz4.LittleEndianLayouts.SHORT_LE;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 final class Lz4RawDecompressor
 {
@@ -33,10 +38,10 @@ final class Lz4RawDecompressor
     private Lz4RawDecompressor() {}
 
     public static int decompress(
-            final Object inputBase,
+            final MemorySegment inputBase,
             final long inputAddress,
             final long inputLimit,
-            final Object outputBase,
+            final MemorySegment outputBase,
             final long outputAddress,
             final long outputLimit)
     {
@@ -50,14 +55,14 @@ final class Lz4RawDecompressor
         }
 
         if (outputAddress == outputLimit) {
-            if (inputLimit - inputAddress == 1 && UNSAFE.getByte(inputBase, inputAddress) == 0) {
+            if (inputLimit - inputAddress == 1 && inputBase.get(JAVA_BYTE, inputAddress) == 0) {
                 return 0;
             }
             return -1;
         }
 
         while (input < inputLimit) {
-            final int token = UNSAFE.getByte(inputBase, input++) & 0xFF;
+            final int token = inputBase.get(JAVA_BYTE, input++) & 0xFF;
 
             // decode literal length
             int literalLength = token >>> 4; // top-most 4 bits of token
@@ -67,7 +72,7 @@ final class Lz4RawDecompressor
                 }
                 int value;
                 do {
-                    value = UNSAFE.getByte(inputBase, input++) & 0xFF;
+                    value = inputBase.get(JAVA_BYTE, input++) & 0xFF;
                     literalLength += value;
                 }
                 while (value == 255 && input < inputLimit - 15);
@@ -90,7 +95,7 @@ final class Lz4RawDecompressor
                 }
 
                 // slow, precise copy
-                UNSAFE.copyMemory(inputBase, input, outputBase, output, literalLength);
+                MemorySegment.copy(inputBase, input, outputBase, output, literalLength);
                 output += literalLength;
                 break;
             }
@@ -98,7 +103,7 @@ final class Lz4RawDecompressor
             // fast copy. We may overcopy but there's enough room in input and output to not overrun them
             int index = 0;
             do {
-                UNSAFE.putLong(outputBase, output, UNSAFE.getLong(inputBase, input));
+                outputBase.set(LONG_LE, output, inputBase.get(LONG_LE, input));
                 output += SIZE_OF_LONG;
                 input += SIZE_OF_LONG;
                 index += SIZE_OF_LONG;
@@ -110,7 +115,7 @@ final class Lz4RawDecompressor
 
             // get offset
             // we know we can read two bytes because of the bounds check performed before copying the literal above
-            int offset = UNSAFE.getShort(inputBase, input) & 0xFFFF;
+            int offset = inputBase.get(SHORT_LE, input) & 0xFFFF;
             input += SIZE_OF_SHORT;
 
             long matchAddress = output - offset;
@@ -127,7 +132,7 @@ final class Lz4RawDecompressor
                         throw new MalformedInputException(input - inputAddress);
                     }
 
-                    value = UNSAFE.getByte(inputBase, input++) & 0xFF;
+                    value = inputBase.get(JAVA_BYTE, input++) & 0xFF;
                     matchLength += value;
                 }
                 while (value == 255);
@@ -148,19 +153,19 @@ final class Lz4RawDecompressor
                 int increment32 = DEC_32_TABLE[offset];
                 int decrement64 = DEC_64_TABLE[offset];
 
-                UNSAFE.putByte(outputBase, output, UNSAFE.getByte(outputBase, matchAddress));
-                UNSAFE.putByte(outputBase, output + 1, UNSAFE.getByte(outputBase, matchAddress + 1));
-                UNSAFE.putByte(outputBase, output + 2, UNSAFE.getByte(outputBase, matchAddress + 2));
-                UNSAFE.putByte(outputBase, output + 3, UNSAFE.getByte(outputBase, matchAddress + 3));
+                outputBase.set(JAVA_BYTE, output, outputBase.get(JAVA_BYTE, matchAddress));
+                outputBase.set(JAVA_BYTE, output + 1, outputBase.get(JAVA_BYTE, matchAddress + 1));
+                outputBase.set(JAVA_BYTE, output + 2, outputBase.get(JAVA_BYTE, matchAddress + 2));
+                outputBase.set(JAVA_BYTE, output + 3, outputBase.get(JAVA_BYTE, matchAddress + 3));
                 output += SIZE_OF_INT;
                 matchAddress += increment32;
 
-                UNSAFE.putInt(outputBase, output, UNSAFE.getInt(outputBase, matchAddress));
+                outputBase.set(INT_LE, output, outputBase.get(INT_LE, matchAddress));
                 output += SIZE_OF_INT;
                 matchAddress -= decrement64;
             }
             else {
-                UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                 matchAddress += SIZE_OF_LONG;
                 output += SIZE_OF_LONG;
             }
@@ -171,19 +176,19 @@ final class Lz4RawDecompressor
                 }
 
                 while (output < fastOutputLimit) {
-                    UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                    outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                     matchAddress += SIZE_OF_LONG;
                     output += SIZE_OF_LONG;
                 }
 
                 while (output < matchOutputLimit) {
-                    UNSAFE.putByte(outputBase, output++, UNSAFE.getByte(outputBase, matchAddress++));
+                    outputBase.set(JAVA_BYTE, output++, outputBase.get(JAVA_BYTE, matchAddress++));
                 }
             }
             else {
                 int i = 0;
                 do {
-                    UNSAFE.putLong(outputBase, output, UNSAFE.getLong(outputBase, matchAddress));
+                    outputBase.set(LONG_LE, output, outputBase.get(LONG_LE, matchAddress));
                     output += SIZE_OF_LONG;
                     matchAddress += SIZE_OF_LONG;
                     i += SIZE_OF_LONG;

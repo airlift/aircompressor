@@ -15,6 +15,7 @@ package io.airlift.compress.v3.zstd;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 
 import static io.airlift.compress.v3.zstd.CompressionParameters.DEFAULT_COMPRESSION_LEVEL;
@@ -24,7 +25,7 @@ import static io.airlift.compress.v3.zstd.Util.checkState;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdOutputStream
         extends OutputStream
@@ -36,7 +37,9 @@ public class ZstdOutputStream
     private XxHash64 partialHash;
 
     private byte[] uncompressed = new byte[0];
+    private MemorySegment uncompressedSegment = MemorySegment.ofArray(uncompressed);
     private final byte[] compressed;
+    private final MemorySegment compressedSegment;
 
     // start of unprocessed data in uncompressed buffer
     private int uncompressedOffset;
@@ -57,6 +60,7 @@ public class ZstdOutputStream
         // todo is the "+ (bufferSize >>> 8)" required here?
         // add extra long to give code more leeway
         this.compressed = new byte[bufferSize + (bufferSize >>> 8) + SIZE_OF_LONG];
+        this.compressedSegment = MemorySegment.ofArray(compressed);
     }
 
     @Override
@@ -116,6 +120,7 @@ public class ZstdOutputStream
         // allocate at least a minimal buffer to start;
         newSize = max(newSize, context.parameters.getBlockSize());
         uncompressed = Arrays.copyOf(uncompressed, newSize);
+        uncompressedSegment = MemorySegment.ofArray(uncompressed);
     }
 
     private void compressIfNecessary()
@@ -175,8 +180,8 @@ public class ZstdOutputStream
             int inputSize = lastChunk ? chunkSize : -1;
 
             int outputAddress = ARRAY_BYTE_BASE_OFFSET;
-            outputAddress += ZstdFrameCompressor.writeMagic(compressed, outputAddress, outputAddress + 4);
-            outputAddress += ZstdFrameCompressor.writeFrameHeader(compressed, outputAddress, outputAddress + 14, inputSize, context.parameters.getWindowSize());
+            outputAddress += ZstdFrameCompressor.writeMagic(compressedSegment, outputAddress, outputAddress + 4);
+            outputAddress += ZstdFrameCompressor.writeFrameHeader(compressedSegment, outputAddress, outputAddress + 14, inputSize, context.parameters.getWindowSize());
             outputStream.write(compressed, 0, outputAddress - ARRAY_BYTE_BASE_OFFSET);
         }
 
@@ -187,10 +192,10 @@ public class ZstdOutputStream
         do {
             int blockSize = min(chunkSize, context.parameters.getBlockSize());
             int compressedSize = ZstdFrameCompressor.writeCompressedBlock(
-                    uncompressed,
+                    uncompressedSegment,
                     ARRAY_BYTE_BASE_OFFSET + uncompressedOffset,
                     blockSize,
-                    compressed,
+                    compressedSegment,
                     ARRAY_BYTE_BASE_OFFSET,
                     compressed.length,
                     context,

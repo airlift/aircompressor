@@ -13,18 +13,19 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import static io.airlift.compress.v3.zstd.FiniteStateEntropy.MAX_SYMBOL;
 import static io.airlift.compress.v3.zstd.FiniteStateEntropy.MIN_TABLE_LOG;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.v3.zstd.Util.highestBit;
 import static io.airlift.compress.v3.zstd.Util.verify;
+import static io.airlift.compress.v3.zstd.MemoryAccess.INT_LE;
 
 class FseTableReader
 {
     private final short[] nextSymbol = new short[MAX_SYMBOL + 1];
     private final short[] normalizedCounters = new short[MAX_SYMBOL + 1];
 
-    public int readFseTable(FiniteStateEntropy.Table table, Object inputBase, long inputAddress, long inputLimit, int maxSymbol, int maxTableLog)
+    public int readFseTable(FiniteStateEntropy.Table table, MemorySegment inputBase, long inputAddress, long inputLimit, int maxSymbol, int maxTableLog)
     {
         // read table headers
         long input = inputAddress;
@@ -34,7 +35,7 @@ class FseTableReader
         int symbolNumber = 0;
         boolean previousIsZero = false;
 
-        int bitStream = UNSAFE.getInt(inputBase, input);
+        int bitStream = inputBase.get(INT_LE, input);
 
         int tableLog = (bitStream & 0xF) + MIN_TABLE_LOG;
 
@@ -54,7 +55,7 @@ class FseTableReader
                     n0 += 24;
                     if (input < inputLimit - 5) {
                         input += 2;
-                        bitStream = (UNSAFE.getInt(inputBase, input) >>> bitCount);
+                        bitStream = (inputBase.get(INT_LE, input) >>> bitCount);
                     }
                     else {
                         // end of bit stream
@@ -78,7 +79,7 @@ class FseTableReader
                 if ((input <= inputLimit - 7) || (input + (bitCount >>> 3) <= inputLimit - 4)) {
                     input += bitCount >>> 3;
                     bitCount &= 7;
-                    bitStream = UNSAFE.getInt(inputBase, input) >>> bitCount;
+                    bitStream = inputBase.get(INT_LE, input) >>> bitCount;
                 }
                 else {
                     bitStream >>>= 2;
@@ -117,7 +118,7 @@ class FseTableReader
                 bitCount -= (int) (8 * (inputLimit - 4 - input));
                 input = inputLimit - 4;
             }
-            bitStream = UNSAFE.getInt(inputBase, input) >>> (bitCount & 31);
+            bitStream = inputBase.get(INT_LE, input) >>> (bitCount & 31);
         }
 
         verify(remaining == 1 && bitCount <= 32, input, "Input is corrupted");

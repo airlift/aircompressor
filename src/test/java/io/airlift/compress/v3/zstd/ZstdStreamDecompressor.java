@@ -22,7 +22,7 @@ import java.lang.foreign.MemorySegment;
 
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdStreamDecompressor
         implements ZstdDecompressor
@@ -58,7 +58,7 @@ public class ZstdStreamDecompressor
     public long getDecompressedSize(byte[] input, int offset, int length)
     {
         int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
-        return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);
+        return ZstdFrameDecompressor.getDecompressedSize(MemorySegment.ofArray(input), baseAddress, baseAddress + length);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)
