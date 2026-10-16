@@ -13,11 +13,13 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
 
 class TestCompressor
 {
@@ -27,15 +29,15 @@ class TestCompressor
         byte[] buffer = new byte[4];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        ZstdFrameCompressor.writeMagic(buffer, address, address + buffer.length);
-        ZstdFrameDecompressor.verifyMagic(buffer, address, address + buffer.length);
+        ZstdFrameCompressor.writeMagic(MemorySegment.ofArray(buffer), address, address + buffer.length);
+        ZstdFrameDecompressor.verifyMagic(MemorySegment.ofArray(buffer), address, address + buffer.length);
     }
 
     @Test
     void testMagicFailsWithSmallBuffer()
     {
         byte[] buffer = new byte[3];
-        assertThatThrownBy(() -> ZstdFrameCompressor.writeMagic(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length))
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeMagic(MemorySegment.ofArray(buffer), ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching(".*buffer too small.*");
     }
@@ -44,7 +46,7 @@ class TestCompressor
     void testFrameHeaderFailsWithSmallBuffer()
     {
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE - 1];
-        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length, 1000, 1024))
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(MemorySegment.ofArray(buffer), ARRAY_BYTE_BASE_OFFSET, ARRAY_BYTE_BASE_OFFSET + buffer.length, 1000, 1024))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching(".*buffer too small.*");
     }
@@ -75,7 +77,7 @@ class TestCompressor
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1023))
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(MemorySegment.ofArray(buffer), address, address + buffer.length, 2000, 1023))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageMatching(".*Minimum window size is 1024.*");
     }
@@ -86,7 +88,7 @@ class TestCompressor
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, 2000, 1025))
+        assertThatThrownBy(() -> ZstdFrameCompressor.writeFrameHeader(MemorySegment.ofArray(buffer), address, address + buffer.length, 2000, 1025))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Window size of magnitude 2^10 must be multiple of 128");
     }
@@ -96,11 +98,11 @@ class TestCompressor
         byte[] buffer = new byte[ZstdFrameCompressor.MAX_FRAME_HEADER_SIZE];
         int address = ARRAY_BYTE_BASE_OFFSET;
 
-        int size = ZstdFrameCompressor.writeFrameHeader(buffer, address, address + buffer.length, inputSize, windowSize);
+        int size = ZstdFrameCompressor.writeFrameHeader(MemorySegment.ofArray(buffer), address, address + buffer.length, inputSize, windowSize);
 
         assertThat(size).isEqualTo(expected.headerSize);
 
-        FrameHeader actual = ZstdFrameDecompressor.readFrameHeader(buffer, address, address + buffer.length);
+        FrameHeader actual = ZstdFrameDecompressor.readFrameHeader(MemorySegment.ofArray(buffer), address, address + buffer.length);
         assertThat(actual).isEqualTo(expected);
     }
 }
