@@ -74,7 +74,7 @@ public abstract class AbstractTestZstd
         byte[] output = new byte[compressed.length * 10];
 
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
-                .hasMessageMatching("Input is corrupted.*|Unknown error occurred.*");
+                .hasMessageMatching("Input is corrupted.*|Data corruption detected.*");
     }
 
     @Test
@@ -180,7 +180,7 @@ public abstract class AbstractTestZstd
         byte[] uncompressed = Resources.toByteArray(Resources.getResource("data/zstd/multiple-frames"));
         byte[] output = new byte[uncompressed.length];
         assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
-                .hasMessageMatching("Invalid magic prefix.*|Unknown error occurred.*");
+                .hasMessageMatching("Invalid magic prefix.*|Src size is incorrect.*");
     }
 
     @Test
@@ -189,7 +189,7 @@ public abstract class AbstractTestZstd
         byte[] input = new byte[] {40, -75, 47, -3, 32, 0, 1, 0};
         byte[] output = new byte[1024];
         assertThatThrownBy(() -> getDecompressor().decompress(input, 0, input.length, output, 0, output.length))
-                .hasMessageMatching(".*Not enough input bytes.*|Unknown error occurred .*");
+                .hasMessageMatching(".*Not enough input bytes.*|Src size is incorrect.*");
     }
 
     @Test
@@ -238,6 +238,6 @@ public abstract class AbstractTestZstd
         byte[] data = buffer.toByteArray();
 
         assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[10], 0, 10))
-                .hasMessageMatching(".*Not enough input bytes.*|Unknown error occurred .*");
+                .hasMessageMatching(".*Not enough input bytes.*|Src size is incorrect.*");
     }
 }
