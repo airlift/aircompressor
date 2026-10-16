@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -54,7 +55,7 @@ final class ZstdNative
     // TODO should we just hardcode this to 3?
     public static final int DEFAULT_COMPRESSION_LEVEL;
 
-    private static final long CONTENT_SIZE_UNKNOWN = -1L;
+    private static final long CONTENT_SIZE_ERROR = -2L;
 
     // ZSTD_isError(code) == unsigned(code) > (size_t)(-ZSTD_error_maxCode); ZSTD_error_maxCode is 120 in zstd 1.5.7.
     private static final long ERROR_THRESHOLD = -120L;
@@ -142,7 +143,8 @@ final class ZstdNative
         }
 
         if (isError(result)) {
-            throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+            // The native API does not report the input offset where decompression failed.
+            throw new MalformedInputException(0, "Unknown error occurred during decompression: " + getErrorName(result));
         }
         return result;
     }
@@ -160,8 +162,8 @@ final class ZstdNative
             throw new Error("Unexpected exception", e);
         }
 
-        if (CONTENT_SIZE_UNKNOWN != result && result < 0) {
-            throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+        if (result == CONTENT_SIZE_ERROR) {
+            throw new MalformedInputException(0, "Invalid Zstd frame header");
         }
         return result;
     }
