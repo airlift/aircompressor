@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.lz4;
 
+import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -138,9 +139,9 @@ final class Lz4Native
             throw new AssertionError("should not reach here", e);
         }
 
-        // negative return values indicate errors
+        // negative return values indicate malformed input, which includes content that does not fit in the output buffer
         if (result < 0) {
-            throw new IllegalArgumentException("Unknown error occurred during decompression: result=" + result);
+            throw new MalformedInputException(0);
         }
         return result;
     }

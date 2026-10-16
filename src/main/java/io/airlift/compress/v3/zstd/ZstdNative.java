@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -36,6 +37,8 @@ final class ZstdNative
             MethodHandle uncompressedLength,
             @NativeSignature(name = "ZSTD_isError", returnType = int.class, argumentTypes = long.class)
             MethodHandle isError,
+            @NativeSignature(name = "ZSTD_getErrorCode", returnType = int.class, argumentTypes = long.class)
+            MethodHandle getErrorCode,
             @NativeSignature(name = "ZSTD_getErrorName", returnType = MemorySegment.class, argumentTypes = long.class)
             MethodHandle getErrorName,
             @NativeSignature(name = "ZSTD_defaultCLevel", returnType = int.class, argumentTypes = {})
@@ -49,12 +52,29 @@ final class ZstdNative
     private static final MethodHandle DECOMPRESS_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
     private static final MethodHandle IS_ERROR_METHOD;
+    private static final MethodHandle GET_ERROR_CODE_METHOD;
     private static final MethodHandle GET_ERROR_NAME_METHOD;
 
     // TODO should we just hardcode this to 3?
     public static final int DEFAULT_COMPRESSION_LEVEL;
 
     private static final long CONTENT_SIZE_UNKNOWN = -1L;
+
+    // ZSTD_ErrorCode values from zstd_errors.h that ZSTD_decompress reports for invalid, truncated or unsupported input
+    private static final int ERROR_PREFIX_UNKNOWN = 10;
+    private static final int ERROR_VERSION_UNSUPPORTED = 12;
+    private static final int ERROR_FRAME_PARAMETER_UNSUPPORTED = 14;
+    private static final int ERROR_FRAME_PARAMETER_WINDOW_TOO_LARGE = 16;
+    private static final int ERROR_CORRUPTION_DETECTED = 20;
+    private static final int ERROR_CHECKSUM_WRONG = 22;
+    private static final int ERROR_LITERALS_HEADER_WRONG = 24;
+    private static final int ERROR_DICTIONARY_CORRUPTED = 30;
+    private static final int ERROR_DICTIONARY_WRONG = 32;
+    private static final int ERROR_TABLE_LOG_TOO_LARGE = 44;
+    private static final int ERROR_MAX_SYMBOL_VALUE_TOO_LARGE = 46;
+    private static final int ERROR_MAX_SYMBOL_VALUE_TOO_SMALL = 48;
+    private static final int ERROR_DST_SIZE_TOO_SMALL = 70;
+    private static final int ERROR_SRC_SIZE_WRONG = 72;
 
     // ZSTD_isError(code) == unsigned(code) > (size_t)(-ZSTD_error_maxCode); ZSTD_error_maxCode is 120 in zstd 1.5.7.
     private static final long ERROR_THRESHOLD = -120L;
@@ -68,6 +88,7 @@ final class ZstdNative
         DECOMPRESS_METHOD = methodHandles.decompress();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
         IS_ERROR_METHOD = methodHandles.isError();
+        GET_ERROR_CODE_METHOD = methodHandles.getErrorCode();
         GET_ERROR_NAME_METHOD = methodHandles.getErrorName();
         if (LINKAGE_ERROR.isEmpty()) {
             try {
@@ -142,6 +163,9 @@ final class ZstdNative
         }
 
         if (isError(result)) {
+            if (isMalformedInputError(result)) {
+                throw new MalformedInputException(0, getErrorName(result));
+            }
             throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
         }
         return result;
@@ -160,8 +184,9 @@ final class ZstdNative
             throw new Error("Unexpected exception", e);
         }
 
+        // any other negative result is ZSTD_CONTENTSIZE_ERROR, returned for an invalid magic or a truncated frame header
         if (CONTENT_SIZE_UNKNOWN != result && result < 0) {
-            throw new IllegalArgumentException("Unknown error occurred during decompression: " + getErrorName(result));
+            throw new MalformedInputException(0, "Invalid or truncated frame header");
         }
         return result;
     }
@@ -180,6 +205,29 @@ final class ZstdNative
         catch (Throwable e) {
             throw new AssertionError("should not reach here", e);
         }
+    }
+
+    // Matches ZstdJavaDecompressor, which reports all of these as MalformedInputException, including an output buffer that is too small
+    private static boolean isMalformedInputError(long code)
+    {
+        int errorCode;
+        try {
+            errorCode = (int) GET_ERROR_CODE_METHOD.invokeExact(code);
+        }
+        catch (Throwable e) {
+            throw new AssertionError("should not reach here", e);
+        }
+        return switch (errorCode) {
+            // unknown magic or frame parameters the decoder does not support
+            case ERROR_PREFIX_UNKNOWN, ERROR_VERSION_UNSUPPORTED, ERROR_FRAME_PARAMETER_UNSUPPORTED, ERROR_FRAME_PARAMETER_WINDOW_TOO_LARGE -> true;
+            // corrupt frame content, including entropy table headers and dictionary references
+            case ERROR_CORRUPTION_DETECTED, ERROR_CHECKSUM_WRONG, ERROR_LITERALS_HEADER_WRONG, ERROR_DICTIONARY_CORRUPTED, ERROR_DICTIONARY_WRONG -> true;
+            case ERROR_TABLE_LOG_TOO_LARGE, ERROR_MAX_SYMBOL_VALUE_TOO_LARGE, ERROR_MAX_SYMBOL_VALUE_TOO_SMALL -> true;
+            // truncated input, or content that does not fit in the output buffer
+            case ERROR_SRC_SIZE_WRONG, ERROR_DST_SIZE_TOO_SMALL -> true;
+            // GENERIC, memory_allocation and parameter errors are not caused by the input
+            default -> false;
+        };
     }
 
     private static String getErrorName(long code)

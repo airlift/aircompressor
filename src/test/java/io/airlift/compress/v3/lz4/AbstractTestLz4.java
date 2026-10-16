@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.AbstractTestCompression;
+import io.airlift.compress.v3.MalformedInputException;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -41,7 +42,8 @@ public abstract class AbstractTestLz4
         byte[] data = buffer.toByteArray();
 
         assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
-                .hasMessageMatching("Malformed input.*|Unknown error occurred.*");
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageMatching("Malformed input.*");
     }
 
     @Test
@@ -63,6 +65,7 @@ public abstract class AbstractTestLz4
         byte[] data = buffer.toByteArray();
 
         assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[2048], 0, 2048))
-                .hasMessageMatching("Malformed input.*|Unknown error occurred.*|offset outside destination buffer.*");
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageMatching("Malformed input.*|offset outside destination buffer.*");
     }
 }

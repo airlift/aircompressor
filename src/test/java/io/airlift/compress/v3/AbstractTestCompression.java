@@ -234,6 +234,7 @@ public abstract class AbstractTestCompression
                         "Malformed input.*",
                         "Uncompressed length 1024 must be less than 1",
                         "Output buffer too small.*",
+                        "Destination buffer is too small.*",
                         "Unknown error occurred.*"));
 
         // mis-declared buffer size
