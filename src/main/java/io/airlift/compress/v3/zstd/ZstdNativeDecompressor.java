@@ -20,9 +20,12 @@ import static java.lang.Math.toIntExact;
 public class ZstdNativeDecompressor
         implements ZstdDecompressor
 {
+    private final ZstdNativeContextCache contexts;
+
     public ZstdNativeDecompressor()
     {
         ZstdNative.verifyEnabled();
+        this.contexts = new ZstdNativeContextCache(ZstdNative::createDecompressionContext, ZstdNative::freeDecompressionContext);
     }
 
     public static boolean isEnabled()
@@ -35,13 +38,24 @@ public class ZstdNativeDecompressor
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice(inputOffset, inputLength);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return toIntExact(ZstdNative.decompress(inputSegment, inputLength, outputSegment, maxOutputLength));
+        return decompress(inputSegment, inputLength, outputSegment, maxOutputLength);
     }
 
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
     {
-        return toIntExact(ZstdNative.decompress(input, input.byteSize(), output, output.byteSize()));
+        return decompress(input, input.byteSize(), output, output.byteSize());
+    }
+
+    private int decompress(MemorySegment input, long inputLength, MemorySegment output, long maxOutputLength)
+    {
+        MemorySegment context = contexts.acquire();
+        try {
+            return toIntExact(ZstdNative.decompress(context, input, inputLength, output, maxOutputLength));
+        }
+        finally {
+            contexts.release(context);
+        }
     }
 
     @Override
