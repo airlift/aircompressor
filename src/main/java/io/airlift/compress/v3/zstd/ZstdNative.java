@@ -29,9 +29,17 @@ final class ZstdNative
     private record MethodHandles(
             @NativeSignature(name = "ZSTD_compressBound", returnType = long.class, argumentTypes = long.class)
             MethodHandle maxCompressedLength,
-            @NativeSignature(name = "ZSTD_compress", returnType = long.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, long.class, int.class})
+            @NativeSignature(name = "ZSTD_createCCtx", returnType = MemorySegment.class, argumentTypes = {})
+            MethodHandle createCompressionContext,
+            @NativeSignature(name = "ZSTD_freeCCtx", returnType = long.class, argumentTypes = MemorySegment.class)
+            MethodHandle freeCompressionContext,
+            @NativeSignature(name = "ZSTD_compressCCtx", returnType = long.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, long.class, int.class})
             MethodHandle compress,
-            @NativeSignature(name = "ZSTD_decompress", returnType = long.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, long.class})
+            @NativeSignature(name = "ZSTD_createDCtx", returnType = MemorySegment.class, argumentTypes = {})
+            MethodHandle createDecompressionContext,
+            @NativeSignature(name = "ZSTD_freeDCtx", returnType = long.class, argumentTypes = MemorySegment.class)
+            MethodHandle freeDecompressionContext,
+            @NativeSignature(name = "ZSTD_decompressDCtx", returnType = long.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, long.class})
             MethodHandle decompress,
             @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle uncompressedLength,
@@ -48,7 +56,11 @@ final class ZstdNative
 
     private static final Optional<LinkageError> LINKAGE_ERROR;
     private static final MethodHandle MAX_COMPRESSED_LENGTH_METHOD;
+    private static final MethodHandle CREATE_COMPRESSION_CONTEXT_METHOD;
+    private static final MethodHandle FREE_COMPRESSION_CONTEXT_METHOD;
     private static final MethodHandle COMPRESS_METHOD;
+    private static final MethodHandle CREATE_DECOMPRESSION_CONTEXT_METHOD;
+    private static final MethodHandle FREE_DECOMPRESSION_CONTEXT_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
     private static final MethodHandle IS_ERROR_METHOD;
@@ -84,7 +96,11 @@ final class ZstdNative
         LINKAGE_ERROR = symbols.linkageError();
         MethodHandles methodHandles = symbols.symbols();
         MAX_COMPRESSED_LENGTH_METHOD = methodHandles.maxCompressedLength();
+        CREATE_COMPRESSION_CONTEXT_METHOD = methodHandles.createCompressionContext();
+        FREE_COMPRESSION_CONTEXT_METHOD = methodHandles.freeCompressionContext();
         COMPRESS_METHOD = methodHandles.compress();
+        CREATE_DECOMPRESSION_CONTEXT_METHOD = methodHandles.createDecompressionContext();
+        FREE_DECOMPRESSION_CONTEXT_METHOD = methodHandles.freeDecompressionContext();
         DECOMPRESS_METHOD = methodHandles.decompress();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
         IS_ERROR_METHOD = methodHandles.isError();
@@ -130,11 +146,73 @@ final class ZstdNative
         return result;
     }
 
-    public static long compress(MemorySegment input, long inputLength, MemorySegment compressed, long compressedLength, int compressionLevel)
+    public static MemorySegment createCompressionContext()
+    {
+        MemorySegment context;
+        try {
+            context = (MemorySegment) CREATE_COMPRESSION_CONTEXT_METHOD.invokeExact();
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+        if (context.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to allocate zstd compression context");
+        }
+        return context;
+    }
+
+    public static void freeCompressionContext(MemorySegment context)
+    {
+        try {
+            long _ = (long) FREE_COMPRESSION_CONTEXT_METHOD.invokeExact(context);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static MemorySegment createDecompressionContext()
+    {
+        MemorySegment context;
+        try {
+            context = (MemorySegment) CREATE_DECOMPRESSION_CONTEXT_METHOD.invokeExact();
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+        if (context.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to allocate zstd decompression context");
+        }
+        return context;
+    }
+
+    public static void freeDecompressionContext(MemorySegment context)
+    {
+        try {
+            long _ = (long) FREE_DECOMPRESSION_CONTEXT_METHOD.invokeExact(context);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+    }
+
+    public static long compress(MemorySegment context, MemorySegment input, long inputLength, MemorySegment compressed, long compressedLength, int compressionLevel)
     {
         long result;
         try {
-            result = (long) COMPRESS_METHOD.invokeExact(compressed, compressedLength, input, inputLength, compressionLevel);
+            result = (long) COMPRESS_METHOD.invokeExact(context, compressed, compressedLength, input, inputLength, compressionLevel);
         }
         catch (Error e) {
             throw e;
@@ -149,11 +227,11 @@ final class ZstdNative
         return result;
     }
 
-    public static long decompress(MemorySegment compressed, long compressedLength, MemorySegment output, long outputLength)
+    public static long decompress(MemorySegment context, MemorySegment compressed, long compressedLength, MemorySegment output, long outputLength)
     {
         long result;
         try {
-            result = (long) DECOMPRESS_METHOD.invokeExact(output, outputLength, compressed, compressedLength);
+            result = (long) DECOMPRESS_METHOD.invokeExact(context, output, outputLength, compressed, compressedLength);
         }
         catch (Error e) {
             throw e;

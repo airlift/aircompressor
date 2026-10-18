@@ -17,6 +17,16 @@ import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
 import io.airlift.compress.v3.thirdparty.ZstdJniCompressor;
 import io.airlift.compress.v3.thirdparty.ZstdJniDecompressor;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestZstdNative
         extends AbstractTestZstd
@@ -43,5 +53,41 @@ public class TestZstdNative
     protected Decompressor getVerifyDecompressor()
     {
         return new ZstdJniDecompressor();
+    }
+
+    @Test
+    public void testConcurrentUseOfSharedInstances()
+            throws Exception
+    {
+        ZstdCompressor compressor = getCompressor();
+        ZstdDecompressor decompressor = getDecompressor();
+
+        int threads = 8;
+        try (ExecutorService executor = Executors.newFixedThreadPool(threads)) {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int thread = 0; thread < threads; thread++) {
+                long seed = thread;
+                futures.add(executor.submit(() -> {
+                    Random random = new Random(seed);
+                    for (int iteration = 0; iteration < 200; iteration++) {
+                        byte[] original = new byte[random.nextInt(1, 64 * 1024)];
+                        for (int i = 0; i < original.length; i++) {
+                            original[i] = (byte) random.nextInt(16);
+                        }
+                        byte[] compressed = new byte[compressor.maxCompressedLength(original.length)];
+                        int compressedLength = compressor.compress(original, 0, original.length, compressed, 0, compressed.length);
+
+                        byte[] decompressed = new byte[original.length];
+                        int decompressedLength = decompressor.decompress(compressed, 0, compressedLength, decompressed, 0, decompressed.length);
+
+                        assertThat(decompressedLength).isEqualTo(original.length);
+                        assertThat(decompressed).isEqualTo(original);
+                    }
+                }));
+            }
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        }
     }
 }
