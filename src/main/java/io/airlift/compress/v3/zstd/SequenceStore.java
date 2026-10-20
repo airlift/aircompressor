@@ -13,13 +13,15 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_LONG;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.LONG_LE;
 
 final class SequenceStore
 {
     public final byte[] literalsBuffer;
+    private final MemorySegment literalsBufferSegment;
     public int literalsLength;
 
     public final int[] offsets;
@@ -68,23 +70,24 @@ final class SequenceStore
         offsetCodes = new byte[maxSequences];
 
         literalsBuffer = new byte[blockSize];
+        literalsBufferSegment = MemorySegment.ofArray(literalsBuffer);
 
         reset();
     }
 
-    public void appendLiterals(Object inputBase, long inputAddress, int inputSize)
+    public void appendLiterals(MemorySegment inputBase, long inputAddress, int inputSize)
     {
-        UNSAFE.copyMemory(inputBase, inputAddress, literalsBuffer, ARRAY_BYTE_BASE_OFFSET + literalsLength, inputSize);
+        MemorySegment.copy(inputBase, inputAddress, literalsBufferSegment, ARRAY_BYTE_BASE_OFFSET + literalsLength, inputSize);
         literalsLength += inputSize;
     }
 
-    public void storeSequence(Object literalBase, long literalAddress, int literalLength, int offsetCode, int matchLengthBase)
+    public void storeSequence(MemorySegment literalBase, long literalAddress, int literalLength, int offsetCode, int matchLengthBase)
     {
         long input = literalAddress;
         long output = ARRAY_BYTE_BASE_OFFSET + literalsLength;
         int copied = 0;
         do {
-            UNSAFE.putLong(literalsBuffer, output, UNSAFE.getLong(literalBase, input));
+            literalsBufferSegment.set(LONG_LE, output, literalBase.get(LONG_LE, input));
             input += SIZE_OF_LONG;
             output += SIZE_OF_LONG;
             copied += SIZE_OF_LONG;

@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import java.lang.foreign.MemorySegment;
 import io.airlift.compress.v3.MalformedInputException;
 
 import java.util.Arrays;
@@ -23,7 +24,6 @@ import static io.airlift.compress.v3.zstd.Constants.RAW_BLOCK;
 import static io.airlift.compress.v3.zstd.Constants.RLE_BLOCK;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_BLOCK_HEADER;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_INT;
-import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.v3.zstd.Util.checkArgument;
 import static io.airlift.compress.v3.zstd.Util.checkState;
 import static io.airlift.compress.v3.zstd.Util.fail;
@@ -37,7 +37,9 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
-import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.ARRAY_BYTE_BASE_OFFSET;
+import static io.airlift.compress.v3.zstd.MemoryAccess.INT_LE;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 
 public class ZstdIncrementalFrameDecompressor
 {
@@ -65,6 +67,7 @@ public class ZstdIncrementalFrameDecompressor
 
     // current window buffer
     private byte[] windowBase = new byte[0];
+    private MemorySegment windowSegment = MemorySegment.ofArray(windowBase);
     private long windowAddress = ARRAY_BYTE_BASE_OFFSET;
     private long windowLimit = ARRAY_BYTE_BASE_OFFSET;
     private long windowPosition = ARRAY_BYTE_BASE_OFFSET;
@@ -97,7 +100,7 @@ public class ZstdIncrementalFrameDecompressor
     }
 
     public void partialDecompress(
-            final Object inputBase,
+            final MemorySegment inputBase,
             final long inputAddress,
             final long inputLimit,
             final byte[] outputArray,
@@ -182,14 +185,12 @@ public class ZstdIncrementalFrameDecompressor
                     return;
                 }
                 if (inputBufferSize >= SIZE_OF_INT) {
-                    blockHeader = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
+                    blockHeader = inputBase.get(INT_LE, input) & 0xFF_FFFF;
                 }
                 else {
-                    blockHeader = UNSAFE.getByte(inputBase, input) & 0xFF |
-                            (UNSAFE.getByte(inputBase, input + 1) & 0xFF) << 8 |
-                            (UNSAFE.getByte(inputBase, input + 2) & 0xFF) << 16;
-                    int expected = UNSAFE.getInt(inputBase, input) & 0xFF_FFFF;
-                    verify(blockHeader == expected, input, "oops");
+                    blockHeader = inputBase.get(JAVA_BYTE, input) & 0xFF |
+                            (inputBase.get(JAVA_BYTE, input + 1) & 0xFF) << 8 |
+                            (inputBase.get(JAVA_BYTE, input + 2) & 0xFF) << 16;
                 }
                 input += SIZE_OF_BLOCK_HEADER;
                 state = State.READ_BLOCK;
@@ -213,7 +214,7 @@ public class ZstdIncrementalFrameDecompressor
                             return;
                         }
                         verify(windowLimit - windowPosition >= blockSize, input, "window buffer is too small");
-                        decodedSize = decodeRawBlock(inputBase, input, blockSize, windowBase, windowPosition, windowLimit);
+                        decodedSize = decodeRawBlock(inputBase, input, blockSize, windowSegment, windowPosition, windowLimit);
                         input += blockSize;
                     }
                     case RLE_BLOCK -> {
@@ -222,7 +223,7 @@ public class ZstdIncrementalFrameDecompressor
                             return;
                         }
                         verify(windowLimit - windowPosition >= blockSize, input, "window buffer is too small");
-                        decodedSize = decodeRleBlock(blockSize, inputBase, input, windowBase, windowPosition, windowLimit);
+                        decodedSize = decodeRleBlock(blockSize, inputBase, input, windowSegment, windowPosition, windowLimit);
                         input += 1;
                     }
                     case COMPRESSED_BLOCK -> {
@@ -231,7 +232,7 @@ public class ZstdIncrementalFrameDecompressor
                             return;
                         }
                         verify(windowLimit - windowPosition >= MAX_BLOCK_SIZE, input, "window buffer is too small");
-                        decodedSize = frameDecompressor.decodeCompressedBlock(inputBase, input, blockSize, windowBase, windowPosition, windowLimit, frameHeader.windowSize, windowAddress);
+                        decodedSize = frameDecompressor.decodeCompressedBlock(inputBase, input, blockSize, windowSegment, windowPosition, windowLimit, frameHeader.windowSize, windowAddress);
                         input += blockSize;
                     }
                     default -> throw fail(input, "Invalid block type");
@@ -253,7 +254,7 @@ public class ZstdIncrementalFrameDecompressor
                     }
 
                     // read checksum
-                    int checksum = UNSAFE.getInt(inputBase, input);
+                    int checksum = inputBase.get(INT_LE, input);
                     input += SIZE_OF_INT;
 
                     checkState(partialHash != null, "Partial hash not set");
@@ -334,6 +335,7 @@ public class ZstdIncrementalFrameDecompressor
                     checkState(windowContentsSize + maxBlockOutput <= newWindowSize, "Computed new window size buffer is not large enough");
                 }
                 windowBase = Arrays.copyOf(windowBase, newWindowSize);
+                windowSegment = MemorySegment.ofArray(windowBase);
                 windowLimit = newWindowSize + ARRAY_BYTE_BASE_OFFSET;
             }
 
@@ -341,11 +343,11 @@ public class ZstdIncrementalFrameDecompressor
         }
     }
 
-    private static int determineFrameHeaderSize(final Object inputBase, final long inputAddress, final long inputLimit)
+    private static int determineFrameHeaderSize(final MemorySegment inputBase, final long inputAddress, final long inputLimit)
     {
         verify(inputAddress < inputLimit, inputAddress, "Not enough input bytes");
 
-        int frameHeaderDescriptor = UNSAFE.getByte(inputBase, inputAddress) & 0xFF;
+        int frameHeaderDescriptor = inputBase.get(JAVA_BYTE, inputAddress) & 0xFF;
         boolean singleSegment = (frameHeaderDescriptor & 0b100000) != 0;
         int dictionaryDescriptor = frameHeaderDescriptor & 0b11;
         int contentSizeDescriptor = frameHeaderDescriptor >>> 6;
