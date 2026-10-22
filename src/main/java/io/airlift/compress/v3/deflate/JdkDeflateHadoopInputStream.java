@@ -21,6 +21,7 @@ import java.io.InputStream;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+import static java.util.Objects.checkFromIndexSize;
 import static java.util.Objects.requireNonNull;
 
 class JdkDeflateHadoopInputStream
@@ -57,6 +58,10 @@ class JdkDeflateHadoopInputStream
     {
         if (closed) {
             throw new IOException("Closed");
+        }
+        checkFromIndexSize(offset, length, output.length);
+        if (length == 0) {
+            return 0;
         }
 
         while (true) {
