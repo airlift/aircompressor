@@ -19,11 +19,13 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.zip.DeflaterOutputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class TestJdkDeflateHadoopInputStream
 {
@@ -35,6 +37,23 @@ class TestJdkDeflateHadoopInputStream
             assertThat(input.read(new byte[0])).isZero();
             assertThat(input.read(new byte[1], 1, 0)).isZero();
         }
+    }
+
+    @Test
+    void testZeroLengthReadWithCompressedInput()
+            throws IOException
+    {
+        byte[] data = "hello world".getBytes(UTF_8);
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        try (DeflaterOutputStream output = new DeflaterOutputStream(compressed)) {
+            output.write(data);
+        }
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            try (InputStream input = new JdkDeflateHadoopInputStream(new ByteArrayInputStream(compressed.toByteArray()), 1024)) {
+                assertThat(input.read(new byte[0])).isZero();
+                assertThat(input.readAllBytes()).isEqualTo(data);
+            }
+        });
     }
 
     @Test
