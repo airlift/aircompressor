@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.zip.DeflaterOutputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -51,7 +52,9 @@ class TestJdkDeflateHadoopInputStream
         assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
             try (InputStream input = new JdkDeflateHadoopInputStream(new ByteArrayInputStream(compressed.toByteArray()), 1024)) {
                 assertThat(input.read(new byte[0])).isZero();
-                assertThat(input.readAllBytes()).isEqualTo(data);
+                assertThat(input.read()).isEqualTo(data[0] & 0xFF);
+                assertThat(input.read(new byte[0])).isZero();
+                assertThat(input.readAllBytes()).isEqualTo(Arrays.copyOfRange(data, 1, data.length));
             }
         });
     }
