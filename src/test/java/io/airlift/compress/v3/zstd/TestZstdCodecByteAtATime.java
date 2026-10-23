@@ -39,6 +39,11 @@ class TestZstdCodecByteAtATime
         this.verifyCodec = codec;
     }
 
+    protected CompressionCodec createCodec()
+    {
+        return new ZstdCodec();
+    }
+
     @Override
     protected boolean isMemorySegmentSupported()
     {
@@ -48,13 +53,13 @@ class TestZstdCodecByteAtATime
     @Override
     protected Compressor getCompressor()
     {
-        return new HadoopCodecCompressor(new ZstdCodec(), new ZstdJavaCompressor());
+        return new HadoopCodecCompressor(createCodec(), new ZstdJavaCompressor());
     }
 
     @Override
     protected Decompressor getDecompressor()
     {
-        return new HadoopCodecDecompressorByteAtATime(new ZstdCodec());
+        return new HadoopCodecDecompressorByteAtATime(createCodec());
     }
 
     @Override
@@ -79,7 +84,7 @@ class TestZstdCodecByteAtATime
         byte[] uncompressed = Resources.toByteArray(Resources.getResource("data/zstd/multiple-frames"));
 
         byte[] output = new byte[uncompressed.length];
-        getVerifyDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
+        getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
 
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
     }

@@ -24,12 +24,14 @@ class ZstdHadoopOutputStream
         extends HadoopOutputStream
 {
     private final OutputStream out;
+    private final boolean useNative;
     private boolean initialized;
-    private ZstdJavaOutputStream zstdOutputStream;
+    private ZstdOutputStreamBase zstdOutputStream;
 
-    public ZstdHadoopOutputStream(OutputStream out)
+    public ZstdHadoopOutputStream(OutputStream out, boolean useNative)
     {
         this.out = requireNonNull(out, "out is null");
+        this.useNative = useNative;
     }
 
     @Override
@@ -62,7 +64,14 @@ class ZstdHadoopOutputStream
     public void flush()
             throws IOException
     {
-        out.flush();
+        // the native stream flushes the destination after the compressor; the Java stream buffers until finished
+        // and flushes nothing, as does a stream that was never written to or was finished
+        if (zstdOutputStream instanceof ZstdNativeOutputStream) {
+            zstdOutputStream.flush();
+        }
+        else {
+            out.flush();
+        }
     }
 
     @Override
@@ -70,7 +79,7 @@ class ZstdHadoopOutputStream
             throws IOException
     {
         try {
-            // it the stream has never been initialized, create a valid empty file
+            // If the stream has never been initialized, create a valid empty file
             if (!initialized) {
                 openStreamIfNecessary();
             }
@@ -86,7 +95,7 @@ class ZstdHadoopOutputStream
     {
         if (zstdOutputStream == null) {
             initialized = true;
-            zstdOutputStream = new ZstdJavaOutputStream(out);
+            zstdOutputStream = useNative ? new ZstdNativeOutputStream(out) : new ZstdJavaOutputStream(out);
         }
     }
 }

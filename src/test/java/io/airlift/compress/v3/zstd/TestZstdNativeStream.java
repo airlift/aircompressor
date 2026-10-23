@@ -140,6 +140,25 @@ class TestZstdNativeStream
     }
 
     @Test
+    void testCodecFlushReachesDestination()
+            throws Exception
+    {
+        byte[] original = mixedData(557);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (OutputStream hadoopOut = new ZstdCodec().createOutputStream(out);
+                InputStream in = new ZstdNativeInputStream(writtenBytes(out))) {
+            // flushing a stream that was never written to does not start a frame
+            hadoopOut.flush();
+            assertThat(out.size()).isZero();
+
+            hadoopOut.write(original);
+            hadoopOut.flush();
+            assertThat(readInSmallChunks(in, original.length)).isEqualTo(original);
+        }
+    }
+
+    @Test
     void testWriteAfterFailedWriteFails()
             throws Exception
     {

@@ -58,6 +58,14 @@ final class CompressionOutputStreamAdapter
         output.finish();
     }
 
+    // the superclass flushes FAKE_OUTPUT_STREAM, so a flush would never reach the codec
+    @Override
+    public void flush()
+            throws IOException
+    {
+        output.flush();
+    }
+
     @Override
     public void resetState() {}
 
