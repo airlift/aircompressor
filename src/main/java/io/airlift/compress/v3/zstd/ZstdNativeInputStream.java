@@ -20,6 +20,7 @@ import java.lang.foreign.MemorySegment;
 import java.lang.ref.Cleaner;
 
 import static io.airlift.compress.v3.zstd.Util.checkPositionIndexes;
+import static io.airlift.compress.v3.zstd.Util.checkState;
 import static io.airlift.compress.v3.zstd.ZstdNative.DECOMPRESS_STREAM_INPUT_SIZE;
 import static io.airlift.compress.v3.zstd.ZstdNative.createDecompressStream;
 import static io.airlift.compress.v3.zstd.ZstdNative.decompressStreamSimpleArgs;
@@ -70,7 +71,7 @@ public final class ZstdNativeInputStream
     private boolean frameComplete;
     // the last native call filled the output, so libzstd may still hold decoded data
     private boolean outputPending;
-    // a decode or truncation error occurred, and the native context must not be used again
+    // a decode or truncation error occurred, and the native context is unusable until reset
     private boolean failed;
 
     public ZstdNativeInputStream(InputStream inputStream)
@@ -210,6 +211,22 @@ public final class ZstdNativeInputStream
         inputPosition = 0;
         inputLimit = bytesRead;
         return true;
+    }
+
+    /**
+     * Discards all decoder state and buffered input so the next read starts a new stream
+     * from the current position of the underlying stream, reusing the native context.
+     */
+    void resetState()
+    {
+        checkState(!closed, "Stream is closed");
+        initDecompressStream(decompressStream);
+        inputPosition = 0;
+        inputLimit = 0;
+        endOfStream = false;
+        frameComplete = false;
+        outputPending = false;
+        failed = false;
     }
 
     @Override

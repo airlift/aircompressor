@@ -178,8 +178,12 @@ public abstract class AbstractTestCompression
         assertThatThrownBy(() -> decompressor.decompress(null, 0, compressedLength, data, 0, data.length))
                 .isInstanceOf(NullPointerException.class);
 
-        // mis-declared buffer size
+        // truncated input
         byte[] compressedChoppedOff = Arrays.copyOf(compressed, compressedLength - 1);
+        assertThatThrownBy(() -> decompressor.decompress(compressedChoppedOff, 0, compressedChoppedOff.length, data, 0, data.length))
+                .isInstanceOfAny(MalformedInputException.class, UncheckedIOException.class);
+
+        // mis-declared buffer size
         throwable = catchThrowable(() -> decompressor.decompress(compressedChoppedOff, 0, compressedLength, data, 0, data.length));
         if (throwable instanceof UncheckedIOException) {
             // OK
