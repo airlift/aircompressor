@@ -28,6 +28,7 @@ import static io.airlift.compress.v3.lzo.LzoConstants.LZOP_MAGIC;
 import static io.airlift.compress.v3.lzo.LzoConstants.LZO_1X_VARIANT;
 import static io.airlift.compress.v3.lzo.LzoConstants.SIZE_OF_LONG;
 import static java.lang.String.format;
+import static java.util.Objects.checkFromIndexSize;
 import static java.util.Objects.requireNonNull;
 
 class LzopHadoopInputStream
@@ -179,6 +180,10 @@ class LzopHadoopInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
+        checkFromIndexSize(offset, length, output.length);
+        if (length == 0) {
+            return 0;
+        }
         if (finished) {
             return -1;
         }
