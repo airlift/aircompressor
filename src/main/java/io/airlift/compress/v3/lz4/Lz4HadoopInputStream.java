@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_LONG;
+import static java.util.Objects.checkFromIndexSize;
 import static java.util.Objects.requireNonNull;
 
 class Lz4HadoopInputStream
@@ -61,6 +62,11 @@ class Lz4HadoopInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
+        checkFromIndexSize(offset, length, output.length);
+        if (length == 0) {
+            return 0;
+        }
+
         while (uncompressedChunkOffset >= uncompressedChunkLength) {
             int compressedChunkLength = bufferCompressedData();
             if (compressedChunkLength < 0) {

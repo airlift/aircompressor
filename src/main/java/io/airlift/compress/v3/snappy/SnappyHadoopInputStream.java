@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import static io.airlift.compress.v3.snappy.SnappyConstants.SIZE_OF_LONG;
+import static java.util.Objects.checkFromIndexSize;
 
 class SnappyHadoopInputStream
         extends HadoopInputStream
@@ -57,6 +58,11 @@ class SnappyHadoopInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
+        checkFromIndexSize(offset, length, output.length);
+        if (length == 0) {
+            return 0;
+        }
+
         if (uncompressedChunkOffset >= uncompressedChunkLength) {
             boolean directDecompress = readNextChunk(output, offset, length);
             if (uncompressedChunkLength == 0) {
