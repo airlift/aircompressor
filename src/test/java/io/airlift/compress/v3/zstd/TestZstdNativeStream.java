@@ -143,6 +143,26 @@ class TestZstdNativeStream
         }
     }
 
+    // the Java stream buffers until it is finished, so its flush does not reach the destination
+    @Test
+    void testCodecFlushReachesDestination()
+            throws Exception
+    {
+        byte[] original = mixedData(557);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (OutputStream hadoopOut = new ZstdCodec().createOutputStream(out);
+                InputStream in = new ZstdNativeInputStream(writtenBytes(out))) {
+            // flushing a stream that was never written to does not start a frame
+            hadoopOut.flush();
+            assertThat(out.size()).isZero();
+
+            hadoopOut.write(original);
+            hadoopOut.flush();
+            assertThat(readInSmallChunks(in, original.length)).isEqualTo(original);
+        }
+    }
+
     // a failed write leaves the libzstd context unusable, so the native stream refuses further writes; the Java stream has no such state
     @Test
     void testWriteAfterFailedWriteFails()

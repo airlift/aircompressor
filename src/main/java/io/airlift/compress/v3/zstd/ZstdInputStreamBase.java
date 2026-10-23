@@ -22,4 +22,9 @@ abstract sealed class ZstdInputStreamBase
         extends InputStream
         permits ZstdJavaInputStream, ZstdNativeInputStream
 {
+    /**
+     * Discards all decoder state and buffered input so the next read starts a new stream
+     * from the current position of the underlying stream.
+     */
+    abstract void resetState();
 }

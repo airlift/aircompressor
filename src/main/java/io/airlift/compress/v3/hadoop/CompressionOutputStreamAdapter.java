@@ -58,6 +58,14 @@ final class CompressionOutputStreamAdapter
         output.finish();
     }
 
+    // the superclass flushes FAKE_OUTPUT_STREAM, so a flush would never reach the codec
+    @Override
+    public void flush()
+            throws IOException
+    {
+        output.flush();
+    }
+
     @Override
     public void resetState() {}
 
@@ -65,11 +73,19 @@ final class CompressionOutputStreamAdapter
     public void close()
             throws IOException
     {
+        // a failure to finish stays primary; a failure to close the output after it is suppressed into it
         try {
             super.close();
         }
-        finally {
-            output.close();
+        catch (Throwable e) {
+            try {
+                output.close();
+            }
+            catch (Throwable closeFailure) {
+                e.addSuppressed(closeFailure);
+            }
+            throw e;
         }
+        output.close();
     }
 }

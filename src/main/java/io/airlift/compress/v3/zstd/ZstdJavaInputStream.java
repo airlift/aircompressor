@@ -29,7 +29,7 @@ public final class ZstdJavaInputStream
     private static final int MIN_BUFFER_SIZE = 4096;
 
     private final InputStream inputStream;
-    private final ZstdIncrementalFrameDecompressor decompressor = new ZstdIncrementalFrameDecompressor();
+    private ZstdIncrementalFrameDecompressor decompressor = new ZstdIncrementalFrameDecompressor();
 
     private byte[] inputBuffer = new byte[decompressor.getInputRequired()];
     private int inputBufferOffset;
@@ -127,6 +127,15 @@ public final class ZstdJavaInputStream
             inputBufferLimit += readSize;
         }
         return inputBufferLimit >= requiredSize;
+    }
+
+    @Override
+    void resetState()
+    {
+        checkState(!closed, "Stream is closed");
+        decompressor = new ZstdIncrementalFrameDecompressor();
+        inputBufferOffset = 0;
+        inputBufferLimit = 0;
     }
 
     @Override

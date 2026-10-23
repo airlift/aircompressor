@@ -24,18 +24,21 @@ class ZstdHadoopInputStream
         extends HadoopInputStream
 {
     private final InputStream in;
-    private ZstdJavaInputStream zstdInputStream;
+    private final boolean useNative;
+    private ZstdInputStreamBase zstdInputStream;
+    private boolean closed;
 
-    public ZstdHadoopInputStream(InputStream in)
+    public ZstdHadoopInputStream(InputStream in, boolean useNative)
     {
         this.in = requireNonNull(in, "in is null");
-        zstdInputStream = new ZstdJavaInputStream(in);
+        this.useNative = useNative;
     }
 
     @Override
     public int read()
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read();
     }
 
@@ -43,6 +46,7 @@ class ZstdHadoopInputStream
     public int read(byte[] b)
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read(b);
     }
 
@@ -50,19 +54,46 @@ class ZstdHadoopInputStream
     public int read(byte[] outputBuffer, int outputOffset, int outputLength)
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read(outputBuffer, outputOffset, outputLength);
     }
 
     @Override
     public void resetState()
     {
-        zstdInputStream = new ZstdJavaInputStream(in);
+        if (closed) {
+            return;
+        }
+        // Reset buffered decoder state after repositioning the source; a stream that was never read has none
+        if (zstdInputStream != null) {
+            zstdInputStream.resetState();
+        }
     }
 
     @Override
     public void close()
             throws IOException
     {
-        zstdInputStream.close();
+        if (!closed) {
+            closed = true;
+            if (zstdInputStream != null) {
+                zstdInputStream.close();
+            }
+            else {
+                in.close();
+            }
+        }
+    }
+
+    // Lazy init avoids native stream allocations for streams that are never read
+    private void openStreamIfNecessary()
+            throws IOException
+    {
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+        if (zstdInputStream == null) {
+            zstdInputStream = useNative ? new ZstdNativeInputStream(in) : new ZstdJavaInputStream(in);
+        }
     }
 }
