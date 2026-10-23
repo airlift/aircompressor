@@ -15,15 +15,15 @@ package io.airlift.compress.v3.zstd;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.ref.Cleaner;
 
 import static io.airlift.compress.v3.zstd.Util.checkPositionIndexes;
+import static io.airlift.compress.v3.zstd.Util.checkState;
 import static io.airlift.compress.v3.zstd.ZstdNative.DECOMPRESS_STREAM_INPUT_SIZE;
 import static io.airlift.compress.v3.zstd.ZstdNative.createDecompressStream;
 import static io.airlift.compress.v3.zstd.ZstdNative.decompressStreamSimpleArgs;
 import static io.airlift.compress.v3.zstd.ZstdNative.initDecompressStream;
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
  * buffer in between. For optimal performance, callers should provide sufficiently large output buffers
  * to minimize the number of calls into native code, or should wrap this stream in a buffered stream.
  * <p>
- * Native memory is used for the internal zstd streaming context. A {@link Cleaner} is
+ * Native memory is used for the internal zstd streaming context. A {@link java.lang.ref.Cleaner} is
  * registered as a safety net to free native resources if {@link #close()} is not called.
  * <p>
  * This class is not thread-safe for concurrent access, but can be used from different
@@ -43,10 +43,8 @@ import static java.util.Objects.requireNonNull;
 public final class ZstdNativeInputStream
         extends ZstdInputStreamBase
 {
-    private static final Cleaner CLEANER = Cleaner.create();
-
     private final InputStream inputStream;
-    private final Cleaner.Cleanable cleanable;
+    private final ZstdNativeResources resources;
 
     private final MemorySegment decompressStream;
 
@@ -63,6 +61,10 @@ public final class ZstdNativeInputStream
 
     private final byte[] oneByte = new byte[1];
 
+    // the heap segment wrapping the array of the last read, reused when the same array is read into again
+    private byte[] outputArray;
+    private MemorySegment outputArraySegment;
+
     private boolean closed;
     // the underlying stream has returned end of stream
     private boolean endOfStream;
@@ -70,7 +72,7 @@ public final class ZstdNativeInputStream
     private boolean frameComplete;
     // the last native call filled the output, so libzstd may still hold decoded data
     private boolean outputPending;
-    // a decode or truncation error occurred, and the native context must not be used again
+    // a decode or truncation error occurred, and the native context is unusable until reset
     private boolean failed;
 
     public ZstdNativeInputStream(InputStream inputStream)
@@ -78,10 +80,7 @@ public final class ZstdNativeInputStream
         ZstdNative.verifyEnabled();
         this.inputStream = requireNonNull(inputStream, "inputStream is null");
 
-        // a shared arena allows sequential use from different threads, and the cleaner frees it deterministically on close
-        NativeResources resources = new NativeResources();
-        this.cleanable = CLEANER.register(this, resources);
-        Arena arena = resources.arena();
+        this.resources = new ZstdNativeResources(this);
 
         this.inputBuffer = new byte[DECOMPRESS_STREAM_INPUT_SIZE];
         this.inputSegment = MemorySegment.ofArray(inputBuffer);
@@ -91,17 +90,21 @@ public final class ZstdNativeInputStream
             if (stream.equals(MemorySegment.NULL)) {
                 throw new IllegalStateException("Failed to create zstd decompression stream");
             }
-            this.decompressStream = stream.reinterpret(arena, ZstdNative::freeDecompressStream);
+            this.decompressStream = stream.reinterpret(resources.arena(), ZstdNative::freeDecompressStream);
             initDecompressStream(decompressStream);
         }
         catch (Throwable e) {
             try {
-                cleanable.clean();
+                resources.clean();
             }
             catch (Throwable cleanupFailure) {
                 e.addSuppressed(cleanupFailure);
             }
             throw e;
+        }
+        finally {
+            // the cleaner is registered with this stream, which must stay reachable until native code is done with its segments
+            reachabilityFence(this);
         }
     }
 
@@ -140,6 +143,12 @@ public final class ZstdNativeInputStream
             return 0;
         }
 
+        if (output != outputArray) {
+            outputArray = output;
+            outputArraySegment = MemorySegment.ofArray(output);
+        }
+        MemorySegment outputSegment = outputArraySegment;
+
         int totalRead = 0;
         while (totalRead < outputLength) {
             // Only read the source when libzstd has nothing left to give; return decoded data
@@ -159,28 +168,38 @@ public final class ZstdNativeInputStream
 
             int inputPositionBefore = inputPosition;
             int outputAvailable = outputLength - totalRead;
+            // libzstd continues from the output position, so the whole array is passed rather than a slice of it
+            int outputStart = outputOffset + totalRead;
             sourcePosition[0] = inputPosition;
-            destinationPosition[0] = 0;
+            destinationPosition[0] = outputStart;
 
-            MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset + totalRead, outputAvailable);
             long result;
             try {
                 result = decompressStreamSimpleArgs(
                         decompressStream,
                         outputSegment,
-                        outputAvailable,
+                        outputOffset + outputLength,
                         destinationPositionSegment,
                         inputSegment,
                         inputLimit,
                         sourcePositionSegment);
             }
+            catch (IllegalArgumentException e) {
+                // libzstd reports a failure that is not caused by the input, such as an allocation failure, as an argument error
+                failed = true;
+                throw new IOException(e.getMessage(), e);
+            }
             catch (RuntimeException e) {
                 failed = true;
                 throw e;
             }
+            finally {
+                // the segments passed to libzstd do not keep this stream reachable, so the cleaner could free them mid-call
+                reachabilityFence(this);
+            }
 
             inputPosition = (int) sourcePosition[0];
-            int outputWritten = (int) destinationPosition[0];
+            int outputWritten = (int) destinationPosition[0] - outputStart;
             totalRead += outputWritten;
 
             // result == 0 means the frame is complete and fully flushed
@@ -212,34 +231,36 @@ public final class ZstdNativeInputStream
         return true;
     }
 
+    // reuses the native context
+    @Override
+    void resetState()
+    {
+        checkState(!closed, "Stream is closed");
+        try {
+            initDecompressStream(decompressStream);
+        }
+        finally {
+            reachabilityFence(this);
+        }
+        inputPosition = 0;
+        inputLimit = 0;
+        endOfStream = false;
+        frameComplete = false;
+        outputPending = false;
+        failed = false;
+    }
+
     @Override
     public void close()
             throws IOException
     {
         if (!closed) {
             closed = true;
+            outputArray = null;
+            outputArraySegment = null;
             try (inputStream) {
-                cleanable.clean();
+                resources.clean();
             }
-        }
-    }
-
-    /**
-     * Holds native resources that must be freed.
-     * Implements Runnable so it can be used with Cleaner.
-     */
-    private record NativeResources(Arena arena)
-            implements Runnable
-    {
-        NativeResources()
-        {
-            this(Arena.ofShared());
-        }
-
-        @Override
-        public void run()
-        {
-            arena.close();
         }
     }
 }

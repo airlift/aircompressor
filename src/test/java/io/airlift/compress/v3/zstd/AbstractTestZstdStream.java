@@ -91,6 +91,63 @@ abstract class AbstractTestZstdStream
     }
 
     @Test
+    void testResetState()
+            throws Exception
+    {
+        byte[] original = new byte[10_000];
+        new Random(42).nextBytes(original);
+        ByteArrayInputStream source = new ByteArrayInputStream(compress(original));
+
+        try (ZstdInputStream in = createDecompressingInputStream(source)) {
+            assertThat(in.readNBytes(10)).isEqualTo(Arrays.copyOf(original, 10));
+            // repositioning the source and resetting discards the buffered decoder state, every time
+            for (int i = 0; i < 3; i++) {
+                source.reset();
+                in.delegate().resetState();
+                assertThat(in.readAllBytes()).isEqualTo(original);
+            }
+        }
+    }
+
+    @Test
+    void testResetStateAtEndOfSource()
+            throws Exception
+    {
+        byte[] original = new byte[1000];
+        Arrays.fill(original, (byte) 'a');
+        ByteArrayInputStream source = new ByteArrayInputStream(compress(original));
+
+        try (ZstdInputStream in = createDecompressingInputStream(source)) {
+            assertThat(in.readAllBytes()).isEqualTo(original);
+
+            // a source with nothing left after a reset is truncated, as an empty input is
+            in.delegate().resetState();
+            assertThatThrownBy(in::read)
+                    .isInstanceOf(IOException.class);
+        }
+    }
+
+    @Test
+    void testResetStateAfterFailure()
+            throws Exception
+    {
+        byte[] original = new byte[1000];
+        Arrays.fill(original, (byte) 'a');
+        byte[] compressed = compress(original);
+
+        SwitchableInputStream source = new SwitchableInputStream(new ByteArrayInputStream(Arrays.copyOf(compressed, compressed.length - 1)));
+        try (ZstdInputStream in = createDecompressingInputStream(source)) {
+            assertThatThrownBy(in::readAllBytes)
+                    .isInstanceOf(IOException.class);
+
+            // a failure does not carry over to the data read after a reset
+            source.switchTo(new ByteArrayInputStream(compressed));
+            in.delegate().resetState();
+            assertThat(in.readAllBytes()).isEqualTo(original);
+        }
+    }
+
+    @Test
     void testCorruptInputFails()
             throws Exception
     {
@@ -438,5 +495,19 @@ abstract class AbstractTestZstdStream
                 }
             }
         };
+    }
+
+    private static class SwitchableInputStream
+            extends FilterInputStream
+    {
+        SwitchableInputStream(InputStream in)
+        {
+            super(in);
+        }
+
+        void switchTo(InputStream in)
+        {
+            this.in = in;
+        }
     }
 }
