@@ -24,18 +24,21 @@ class ZstdHadoopInputStream
         extends HadoopInputStream
 {
     private final InputStream in;
+    private final boolean useNative;
     private ZstdInputStream zstdInputStream;
+    private boolean closed;
 
-    public ZstdHadoopInputStream(InputStream in)
+    public ZstdHadoopInputStream(InputStream in, boolean useNative)
     {
         this.in = requireNonNull(in, "in is null");
-        zstdInputStream = new ZstdInputStream(in);
+        this.useNative = useNative;
     }
 
     @Override
     public int read()
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read();
     }
 
@@ -43,6 +46,7 @@ class ZstdHadoopInputStream
     public int read(byte[] b)
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read(b);
     }
 
@@ -50,19 +54,52 @@ class ZstdHadoopInputStream
     public int read(byte[] outputBuffer, int outputOffset, int outputLength)
             throws IOException
     {
+        openStreamIfNecessary();
         return zstdInputStream.read(outputBuffer, outputOffset, outputLength);
     }
 
     @Override
     public void resetState()
     {
-        zstdInputStream = new ZstdInputStream(in);
+        if (closed) {
+            return;
+        }
+        // Reset buffered decoder state after repositioning the source
+        if (zstdInputStream instanceof ZstdNativeInputStream nativeInputStream) {
+            // Reuse the native context; a dropped one would hold native memory until garbage collection
+            nativeInputStream.resetState();
+        }
+        else {
+            // recreate lazily on next read
+            zstdInputStream = null;
+        }
     }
 
     @Override
     public void close()
             throws IOException
     {
-        zstdInputStream.close();
+        if (!closed) {
+            closed = true;
+            if (zstdInputStream != null) {
+                zstdInputStream.close();
+            }
+            else {
+                in.close();
+            }
+        }
+    }
+
+    // Lazy init avoids native stream allocations for streams that are never read,
+    // and lets resetState() drop a Java stream so the next read starts a fresh one.
+    private void openStreamIfNecessary()
+            throws IOException
+    {
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+        if (zstdInputStream == null) {
+            zstdInputStream = useNative ? new ZstdNativeInputStream(in) : new ZstdJavaInputStream(in);
+        }
     }
 }

@@ -142,7 +142,7 @@ public abstract class AbstractTestZstd
     void testStreamCompressionRatioAfterWindowSlide()
             throws IOException
     {
-        // Data with repetitions that always fit within the window. ZstdOutputStream slides its window
+        // Data with repetitions that always fit within the window. ZstdJavaOutputStream slides its window
         // several times while compressing it, and matches must still be found after each slide.
         Random random = new Random(42);
         byte[] vocabulary = new byte[256 * 1024];
@@ -156,7 +156,7 @@ public abstract class AbstractTestZstd
         byte[] original = originalStream.toByteArray();
 
         ByteArrayOutputStream compressedStream = new ByteArrayOutputStream();
-        try (ZstdOutputStream output = new ZstdOutputStream(compressedStream)) {
+        try (ZstdJavaOutputStream output = new ZstdJavaOutputStream(compressedStream)) {
             for (int i = 0; i < original.length; i += 8192) {
                 output.write(original, i, Math.min(8192, original.length - i));
             }
