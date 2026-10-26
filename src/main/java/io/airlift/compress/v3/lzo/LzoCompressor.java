@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.lzo;
 
 import io.airlift.compress.v3.Compressor;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 
@@ -46,8 +47,8 @@ public class LzoCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
         return LzoRawCompressor.compress(input, inputAddress, inputLength, output, outputAddress, maxOutputLength, table);
     }
@@ -56,14 +57,15 @@ public class LzoCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            return LzoRawCompressor.compress(
-                    getBase(input),
-                    getAddress(input),
+            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            return access.finish(LzoRawCompressor.compress(
+                    getBase(access.input()),
+                    getAddress(access.input()),
                     toIntExact(input.byteSize()),
-                    getBase(output),
-                    getAddress(output),
+                    getBase(access.output()),
+                    getAddress(access.output()),
                     toIntExact(output.byteSize()),
-                    table);
+                    table));
         }
         finally {
             reachabilityFence(input);

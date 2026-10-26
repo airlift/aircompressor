@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.lz4;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
@@ -44,8 +46,8 @@ public final class Lz4JavaCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
         return Lz4RawCompressor.compress(input, inputAddress, inputLength, output, outputAddress, maxOutputLength, table);
     }
@@ -54,14 +56,15 @@ public final class Lz4JavaCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            return Lz4RawCompressor.compress(
-                    getBase(input),
-                    getAddress(input),
+            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            return access.finish(Lz4RawCompressor.compress(
+                    getBase(access.input()),
+                    getAddress(access.input()),
                     toIntExact(input.byteSize()),
-                    getBase(output),
-                    getAddress(output),
+                    getBase(access.output()),
+                    getAddress(access.output()),
                     toIntExact(output.byteSize()),
-                    table);
+                    table));
         }
         finally {
             reachabilityFence(input);
