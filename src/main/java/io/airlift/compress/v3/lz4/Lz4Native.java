@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.LiteralDecompressor;
 import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
@@ -193,6 +194,12 @@ final class Lz4Native
 
     public static int decompress(MemorySegment compressed, int compressedLength, MemorySegment output, int outputLength)
     {
+        if (compressedLength > MAX_CRITICAL_COMPRESSED_SIZE && (!compressed.isNative() || !output.isNative())) {
+            long literalLength = LiteralDecompressor.tryLz4(compressed, compressedLength, output, outputLength);
+            if (literalLength >= 0) {
+                return (int) literalLength;
+            }
+        }
         if (compressedLength <= MAX_CRITICAL_COMPRESSED_SIZE && outputLength <= MAX_CRITICAL_INPUT_SIZE) {
             int result;
             try {
