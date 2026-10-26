@@ -19,6 +19,7 @@ import java.lang.foreign.ValueLayout;
 import java.lang.ref.Cleaner;
 import java.nio.ByteOrder;
 
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.checkFromIndexSize;
 
 /**
@@ -227,36 +228,46 @@ public final class XxHash3Native
 
         Hasher64Impl()
         {
-            XxHash3Bindings.verifyEnabled();
+            try {
+                XxHash3Bindings.verifyEnabled();
 
-            NativeResources resources = new NativeResources();
-            this.cleanable = CLEANER.register(this, resources);
-            Arena arena = resources.arena();
+                NativeResources resources = new NativeResources();
+                this.cleanable = CLEANER.register(this, resources);
+                Arena arena = resources.arena();
 
-            MemorySegment rawState = XxHash3Bindings.createState();
-            if (rawState.equals(MemorySegment.NULL)) {
-                cleanable.clean();
-                throw new IllegalStateException("Failed to create XXH3 state");
+                MemorySegment rawState = XxHash3Bindings.createState();
+                if (rawState.equals(MemorySegment.NULL)) {
+                    cleanable.clean();
+                    throw new IllegalStateException("Failed to create XXH3 state");
+                }
+                this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
+                XxHash3Bindings.reset64(state);
             }
-            this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
-            XxHash3Bindings.reset64(state);
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         Hasher64Impl(long seed)
         {
-            XxHash3Bindings.verifyEnabled();
+            try {
+                XxHash3Bindings.verifyEnabled();
 
-            NativeResources resources = new NativeResources();
-            this.cleanable = CLEANER.register(this, resources);
-            Arena arena = resources.arena();
+                NativeResources resources = new NativeResources();
+                this.cleanable = CLEANER.register(this, resources);
+                Arena arena = resources.arena();
 
-            MemorySegment rawState = XxHash3Bindings.createState();
-            if (rawState.equals(MemorySegment.NULL)) {
-                cleanable.clean();
-                throw new IllegalStateException("Failed to create XXH3 state");
+                MemorySegment rawState = XxHash3Bindings.createState();
+                if (rawState.equals(MemorySegment.NULL)) {
+                    cleanable.clean();
+                    throw new IllegalStateException("Failed to create XXH3 state");
+                }
+                this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
+                XxHash3Bindings.reset64(state, seed);
             }
-            this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
-            XxHash3Bindings.reset64(state, seed);
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
@@ -268,62 +279,97 @@ public final class XxHash3Native
         @Override
         public XxHash3Hasher update(byte[] input, int offset, int length)
         {
-            checkFromIndexSize(offset, length, input.length);
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
-            XxHash3Bindings.update64(state, segment, length);
-            return this;
+            try {
+                checkFromIndexSize(offset, length, input.length);
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
+                XxHash3Bindings.update64(state, segment, length);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher update(MemorySegment input)
         {
-            checkNotClosed();
-            XxHash3Bindings.update64(state, input, input.byteSize());
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.update64(state, input, input.byteSize());
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher updateLE(long value)
         {
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(scratch);
-            segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
-            XxHash3Bindings.update64(state, segment, 8);
-            return this;
+            try {
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(scratch);
+                segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
+                XxHash3Bindings.update64(state, segment, 8);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher updateLE(int value)
         {
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(scratch);
-            segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
-            XxHash3Bindings.update64(state, segment, 4);
-            return this;
+            try {
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(scratch);
+                segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
+                XxHash3Bindings.update64(state, segment, 4);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public long digest()
         {
-            checkNotClosed();
-            return XxHash3Bindings.digest64(state);
+            try {
+                checkNotClosed();
+                return XxHash3Bindings.digest64(state);
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher reset()
         {
-            checkNotClosed();
-            XxHash3Bindings.reset64(state);
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.reset64(state);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher reset(long seed)
         {
-            checkNotClosed();
-            XxHash3Bindings.reset64(state, seed);
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.reset64(state, seed);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         private void checkNotClosed()
@@ -356,36 +402,46 @@ public final class XxHash3Native
 
         Hasher128Impl()
         {
-            XxHash3Bindings.verifyEnabled();
+            try {
+                XxHash3Bindings.verifyEnabled();
 
-            NativeResources resources = new NativeResources();
-            this.cleanable = CLEANER.register(this, resources);
-            Arena arena = resources.arena();
+                NativeResources resources = new NativeResources();
+                this.cleanable = CLEANER.register(this, resources);
+                Arena arena = resources.arena();
 
-            MemorySegment rawState = XxHash3Bindings.createState();
-            if (rawState.equals(MemorySegment.NULL)) {
-                cleanable.clean();
-                throw new IllegalStateException("Failed to create XXH3 state");
+                MemorySegment rawState = XxHash3Bindings.createState();
+                if (rawState.equals(MemorySegment.NULL)) {
+                    cleanable.clean();
+                    throw new IllegalStateException("Failed to create XXH3 state");
+                }
+                this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
+                XxHash3Bindings.reset128(state);
             }
-            this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
-            XxHash3Bindings.reset128(state);
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         Hasher128Impl(long seed)
         {
-            XxHash3Bindings.verifyEnabled();
+            try {
+                XxHash3Bindings.verifyEnabled();
 
-            NativeResources resources = new NativeResources();
-            this.cleanable = CLEANER.register(this, resources);
-            Arena arena = resources.arena();
+                NativeResources resources = new NativeResources();
+                this.cleanable = CLEANER.register(this, resources);
+                Arena arena = resources.arena();
 
-            MemorySegment rawState = XxHash3Bindings.createState();
-            if (rawState.equals(MemorySegment.NULL)) {
-                cleanable.clean();
-                throw new IllegalStateException("Failed to create XXH3 state");
+                MemorySegment rawState = XxHash3Bindings.createState();
+                if (rawState.equals(MemorySegment.NULL)) {
+                    cleanable.clean();
+                    throw new IllegalStateException("Failed to create XXH3 state");
+                }
+                this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
+                XxHash3Bindings.reset128(state, seed);
             }
-            this.state = rawState.reinterpret(arena, XxHash3Bindings::freeState);
-            XxHash3Bindings.reset128(state, seed);
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
@@ -397,62 +453,97 @@ public final class XxHash3Native
         @Override
         public XxHash3Hasher128 update(byte[] input, int offset, int length)
         {
-            checkFromIndexSize(offset, length, input.length);
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
-            XxHash3Bindings.update128(state, segment, length);
-            return this;
+            try {
+                checkFromIndexSize(offset, length, input.length);
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
+                XxHash3Bindings.update128(state, segment, length);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher128 update(MemorySegment input)
         {
-            checkNotClosed();
-            XxHash3Bindings.update128(state, input, input.byteSize());
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.update128(state, input, input.byteSize());
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher128 updateLE(long value)
         {
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(scratch);
-            segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
-            XxHash3Bindings.update128(state, segment, 8);
-            return this;
+            try {
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(scratch);
+                segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
+                XxHash3Bindings.update128(state, segment, 8);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher128 updateLE(int value)
         {
-            checkNotClosed();
-            MemorySegment segment = MemorySegment.ofArray(scratch);
-            segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
-            XxHash3Bindings.update128(state, segment, 4);
-            return this;
+            try {
+                checkNotClosed();
+                MemorySegment segment = MemorySegment.ofArray(scratch);
+                segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
+                XxHash3Bindings.update128(state, segment, 4);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash128 digest()
         {
-            checkNotClosed();
-            return XxHash3Bindings.digest128(state);
+            try {
+                checkNotClosed();
+                return XxHash3Bindings.digest128(state);
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher128 reset()
         {
-            checkNotClosed();
-            XxHash3Bindings.reset128(state);
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.reset128(state);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         @Override
         public XxHash3Hasher128 reset(long seed)
         {
-            checkNotClosed();
-            XxHash3Bindings.reset128(state, seed);
-            return this;
+            try {
+                checkNotClosed();
+                XxHash3Bindings.reset128(state, seed);
+                return this;
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
 
         private void checkNotClosed()

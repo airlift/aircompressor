@@ -96,7 +96,10 @@ public final class NativeLoader
                     FunctionDescriptor nativeFunctionDescriptor = getFunctionDescriptor(nativeSignature.returnType(), nativeSignature.argumentTypes());
 
                     methodHandles.add(symbolLookup.find(nativeSignature.name())
-                            .map(memorySegment -> Linker.nativeLinker().downcallHandle(memorySegment, nativeFunctionDescriptor, Linker.Option.critical(true)))
+                            .map(memorySegment -> Linker.nativeLinker().downcallHandle(
+                                    memorySegment,
+                                    nativeFunctionDescriptor,
+                                    nativeSignature.critical() ? new Linker.Option[] {Linker.Option.critical(true)} : new Linker.Option[0]))
                             .orElseThrow(() -> new LinkageError("unresolved symbol: " + nativeSignature.name())));
                 }
                 return new Symbols<>(Optional.empty(), methodHandlesClass.cast(constructor.invokeWithArguments(methodHandles)));

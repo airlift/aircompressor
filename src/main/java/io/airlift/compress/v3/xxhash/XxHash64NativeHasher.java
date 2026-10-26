@@ -19,6 +19,7 @@ import java.lang.foreign.ValueLayout;
 import java.lang.ref.Cleaner;
 import java.nio.ByteOrder;
 
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.checkFromIndexSize;
 
 public final class XxHash64NativeHasher
@@ -35,19 +36,24 @@ public final class XxHash64NativeHasher
 
     public XxHash64NativeHasher(long seed)
     {
-        XxHash64Bindings.verifyEnabled();
+        try {
+            XxHash64Bindings.verifyEnabled();
 
-        NativeResources resources = new NativeResources();
-        this.cleanable = CLEANER.register(this, resources);
-        Arena arena = resources.arena();
+            NativeResources resources = new NativeResources();
+            this.cleanable = CLEANER.register(this, resources);
+            Arena arena = resources.arena();
 
-        MemorySegment rawState = XxHash64Bindings.createState();
-        if (rawState.equals(MemorySegment.NULL)) {
-            cleanable.clean();
-            throw new IllegalStateException("Failed to create XXH64 state");
+            MemorySegment rawState = XxHash64Bindings.createState();
+            if (rawState.equals(MemorySegment.NULL)) {
+                cleanable.clean();
+                throw new IllegalStateException("Failed to create XXH64 state");
+            }
+            this.state = rawState.reinterpret(arena, XxHash64Bindings::freeState);
+            XxHash64Bindings.reset(state, seed);
         }
-        this.state = rawState.reinterpret(arena, XxHash64Bindings::freeState);
-        XxHash64Bindings.reset(state, seed);
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     // ========== Static methods ==========
@@ -82,46 +88,71 @@ public final class XxHash64NativeHasher
     @Override
     public XxHash64Hasher update(byte[] input, int offset, int length)
     {
-        checkFromIndexSize(offset, length, input.length);
-        checkNotClosed();
-        MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
-        XxHash64Bindings.update(state, segment, length);
-        return this;
+        try {
+            checkFromIndexSize(offset, length, input.length);
+            checkNotClosed();
+            MemorySegment segment = MemorySegment.ofArray(input).asSlice(offset, length);
+            XxHash64Bindings.update(state, segment, length);
+            return this;
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
     public XxHash64Hasher update(MemorySegment input)
     {
-        checkNotClosed();
-        XxHash64Bindings.update(state, input, input.byteSize());
-        return this;
+        try {
+            checkNotClosed();
+            XxHash64Bindings.update(state, input, input.byteSize());
+            return this;
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
     public XxHash64Hasher updateLE(long value)
     {
-        checkNotClosed();
-        MemorySegment segment = MemorySegment.ofArray(scratch);
-        segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
-        XxHash64Bindings.update(state, segment, 8);
-        return this;
+        try {
+            checkNotClosed();
+            MemorySegment segment = MemorySegment.ofArray(scratch);
+            segment.set(JAVA_LONG_LE_UNALIGNED, 0, value);
+            XxHash64Bindings.update(state, segment, 8);
+            return this;
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
     public XxHash64Hasher updateLE(int value)
     {
-        checkNotClosed();
-        MemorySegment segment = MemorySegment.ofArray(scratch);
-        segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
-        XxHash64Bindings.update(state, segment, 4);
-        return this;
+        try {
+            checkNotClosed();
+            MemorySegment segment = MemorySegment.ofArray(scratch);
+            segment.set(JAVA_INT_LE_UNALIGNED, 0, value);
+            XxHash64Bindings.update(state, segment, 4);
+            return this;
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
     public long digest()
     {
-        checkNotClosed();
-        return XxHash64Bindings.digest(state);
+        try {
+            checkNotClosed();
+            return XxHash64Bindings.digest(state);
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
@@ -133,9 +164,14 @@ public final class XxHash64NativeHasher
     @Override
     public XxHash64Hasher reset(long seed)
     {
-        checkNotClosed();
-        XxHash64Bindings.reset(state, seed);
-        return this;
+        try {
+            checkNotClosed();
+            XxHash64Bindings.reset(state, seed);
+            return this;
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     private void checkNotClosed()

@@ -28,4 +28,7 @@ public @interface NativeSignature
     Class<?> returnType();
 
     Class<?>[] argumentTypes();
+
+    // Only functions whose execution time is bounded and short may use a critical downcall.
+    boolean critical() default false;
 }
