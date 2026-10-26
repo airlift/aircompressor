@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.benchmark;
 
 import io.airlift.compress.v3.xxhash.XxHash128;
+import io.airlift.compress.v3.xxhash.XxHash32NativeHasher;
 import io.airlift.compress.v3.xxhash.XxHash3Native;
 import io.airlift.compress.v3.xxhash.XxHash64JavaHasher;
 import io.airlift.compress.v3.xxhash.XxHash64NativeHasher;
@@ -82,6 +83,14 @@ public class HashBenchmark
     public long xxhash64_java_segment()
     {
         return XxHash64JavaHasher.hash(segment, 0);
+    }
+
+    // ========== XxHash32 Native ==========
+
+    @Benchmark
+    public int xxhash32_native()
+    {
+        return XxHash32NativeHasher.hash(data, 0, data.length, 0);
     }
 
     // ========== XxHash64 Native ==========
