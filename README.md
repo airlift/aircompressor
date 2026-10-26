@@ -186,6 +186,8 @@ that have Hadoop dependencies, each algorithm also provides a `CompressionCodec`
 
 This library requires a Java 22+ virtual machine containing the `sun.misc.Unsafe` interface running on a little endian platform.
 
+Native libraries are provided for Linux on AMD64 and AArch64, and macOS on AArch64.
+
 # Configuration
 
 Temporary directory used to unpack and load native libraries can be configured using the `aircompressor.tmpdir` system property,
