@@ -43,6 +43,13 @@ int uncompressedSize = decompressor.decompress(compressed, uncompressed);
 uncompressed = uncompressed.asSlice(0, uncompressedSize);
 ```
 
+Native implementations use ordinary native calls for potentially long operations so that compression,
+decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap buffers are
+copied into temporary native memory for these calls; decompression may need temporary native memory
+as large as the supplied output capacity. Use native `MemorySegment` buffers for large blocks to avoid
+these copies and allocations. Small LZ4/Snappy blocks and short hash inputs use bounded direct calls,
+and native Zstd streams reuse fixed-size native buffers.
+
 # Algorithms
 
 ## [Zstandard (Zstd)](https://facebook.github.io/zstd/) **(Recommended)**

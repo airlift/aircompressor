@@ -23,6 +23,8 @@ import static io.airlift.compress.v3.zstd.ZstdNative.DECOMPRESS_STREAM_INPUT_SIZ
 import static io.airlift.compress.v3.zstd.ZstdNative.createDecompressStream;
 import static io.airlift.compress.v3.zstd.ZstdNative.decompressStreamSimpleArgs;
 import static io.airlift.compress.v3.zstd.ZstdNative.initDecompressStream;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 
@@ -31,7 +33,7 @@ import static java.util.Objects.requireNonNull;
  * <p>
  * This native wrapper reads compressed data from the underlying {@link InputStream} into a buffer
  * sized by libzstd's recommendation. Small reads use a decoded buffer to amortize calls into native
- * code, while large reads decompress directly into the caller's buffer.
+ * code. Reusable native buffers allow decompression to run without delaying JVM safepoints.
  * <p>
  * Native memory is used for the internal zstd streaming context. A {@link java.lang.ref.Cleaner} is
  * registered as a safety net to free native resources if {@link #close()} is not called.
@@ -49,14 +51,12 @@ public final class ZstdNativeInputStream
 
     private final byte[] inputBuffer;
     private final MemorySegment inputSegment;
+    private final MemorySegment outputSegment;
     private int inputPosition;
     private int inputLimit;
 
-    // Position pointers as heap arrays - reused across calls
-    private final long[] sourcePosition = new long[1];
-    private final long[] destinationPosition = new long[1];
-    private final MemorySegment sourcePositionSegment = MemorySegment.ofArray(sourcePosition);
-    private final MemorySegment destinationPositionSegment = MemorySegment.ofArray(destinationPosition);
+    private final MemorySegment sourcePositionSegment;
+    private final MemorySegment destinationPositionSegment;
 
     private final byte[] decodedBuffer = new byte[8192];
     private int decodedPosition;
@@ -80,9 +80,12 @@ public final class ZstdNativeInputStream
         this.resources = new ZstdNativeResources(this);
 
         this.inputBuffer = new byte[DECOMPRESS_STREAM_INPUT_SIZE];
-        this.inputSegment = MemorySegment.ofArray(inputBuffer);
 
         try {
+            this.inputSegment = resources.arena().allocate(inputBuffer.length);
+            this.outputSegment = resources.arena().allocate(Constants.MAX_BLOCK_SIZE);
+            this.sourcePositionSegment = resources.arena().allocate(JAVA_LONG);
+            this.destinationPositionSegment = resources.arena().allocate(JAVA_LONG);
             MemorySegment stream = createDecompressStream();
             if (stream.equals(MemorySegment.NULL)) {
                 throw new IllegalStateException("Failed to create zstd decompression stream");
@@ -172,73 +175,71 @@ public final class ZstdNativeInputStream
     private int readDirect(byte[] output, int outputOffset, int outputLength)
             throws IOException
     {
-
-        MemorySegment outputSegment = MemorySegment.ofArray(output);
-
-        int totalRead = 0;
-        while (totalRead < outputLength) {
-            // Only read the source when libzstd has nothing left to give; return decoded data
-            // first, so a source that blocks or fails does not hold back bytes already produced
-            if (inputPosition >= inputLimit && !outputPending) {
-                if (totalRead > 0) {
-                    return totalRead;
-                }
-                if (!readInput()) {
-                    if (!frameComplete) {
-                        failed = true;
-                        throw new IOException("Truncated zstd stream");
+        try {
+            int totalRead = 0;
+            while (totalRead < outputLength) {
+                // Only read the source when libzstd has nothing left to give; return decoded data
+                // first, so a source that blocks or fails does not hold back bytes already produced
+                if (inputPosition >= inputLimit && !outputPending) {
+                    if (totalRead > 0) {
+                        return totalRead;
                     }
-                    return -1;
+                    if (!readInput()) {
+                        if (!frameComplete) {
+                            failed = true;
+                            throw new IOException("Truncated zstd stream");
+                        }
+                        return -1;
+                    }
+                }
+
+                int inputPositionBefore = inputPosition;
+                int outputAvailable = Math.min(outputLength - totalRead, (int) outputSegment.byteSize());
+                sourcePositionSegment.set(JAVA_LONG, 0, inputPosition);
+                destinationPositionSegment.set(JAVA_LONG, 0, 0);
+
+                long result;
+                try {
+                    result = decompressStreamSimpleArgs(
+                            decompressStream,
+                            outputSegment,
+                            outputAvailable,
+                            destinationPositionSegment,
+                            inputSegment,
+                            inputLimit,
+                            sourcePositionSegment);
+                }
+                catch (IllegalArgumentException e) {
+                    // libzstd reports a failure that is not caused by the input, such as an allocation failure, as an argument error
+                    failed = true;
+                    throw new IOException(e.getMessage(), e);
+                }
+                catch (RuntimeException e) {
+                    failed = true;
+                    throw e;
+                }
+
+                inputPosition = (int) sourcePositionSegment.get(JAVA_LONG, 0);
+                int outputWritten = (int) destinationPositionSegment.get(JAVA_LONG, 0);
+                MemorySegment.copy(outputSegment, JAVA_BYTE, 0, output, outputOffset + totalRead, outputWritten);
+                totalRead += outputWritten;
+
+                // result == 0 means the frame is complete and fully flushed
+                frameComplete = result == 0;
+                outputPending = !frameComplete && outputWritten == outputAvailable;
+                if (!frameComplete && outputWritten == 0 && inputPosition == inputPositionBefore && inputPosition < inputLimit) {
+                    // libzstd neither consumed input nor produced output, so looping would never end
+                    failed = true;
+                    throw new IOException("Decompression made no progress");
                 }
             }
 
-            int inputPositionBefore = inputPosition;
-            int outputAvailable = outputLength - totalRead;
-            // libzstd continues from the output position, so the whole array is passed rather than a slice of it
-            int outputStart = outputOffset + totalRead;
-            sourcePosition[0] = inputPosition;
-            destinationPosition[0] = outputStart;
-
-            long result;
-            try {
-                result = decompressStreamSimpleArgs(
-                        decompressStream,
-                        outputSegment,
-                        outputOffset + outputLength,
-                        destinationPositionSegment,
-                        inputSegment,
-                        inputLimit,
-                        sourcePositionSegment);
-            }
-            catch (IllegalArgumentException e) {
-                // libzstd reports a failure that is not caused by the input, such as an allocation failure, as an argument error
-                failed = true;
-                throw new IOException(e.getMessage(), e);
-            }
-            catch (RuntimeException e) {
-                failed = true;
-                throw e;
-            }
-            finally {
-                // the segments passed to libzstd do not keep this stream reachable, so the cleaner could free them mid-call
-                reachabilityFence(this);
-            }
-
-            inputPosition = (int) sourcePosition[0];
-            int outputWritten = (int) destinationPosition[0] - outputStart;
-            totalRead += outputWritten;
-
-            // result == 0 means the frame is complete and fully flushed
-            frameComplete = result == 0;
-            outputPending = !frameComplete && outputWritten == outputAvailable;
-            if (!frameComplete && outputWritten == 0 && inputPosition == inputPositionBefore && inputPosition < inputLimit) {
-                // libzstd neither consumed input nor produced output, so looping would never end
-                failed = true;
-                throw new IOException("Decompression made no progress");
-            }
+            return totalRead;
         }
-
-        return totalRead;
+        finally {
+            // The cleaner owns both the native buffers and the streaming context.
+            reachabilityFence(this);
+        }
     }
 
     private boolean readInput()
@@ -252,6 +253,7 @@ public final class ZstdNativeInputStream
             endOfStream = true;
             return false;
         }
+        MemorySegment.copy(inputBuffer, 0, inputSegment, JAVA_BYTE, 0, bytesRead);
         inputPosition = 0;
         inputLimit = bytesRead;
         return true;

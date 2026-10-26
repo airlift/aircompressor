@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.snappy;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -27,6 +28,9 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class SnappyNative
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 64 * 1024;
+    private static final long MAX_CRITICAL_COMPRESSED_SIZE;
+
     private final MemorySegment lengthBuffer = MemorySegment.ofArray(new long[1]);
 
     public static long maxCompressedLength(long inputLength)
@@ -36,16 +40,40 @@ final class SnappyNative
 
     public long compress(MemorySegment input, long inputLength, MemorySegment compressed, long compressedLength)
     {
-        lengthBuffer.set(JAVA_LONG, 0, compressedLength);
-        compressInternal(input, inputLength, compressed, lengthBuffer);
-        return lengthBuffer.get(JAVA_LONG, 0);
+        if (inputLength <= MAX_CRITICAL_INPUT_SIZE) {
+            lengthBuffer.set(JAVA_LONG, 0, Math.min(compressedLength, maxCompressedLength(inputLength)));
+            compressInternal(input, inputLength, compressed, lengthBuffer, true);
+            return lengthBuffer.get(JAVA_LONG, 0);
+        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(compressed, Math.min(compressedLength, maxCompressedLength(inputLength)));
+            lengthBuffer.set(JAVA_LONG, 0, nativeOutput.byteSize());
+            MemorySegment nativeLength = buffers.input(lengthBuffer, Long.BYTES);
+            compressInternal(nativeInput, inputLength, nativeOutput, nativeLength, false);
+            long written = nativeLength.get(JAVA_LONG, 0);
+            NativeBuffers.copyOutput(nativeOutput, compressed, written);
+            return written;
+        }
     }
 
     public long decompress(MemorySegment compressed, long compressedLength, MemorySegment uncompressed, long uncompressedLength)
     {
-        lengthBuffer.set(JAVA_LONG, 0, uncompressedLength);
-        decompressInternal(compressed, compressedLength, uncompressed, lengthBuffer);
-        return lengthBuffer.get(JAVA_LONG, 0);
+        if (compressedLength <= MAX_CRITICAL_COMPRESSED_SIZE && uncompressedLength <= MAX_CRITICAL_INPUT_SIZE) {
+            lengthBuffer.set(JAVA_LONG, 0, uncompressedLength);
+            decompressInternal(compressed, compressedLength, uncompressed, lengthBuffer, true);
+            return lengthBuffer.get(JAVA_LONG, 0);
+        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(compressed, compressedLength);
+            MemorySegment nativeOutput = buffers.output(uncompressed, uncompressedLength);
+            lengthBuffer.set(JAVA_LONG, 0, uncompressedLength);
+            MemorySegment nativeLength = buffers.input(lengthBuffer, Long.BYTES);
+            decompressInternal(nativeInput, compressedLength, nativeOutput, nativeLength, false);
+            long written = nativeLength.get(JAVA_LONG, 0);
+            NativeBuffers.copyOutput(nativeOutput, uncompressed, written);
+            return written;
+        }
     }
 
     public long decompressedLength(MemorySegment compressed, long compressedLength)
@@ -65,18 +93,24 @@ final class SnappyNative
     private static final int SNAPPY_BUFFER_TOO_SMALL = 2;
 
     private record MethodHandles(
+            @NativeSignature(critical = true, name = "snappy_compress", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class})
+            MethodHandle compressCritical,
             @NativeSignature(name = "snappy_compress", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class})
             MethodHandle compress,
+            @NativeSignature(critical = true, name = "snappy_uncompress", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class})
+            MethodHandle uncompressCritical,
             @NativeSignature(name = "snappy_uncompress", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class, MemorySegment.class})
             MethodHandle uncompress,
             @NativeSignature(name = "snappy_max_compressed_length", returnType = long.class, argumentTypes = long.class)
             MethodHandle maxCompressedLength,
-            @NativeSignature(name = "snappy_uncompressed_length", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class})
+            @NativeSignature(critical = true, name = "snappy_uncompressed_length", returnType = int.class, argumentTypes = {MemorySegment.class, long.class, MemorySegment.class})
             MethodHandle uncompressedLength) {}
 
     private static final Optional<LinkageError> LINKAGE_ERROR;
     private static final MethodHandle COMPRESS_METHOD;
+    private static final MethodHandle COMPRESS_CRITICAL_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
+    private static final MethodHandle DECOMPRESS_CRITICAL_METHOD;
     private static final MethodHandle MAX_COMPRESSED_LENGTH_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
 
@@ -85,9 +119,12 @@ final class SnappyNative
         LINKAGE_ERROR = symbols.linkageError();
         MethodHandles methodHandles = symbols.symbols();
         COMPRESS_METHOD = methodHandles.compress();
+        COMPRESS_CRITICAL_METHOD = methodHandles.compressCritical();
         DECOMPRESS_METHOD = methodHandles.uncompress();
+        DECOMPRESS_CRITICAL_METHOD = methodHandles.uncompressCritical();
         MAX_COMPRESSED_LENGTH_METHOD = methodHandles.maxCompressedLength();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
+        MAX_CRITICAL_COMPRESSED_SIZE = LINKAGE_ERROR.isEmpty() ? maxCompressedLength(MAX_CRITICAL_INPUT_SIZE) : -1;
     }
 
     public static boolean isEnabled()
@@ -102,11 +139,16 @@ final class SnappyNative
         }
     }
 
-    private static void compressInternal(MemorySegment input, long inputLength, MemorySegment compressed, MemorySegment compressedLength)
+    private static void compressInternal(MemorySegment input, long inputLength, MemorySegment compressed, MemorySegment compressedLength, boolean critical)
     {
         int result;
         try {
-            result = (int) COMPRESS_METHOD.invokeExact(input, inputLength, compressed, compressedLength);
+            if (critical) {
+                result = (int) COMPRESS_CRITICAL_METHOD.invokeExact(input, inputLength, compressed, compressedLength);
+            }
+            else {
+                result = (int) COMPRESS_METHOD.invokeExact(input, inputLength, compressed, compressedLength);
+            }
         }
         catch (Throwable t) {
             throw new AssertionError("should not reach here", t);
@@ -119,11 +161,16 @@ final class SnappyNative
         }
     }
 
-    private static void decompressInternal(MemorySegment compressed, long compressedLength, MemorySegment output, MemorySegment outputLength)
+    private static void decompressInternal(MemorySegment compressed, long compressedLength, MemorySegment output, MemorySegment outputLength, boolean critical)
     {
         int result;
         try {
-            result = (int) DECOMPRESS_METHOD.invokeExact(compressed, compressedLength, output, outputLength);
+            if (critical) {
+                result = (int) DECOMPRESS_CRITICAL_METHOD.invokeExact(compressed, compressedLength, output, outputLength);
+            }
+            else {
+                result = (int) DECOMPRESS_METHOD.invokeExact(compressed, compressedLength, output, outputLength);
+            }
         }
         catch (Throwable t) {
             throw new AssertionError("should not reach here", t);

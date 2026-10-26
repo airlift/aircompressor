@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.xxhash;
 
+import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
@@ -29,6 +30,8 @@ final class XxHash64Bindings
 
     private record MethodHandles(
             // One-shot hash
+            @NativeSignature(critical = true, name = "XXH64", returnType = long.class, argumentTypes = {MemorySegment.class, long.class, long.class})
+            MethodHandle hashCritical,
             @NativeSignature(name = "XXH64", returnType = long.class, argumentTypes = {MemorySegment.class, long.class, long.class})
             MethodHandle hash,
             // State management
@@ -39,6 +42,8 @@ final class XxHash64Bindings
             // Streaming
             @NativeSignature(name = "XXH64_reset", returnType = int.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle reset,
+            @NativeSignature(critical = true, name = "XXH64_update", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class})
+            MethodHandle updateCritical,
             @NativeSignature(name = "XXH64_update", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class})
             MethodHandle update,
             @NativeSignature(name = "XXH64_digest", returnType = long.class, argumentTypes = MemorySegment.class)
@@ -47,10 +52,12 @@ final class XxHash64Bindings
     private static final Optional<LinkageError> LINKAGE_ERROR;
 
     private static final MethodHandle HASH_METHOD;
+    private static final MethodHandle HASH_CRITICAL_METHOD;
     private static final MethodHandle CREATE_STATE_METHOD;
     private static final MethodHandle FREE_STATE_METHOD;
     private static final MethodHandle RESET_METHOD;
     private static final MethodHandle UPDATE_METHOD;
+    private static final MethodHandle UPDATE_CRITICAL_METHOD;
     private static final MethodHandle DIGEST_METHOD;
 
     static {
@@ -59,10 +66,12 @@ final class XxHash64Bindings
         MethodHandles methodHandles = symbols.symbols();
 
         HASH_METHOD = methodHandles.hash();
+        HASH_CRITICAL_METHOD = methodHandles.hashCritical();
         CREATE_STATE_METHOD = methodHandles.createState();
         FREE_STATE_METHOD = methodHandles.freeState();
         RESET_METHOD = methodHandles.reset();
         UPDATE_METHOD = methodHandles.update();
+        UPDATE_CRITICAL_METHOD = methodHandles.updateCritical();
         DIGEST_METHOD = methodHandles.digest();
     }
 
@@ -81,7 +90,12 @@ final class XxHash64Bindings
     public static long hash(MemorySegment input, long length, long seed)
     {
         try {
-            return (long) HASH_METHOD.invokeExact(input, length, seed);
+            if (length <= 8192) {
+                return (long) HASH_CRITICAL_METHOD.invokeExact(input, length, seed);
+            }
+            try (NativeBuffers buffers = new NativeBuffers()) {
+                return (long) HASH_METHOD.invokeExact(buffers.input(input, length), length, seed);
+            }
         }
         catch (Throwable e) {
             throw new AssertionError("should not reach here", e);
@@ -127,7 +141,15 @@ final class XxHash64Bindings
     public static void update(MemorySegment state, MemorySegment input, long length)
     {
         try {
-            int result = (int) UPDATE_METHOD.invokeExact(state, input, length);
+            int result;
+            if (length <= 8192) {
+                result = (int) UPDATE_CRITICAL_METHOD.invokeExact(state, input, length);
+            }
+            else {
+                try (NativeBuffers buffers = new NativeBuffers()) {
+                    result = (int) UPDATE_METHOD.invokeExact(state, buffers.input(input, length), length);
+                }
+            }
             if (result != 0) {
                 throw new IllegalStateException("XXH64_update failed: " + result);
             }

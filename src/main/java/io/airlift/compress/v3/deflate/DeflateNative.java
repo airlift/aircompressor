@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.deflate;
 
+import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -126,21 +127,26 @@ final class DeflateNative
 
     public static long compress(MemorySegment compressor, MemorySegment input, long inputLength, MemorySegment output, long outputLength)
     {
-        long result;
-        try {
-            result = (long) COMPRESS_METHOD.invokeExact(compressor, input, inputLength, output, outputLength);
-        }
-        catch (Error e) {
-            throw e;
-        }
-        catch (Throwable e) {
-            throw new Error("Unexpected exception", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(output, Math.min(outputLength, compressBound(compressor, inputLength)));
+            long result;
+            try {
+                result = (long) COMPRESS_METHOD.invokeExact(compressor, nativeInput, inputLength, nativeOutput, nativeOutput.byteSize());
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        if (result == 0) {
-            throw new IllegalArgumentException("Output buffer too small");
+            if (result == 0) {
+                throw new IllegalArgumentException("Output buffer too small");
+            }
+            NativeBuffers.copyOutput(nativeOutput, output, result);
+            return result;
         }
-        return result;
     }
 
     public static MemorySegment allocDecompressor()
@@ -175,14 +181,25 @@ final class DeflateNative
 
     public static int decompress(MemorySegment decompressor, MemorySegment input, long inputLength, MemorySegment output, long outputLength, MemorySegment actualOutputLength)
     {
-        try {
-            return (int) DECOMPRESS_METHOD.invokeExact(decompressor, input, inputLength, output, outputLength, actualOutputLength);
-        }
-        catch (Error e) {
-            throw e;
-        }
-        catch (Throwable e) {
-            throw new Error("Unexpected exception", e);
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(output, outputLength);
+            MemorySegment nativeOutputLength = buffers.input(actualOutputLength, Long.BYTES);
+            int result;
+            try {
+                result = (int) DECOMPRESS_METHOD.invokeExact(decompressor, nativeInput, inputLength, nativeOutput, outputLength, nativeOutputLength);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
+            if (result == LIBDEFLATE_SUCCESS) {
+                NativeBuffers.copyOutput(nativeOutput, output, nativeOutputLength.get(java.lang.foreign.ValueLayout.JAVA_LONG, 0));
+                NativeBuffers.copyOutput(nativeOutputLength, actualOutputLength, Long.BYTES);
+            }
+            return result;
         }
     }
 }

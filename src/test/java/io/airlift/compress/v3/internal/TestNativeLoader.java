@@ -16,6 +16,8 @@ package io.airlift.compress.v3.internal;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import org.junit.jupiter.api.Test;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 
@@ -25,6 +27,28 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestNativeLoader
 {
+    @Test
+    void testCriticalCallsRequireExplicitOptIn()
+            throws Throwable
+    {
+        Symbols<HeaderMethodHandles> handles = NativeLoader.loadSymbols("zstd", HeaderMethodHandles.class, lookup());
+        assertThat(handles.linkageError()).isEmpty();
+        MemorySegment heap = MemorySegment.ofArray(new byte[1]);
+        assertThatThrownBy(() -> handles.symbols().regular().invoke(heap, 0L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Heap segment");
+        assertThat((long) handles.symbols().critical().invokeExact(heap, 0L)).isEqualTo(-2L);
+        try (Arena arena = Arena.ofConfined()) {
+            assertThat((long) handles.symbols().regular().invokeExact(arena.allocate(1), 0L)).isEqualTo(-2L);
+        }
+    }
+
+    private record HeaderMethodHandles(
+            @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
+            MethodHandle regular,
+            @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class}, critical = true)
+            MethodHandle critical) {}
+
     @Test
     void testUnknownLibrary()
     {

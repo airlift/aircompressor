@@ -28,15 +28,17 @@ import static io.airlift.compress.v3.zstd.ZstdNative.compressStream2SimpleArgs;
 import static io.airlift.compress.v3.zstd.ZstdNative.createCompressStream;
 import static io.airlift.compress.v3.zstd.ZstdNative.initCompressStream;
 import static io.airlift.compress.v3.zstd.ZstdNative.setCompressStreamParameter;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.lang.ref.Reference.reachabilityFence;
 import static java.util.Objects.requireNonNull;
 
 /**
  * An {@link OutputStream} that compresses data using the native zstd library.
  * <p>
- * This native wrapper buffers small writes to amortize calls into native code, and passes large
- * writes directly to libzstd. Compressed data is written to the underlying {@link OutputStream}
- * from a buffer sized by libzstd's recommendation.
+ * This native wrapper buffers small writes to amortize calls into native code. Reusable native
+ * buffers allow compression to run without delaying JVM safepoints. Compressed data is written to
+ * the underlying {@link OutputStream} from a buffer sized by libzstd's recommendation.
  * <p>
  * Native memory is used for the zstd streaming context. A {@link java.lang.ref.Cleaner} is
  * registered as a safety net to free native resources if {@link #close()} is not called.
@@ -47,7 +49,7 @@ import static java.util.Objects.requireNonNull;
 public final class ZstdNativeOutputStream
         extends ZstdOutputStreamBase
 {
-    private static final MemorySegment EMPTY_INPUT = MemorySegment.ofArray(new byte[0]);
+    private static final MemorySegment EMPTY_INPUT = MemorySegment.NULL;
 
     private final OutputStream outputStream;
     private final ZstdNativeResources resources;
@@ -56,12 +58,10 @@ public final class ZstdNativeOutputStream
 
     private final byte[] outputBuffer;
     private final MemorySegment outputSegment;
+    private final MemorySegment inputSegment;
 
-    // Position pointers as heap arrays - reused across calls
-    private final long[] sourcePosition = new long[1];
-    private final long[] destinationPosition = new long[1];
-    private final MemorySegment sourcePositionSegment = MemorySegment.ofArray(sourcePosition);
-    private final MemorySegment destinationPositionSegment = MemorySegment.ofArray(destinationPosition);
+    private final MemorySegment sourcePositionSegment;
+    private final MemorySegment destinationPositionSegment;
 
     private final byte[] inputBuffer = new byte[8192];
     private int bufferedInputSize;
@@ -87,9 +87,12 @@ public final class ZstdNativeOutputStream
         this.resources = new ZstdNativeResources(this);
 
         this.outputBuffer = new byte[COMPRESS_STREAM_OUTPUT_SIZE];
-        this.outputSegment = MemorySegment.ofArray(outputBuffer);
 
         try {
+            this.inputSegment = resources.arena().allocate(Constants.MAX_BLOCK_SIZE);
+            this.outputSegment = resources.arena().allocate(outputBuffer.length);
+            this.sourcePositionSegment = resources.arena().allocate(JAVA_LONG);
+            this.destinationPositionSegment = resources.arena().allocate(JAVA_LONG);
             MemorySegment stream = createCompressStream();
             if (stream.equals(MemorySegment.NULL)) {
                 throw new IOException("Failed to create zstd compression stream");
@@ -185,28 +188,37 @@ public final class ZstdNativeOutputStream
     private void writeDirect(byte[] buffer, int offset, int length)
             throws IOException
     {
-
-        MemorySegment inputSegment = MemorySegment.ofArray(buffer);
-        int inputPosition = offset;
-        int inputLimit = offset + length;
         try {
-            while (inputPosition < inputLimit) {
-                sourcePosition[0] = inputPosition;
-                destinationPosition[0] = 0;
-
-                compress(inputSegment, inputLimit, ZSTD_E_CONTINUE);
-
-                inputPosition = (int) sourcePosition[0];
-
-                int outputWritten = (int) destinationPosition[0];
-                if (outputWritten > 0) {
-                    outputStream.write(outputBuffer, 0, outputWritten);
+            while (length > 0) {
+                int chunkSize = Math.min(length, (int) inputSegment.byteSize());
+                MemorySegment.copy(buffer, offset, inputSegment, JAVA_BYTE, 0, chunkSize);
+                sourcePositionSegment.set(JAVA_LONG, 0, 0);
+                while (sourcePositionSegment.get(JAVA_LONG, 0) < chunkSize) {
+                    destinationPositionSegment.set(JAVA_LONG, 0, 0);
+                    compress(inputSegment, chunkSize, ZSTD_E_CONTINUE);
+                    writeCompressedOutput();
                 }
+                offset += chunkSize;
+                length -= chunkSize;
             }
         }
         catch (IOException | RuntimeException e) {
             fail(e);
             throw e;
+        }
+        finally {
+            // The cleaner owns both the native buffers and the streaming context.
+            reachabilityFence(this);
+        }
+    }
+
+    private void writeCompressedOutput()
+            throws IOException
+    {
+        int outputWritten = (int) destinationPositionSegment.get(JAVA_LONG, 0);
+        if (outputWritten > 0) {
+            MemorySegment.copy(outputSegment, JAVA_BYTE, 0, outputBuffer, 0, outputWritten);
+            outputStream.write(outputBuffer, 0, outputWritten);
         }
     }
 
@@ -252,28 +264,27 @@ public final class ZstdNativeOutputStream
         catch (IllegalArgumentException e) {
             throw new IOException(e.getMessage(), e);
         }
-        finally {
-            // the segments passed to libzstd do not keep this stream reachable, so the cleaner could free them mid-call
-            reachabilityFence(this);
-        }
     }
 
     private void flushInternal(int endOp)
             throws IOException
     {
-        long remaining;
-        do {
-            sourcePosition[0] = 0;
-            destinationPosition[0] = 0;
+        try {
+            long remaining;
+            do {
+                sourcePositionSegment.set(JAVA_LONG, 0, 0);
+                destinationPositionSegment.set(JAVA_LONG, 0, 0);
 
-            remaining = compress(EMPTY_INPUT, 0, endOp);
+                remaining = compress(EMPTY_INPUT, 0, endOp);
 
-            int outputWritten = (int) destinationPosition[0];
-            if (outputWritten > 0) {
-                outputStream.write(outputBuffer, 0, outputWritten);
+                writeCompressedOutput();
             }
+            while (remaining > 0);
         }
-        while (remaining > 0);
+        finally {
+            // The cleaner owns both the native buffers and the streaming context.
+            reachabilityFence(this);
+        }
     }
 
     @Override
@@ -302,7 +313,12 @@ public final class ZstdNativeOutputStream
             throw e;
         }
         finally {
-            resources.clean();
+            try {
+                resources.clean();
+            }
+            finally {
+                reachabilityFence(this);
+            }
         }
     }
 

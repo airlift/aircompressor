@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -26,15 +27,24 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class Lz4Native
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 64 * 1024;
+    private static final int MAX_CRITICAL_COMPRESSED_SIZE;
+
     private Lz4Native() {}
 
     private record MethodHandles(
             @NativeSignature(name = "LZ4_compressBound", returnType = int.class, argumentTypes = int.class)
             MethodHandle maxCompressedLength,
+            @NativeSignature(critical = true, name = "LZ4_compress_fast", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, int.class, int.class, int.class})
+            MethodHandle compressCritical,
             @NativeSignature(name = "LZ4_compress_fast", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, int.class, int.class, int.class})
             MethodHandle compress,
+            @NativeSignature(critical = true, name = "LZ4_compress_fast_extState", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, MemorySegment.class, int.class, int.class, int.class})
+            MethodHandle compressExternalStateCritical,
             @NativeSignature(name = "LZ4_compress_fast_extState", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, MemorySegment.class, int.class, int.class, int.class})
             MethodHandle compressExternalState,
+            @NativeSignature(critical = true, name = "LZ4_decompress_safe", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, int.class, int.class})
+            MethodHandle decompressCritical,
             @NativeSignature(name = "LZ4_decompress_safe", returnType = int.class, argumentTypes = {MemorySegment.class, MemorySegment.class, int.class, int.class})
             MethodHandle decompress,
             @NativeSignature(name = "LZ4_sizeofState", returnType = int.class, argumentTypes = {})
@@ -43,8 +53,11 @@ final class Lz4Native
     private static final Optional<LinkageError> LINKAGE_ERROR;
     private static final MethodHandle MAX_COMPRESSED_LENGTH_METHOD;
     private static final MethodHandle COMPRESS_METHOD;
+    private static final MethodHandle COMPRESS_CRITICAL_METHOD;
     private static final MethodHandle COMPRESS_EXTERNAL_STATE_METHOD;
+    private static final MethodHandle COMPRESS_EXTERNAL_STATE_CRITICAL_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
+    private static final MethodHandle DECOMPRESS_CRITICAL_METHOD;
 
     // Defined in lz4.h: https://github.com/lz4/lz4/blob/v1.9.4/lib/lz4.c#L51
     public static final int DEFAULT_ACCELERATION = 1;
@@ -57,12 +70,16 @@ final class Lz4Native
         MethodHandles methodHandles = symbols.symbols();
         MAX_COMPRESSED_LENGTH_METHOD = methodHandles.maxCompressedLength();
         COMPRESS_METHOD = methodHandles.compress();
+        COMPRESS_CRITICAL_METHOD = methodHandles.compressCritical();
         COMPRESS_EXTERNAL_STATE_METHOD = methodHandles.compressExternalState();
+        COMPRESS_EXTERNAL_STATE_CRITICAL_METHOD = methodHandles.compressExternalStateCritical();
         DECOMPRESS_METHOD = methodHandles.decompress();
+        DECOMPRESS_CRITICAL_METHOD = methodHandles.decompressCritical();
 
         if (LINKAGE_ERROR.isEmpty()) {
             try {
                 STATE_SIZE = (int) methodHandles.sizeofState().invokeExact();
+                MAX_CRITICAL_COMPRESSED_SIZE = (int) MAX_COMPRESSED_LENGTH_METHOD.invokeExact(MAX_CRITICAL_INPUT_SIZE);
             }
             catch (Throwable e) {
                 throw new ExceptionInInitializerError(e);
@@ -70,6 +87,7 @@ final class Lz4Native
         }
         else {
             STATE_SIZE = -1;
+            MAX_CRITICAL_COMPRESSED_SIZE = -1;
         }
     }
 
@@ -97,52 +115,117 @@ final class Lz4Native
 
     public static int compress(MemorySegment input, int inputLength, MemorySegment compressed, int compressedLength, int acceleration)
     {
-        int result;
-        try {
-            result = (int) COMPRESS_METHOD.invokeExact(input, compressed, inputLength, compressedLength, acceleration);
+        if (inputLength <= MAX_CRITICAL_INPUT_SIZE) {
+            int outputLimit = Math.min(compressedLength, maxCompressedLength(inputLength));
+            int result;
+            try {
+                result = (int) COMPRESS_CRITICAL_METHOD.invokeExact(input, compressed, inputLength, outputLimit, acceleration);
+            }
+            catch (Throwable e) {
+                throw new AssertionError("should not reach here", e);
+            }
+            if (result <= 0) {
+                throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            }
+            return result;
         }
-        catch (Throwable e) {
-            throw new AssertionError("should not reach here", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(compressed, Math.min(compressedLength, maxCompressedLength(inputLength)));
+            int result;
+            try {
+                result = (int) COMPRESS_METHOD.invokeExact(nativeInput, nativeOutput, inputLength, (int) nativeOutput.byteSize(), acceleration);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        // LZ4_compress_default returns 0 on error, but disallow negative values also
-        if (result <= 0) {
-            throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            // A nonpositive return indicates compression failure.
+            if (result <= 0) {
+                throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            }
+            NativeBuffers.copyOutput(nativeOutput, compressed, result);
+            return result;
         }
-        return result;
     }
 
     public static int compress(MemorySegment input, int inputLength, MemorySegment compressed, int compressedLength, int acceleration, MemorySegment state)
     {
-        int result;
-        try {
-            result = (int) COMPRESS_EXTERNAL_STATE_METHOD.invokeExact(state, input, compressed, inputLength, compressedLength, acceleration);
+        if (inputLength <= MAX_CRITICAL_INPUT_SIZE) {
+            int outputLimit = Math.min(compressedLength, maxCompressedLength(inputLength));
+            int result;
+            try {
+                result = (int) COMPRESS_EXTERNAL_STATE_CRITICAL_METHOD.invokeExact(state, input, compressed, inputLength, outputLimit, acceleration);
+            }
+            catch (Throwable e) {
+                throw new AssertionError("should not reach here", e);
+            }
+            if (result <= 0) {
+                throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            }
+            return result;
         }
-        catch (Throwable e) {
-            throw new AssertionError("should not reach here", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(compressed, Math.min(compressedLength, maxCompressedLength(inputLength)));
+            int result;
+            try {
+                result = (int) COMPRESS_EXTERNAL_STATE_METHOD.invokeExact(state, nativeInput, nativeOutput, inputLength, (int) nativeOutput.byteSize(), acceleration);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        // LZ4_compress_default returns 0 on error, but disallow negative values also
-        if (result <= 0) {
-            throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            // A nonpositive return indicates compression failure.
+            if (result <= 0) {
+                throw new IllegalArgumentException("Unknown error occurred during compression: result=" + result);
+            }
+            NativeBuffers.copyOutput(nativeOutput, compressed, result);
+            return result;
         }
-        return result;
     }
 
     public static int decompress(MemorySegment compressed, int compressedLength, MemorySegment output, int outputLength)
     {
-        int result;
-        try {
-            result = (int) DECOMPRESS_METHOD.invokeExact(compressed, output, compressedLength, outputLength);
+        if (compressedLength <= MAX_CRITICAL_COMPRESSED_SIZE && outputLength <= MAX_CRITICAL_INPUT_SIZE) {
+            int result;
+            try {
+                result = (int) DECOMPRESS_CRITICAL_METHOD.invokeExact(compressed, output, compressedLength, outputLength);
+            }
+            catch (Throwable e) {
+                throw new AssertionError("should not reach here", e);
+            }
+            if (result < 0) {
+                throw new MalformedInputException(0);
+            }
+            return result;
         }
-        catch (Throwable e) {
-            throw new AssertionError("should not reach here", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(compressed, compressedLength);
+            MemorySegment nativeOutput = buffers.output(output, outputLength);
+            int result;
+            try {
+                result = (int) DECOMPRESS_METHOD.invokeExact(nativeInput, nativeOutput, compressedLength, outputLength);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        // negative return values indicate malformed input, which includes content that does not fit in the output buffer
-        if (result < 0) {
-            throw new MalformedInputException(0);
+            // A negative return indicates malformed input or insufficient output capacity.
+            if (result < 0) {
+                throw new MalformedInputException(0);
+            }
+            NativeBuffers.copyOutput(nativeOutput, output, result);
+            return result;
         }
-        return result;
     }
 }
