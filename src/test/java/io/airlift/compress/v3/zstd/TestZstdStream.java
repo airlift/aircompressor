@@ -17,6 +17,7 @@ import com.google.common.io.Resources;
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
 import io.airlift.compress.v3.MalformedInputException;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
@@ -56,6 +57,7 @@ class TestZstdStream
     }
 
     @Override
+    @Test
     public void testInvalidSequenceOffset()
             throws IOException
     {
@@ -68,6 +70,7 @@ class TestZstdStream
     }
 
     @Override
+    @Test
     public void testGetDecompressedSize()
     {
         // streaming does not publish the size
