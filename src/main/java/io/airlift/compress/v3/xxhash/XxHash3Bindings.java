@@ -36,6 +36,8 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class XxHash3Bindings
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 8 * 1024;
+
     private static final VarHandle LONG_HANDLE = java.lang.invoke.MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
 
     // Reusable per-thread scratch for 16-byte struct returns, so hash128/digest128 avoid allocating
@@ -221,7 +223,7 @@ final class XxHash3Bindings
     public static long hash64(MemorySegment input, long length)
     {
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (long) HASH64_CRITICAL_METHOD.invokeExact(input, length);
             }
             try (NativeBuffers buffers = new NativeBuffers()) {
@@ -236,7 +238,7 @@ final class XxHash3Bindings
     public static long hash64(MemorySegment input, long length, long seed)
     {
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (long) HASH64_WITH_SEED_CRITICAL_METHOD.invokeExact(input, length, seed);
             }
             try (NativeBuffers buffers = new NativeBuffers()) {
@@ -251,7 +253,7 @@ final class XxHash3Bindings
     public static XxHash128 hash128(MemorySegment input, long length)
     {
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 Struct128 scratch = STRUCT_128.get();
                 MemorySegment _ = (MemorySegment) HASH128_METHOD.invokeExact(scratch.allocator(), input, length);
                 byte[] bytes = scratch.bytes();
@@ -271,7 +273,7 @@ final class XxHash3Bindings
     public static XxHash128 hash128(MemorySegment input, long length, long seed)
     {
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 Struct128 scratch = STRUCT_128.get();
                 MemorySegment _ = (MemorySegment) HASH128_WITH_SEED_METHOD.invokeExact(scratch.allocator(), input, length, seed);
                 byte[] bytes = scratch.bytes();
@@ -345,12 +347,21 @@ final class XxHash3Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE64_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE64_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE64_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE64_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {
@@ -404,12 +415,21 @@ final class XxHash3Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE128_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE128_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE128_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE128_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {

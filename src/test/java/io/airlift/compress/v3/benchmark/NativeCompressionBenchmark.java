@@ -56,6 +56,9 @@ public class NativeCompressionBenchmark
     @Param({"false", "true"})
     private boolean nativeBuffers;
 
+    @Param({"random", "repeated", "limitedAlphabet"})
+    private String dataKind;
+
     private Compressor compressor;
     private Decompressor decompressor;
     private byte[] input;
@@ -85,6 +88,16 @@ public class NativeCompressionBenchmark
         };
         input = new byte[blockSize];
         new Random(42).nextBytes(input);
+        switch (dataKind) {
+            case "random" -> {}
+            case "repeated" -> Arrays.fill(input, (byte) 0);
+            case "limitedAlphabet" -> {
+                for (int i = 0; i < input.length; i++) {
+                    input[i] &= 3;
+                }
+            }
+            default -> throw new IllegalArgumentException(dataKind);
+        }
         compressTarget = new byte[compressor.maxCompressedLength(blockSize)];
         int compressedSize = compressor.compress(input, 0, input.length, compressTarget, 0, compressTarget.length);
         compressed = Arrays.copyOf(compressTarget, compressedSize);
