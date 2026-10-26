@@ -61,10 +61,6 @@ public final class ZstdNativeInputStream
 
     private final byte[] oneByte = new byte[1];
 
-    // the heap segment wrapping the array of the last read, reused when the same array is read into again
-    private byte[] outputArray;
-    private MemorySegment outputArraySegment;
-
     private boolean closed;
     // the underlying stream has returned end of stream
     private boolean endOfStream;
@@ -143,11 +139,7 @@ public final class ZstdNativeInputStream
             return 0;
         }
 
-        if (output != outputArray) {
-            outputArray = output;
-            outputArraySegment = MemorySegment.ofArray(output);
-        }
-        MemorySegment outputSegment = outputArraySegment;
+        MemorySegment outputSegment = MemorySegment.ofArray(output);
 
         int totalRead = 0;
         while (totalRead < outputLength) {
@@ -256,8 +248,6 @@ public final class ZstdNativeInputStream
     {
         if (!closed) {
             closed = true;
-            outputArray = null;
-            outputArraySegment = null;
             try (inputStream) {
                 resources.clean();
             }

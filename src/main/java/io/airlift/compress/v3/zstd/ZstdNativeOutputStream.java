@@ -66,10 +66,6 @@ public final class ZstdNativeOutputStream
 
     private final byte[] oneByte = new byte[1];
 
-    // the heap segment wrapping the array of the last write, reused when the same array is written again
-    private byte[] inputArray;
-    private MemorySegment inputArraySegment;
-
     // set once a finish is attempted, whether or not it succeeded; the native context is freed and the underlying stream may still be open
     private boolean finished;
     // the first compression, write, flush or finish failure, after which the frame cannot be continued or ended
@@ -150,11 +146,7 @@ public final class ZstdNativeOutputStream
         }
         checkPositionIndexes(offset, offset + length, buffer.length);
 
-        if (buffer != inputArray) {
-            inputArray = buffer;
-            inputArraySegment = MemorySegment.ofArray(buffer);
-        }
-        MemorySegment inputSegment = inputArraySegment;
+        MemorySegment inputSegment = MemorySegment.ofArray(buffer);
         int inputPosition = offset;
         int inputLimit = offset + length;
         try {
@@ -278,8 +270,6 @@ public final class ZstdNativeOutputStream
     {
         if (!closed) {
             closed = true;
-            inputArray = null;
-            inputArraySegment = null;
             // a failure to finish the frame stays primary; a failure to close the destination is suppressed into it
             try (outputStream) {
                 finishWithoutClosingSource();

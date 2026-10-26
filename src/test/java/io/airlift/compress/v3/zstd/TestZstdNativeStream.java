@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.SequenceInputStream;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Math.min;
+import static java.lang.ref.Reference.reachabilityFence;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,6 +43,49 @@ class TestZstdNativeStream
     static boolean isNativeEnabled()
     {
         return ZstdNative.isEnabled();
+    }
+
+    @Test
+    void testCallerBuffersAreNotRetained()
+            throws Exception
+    {
+        try (ZstdNativeOutputStream out = new ZstdNativeOutputStream(OutputStream.nullOutputStream())) {
+            WeakReference<byte[]> input = writeFromLargeArray(out);
+            assertCollected(input);
+            reachabilityFence(out);
+        }
+
+        try (ZstdNativeInputStream in = new ZstdNativeInputStream(new ByteArrayInputStream(compress(new byte[] {1}, 3)))) {
+            WeakReference<byte[]> output = readIntoLargeArray(in);
+            assertCollected(output);
+            reachabilityFence(in);
+        }
+    }
+
+    private static WeakReference<byte[]> writeFromLargeArray(OutputStream out)
+            throws IOException
+    {
+        byte[] input = new byte[1 << 20];
+        out.write(input, 0, 1);
+        return new WeakReference<>(input);
+    }
+
+    private static WeakReference<byte[]> readIntoLargeArray(InputStream in)
+            throws IOException
+    {
+        byte[] output = new byte[1 << 20];
+        assertThat(in.read(output, 0, 1)).isEqualTo(1);
+        return new WeakReference<>(output);
+    }
+
+    private static void assertCollected(WeakReference<byte[]> reference)
+            throws InterruptedException
+    {
+        for (int attempt = 0; attempt < 10 && !reference.refersTo(null); attempt++) {
+            System.gc();
+            Thread.sleep(10);
+        }
+        assertThat(reference.refersTo(null)).isTrue();
     }
 
     @Override
