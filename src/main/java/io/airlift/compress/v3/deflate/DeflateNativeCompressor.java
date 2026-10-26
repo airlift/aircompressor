@@ -13,10 +13,13 @@
  */
 package io.airlift.compress.v3.deflate;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 import java.lang.ref.Cleaner;
 
 import static java.lang.Math.toIntExact;
+import static java.lang.ref.Reference.reachabilityFence;
 
 /**
  * A single compressor is not safe to use by multiple threads concurrently.
@@ -53,7 +56,12 @@ public class DeflateNativeCompressor
     @Override
     public int maxCompressedLength(int uncompressedSize)
     {
-        return toIntExact(DeflateNative.compressBound(compressor, uncompressedSize));
+        try {
+            return toIntExact(DeflateNative.compressBound(compressor, uncompressedSize));
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
@@ -61,13 +69,24 @@ public class DeflateNativeCompressor
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice(inputOffset, inputLength);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return toIntExact(DeflateNative.compress(compressor, inputSegment, inputLength, outputSegment, maxOutputLength));
+        try {
+            return toIntExact(DeflateNative.compress(compressor, inputSegment, inputLength, outputSegment, maxOutputLength));
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
-        return toIntExact(DeflateNative.compress(compressor, input, input.byteSize(), output, output.byteSize()));
+        MemorySegmentAccess.checkWritable(output);
+        try {
+            return toIntExact(DeflateNative.compress(compressor, input, input.byteSize(), output, output.byteSize()));
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     private record CompressorCleaner(MemorySegment compressor)

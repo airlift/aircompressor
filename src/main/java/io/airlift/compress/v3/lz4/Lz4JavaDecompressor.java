@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.lz4;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 
@@ -35,9 +36,9 @@ public final class Lz4JavaDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
         return Lz4RawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
@@ -47,21 +48,22 @@ public final class Lz4JavaDecompressor
     public int decompress(MemorySegment input, MemorySegment output)
     {
         try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
+            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            byte[] inputBase = getBase(access.input());
+            long inputAddress = getAddress(access.input());
             long inputLimit = addExact(inputAddress, input.byteSize());
 
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
+            byte[] outputBase = getBase(access.output());
+            long outputAddress = getAddress(access.output());
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return Lz4RawDecompressor.decompress(
+            return access.finish(Lz4RawDecompressor.decompress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
-                    outputLimit);
+                    outputLimit));
         }
         finally {
             reachabilityFence(input);
