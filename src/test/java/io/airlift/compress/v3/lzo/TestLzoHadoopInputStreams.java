@@ -16,14 +16,53 @@ package io.airlift.compress.v3.lzo;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.zip.Adler32;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestLzoHadoopInputStreams
 {
+    @Test
+    void testMissingCompressedChunkHeader()
+            throws IOException
+    {
+        byte[] header = {0, 0, 0, 1};
+        try (var input = new LzoHadoopInputStream(new ByteArrayInputStream(header), 64)) {
+            assertThatThrownBy(input::read)
+                    .isInstanceOf(EOFException.class)
+                    .hasMessageContaining("reading block header");
+        }
+    }
+
+    @Test
+    void testNegativeBlockLengths()
+            throws IOException
+    {
+        for (byte[] header : new byte[][] {{(byte) 0x80, 0, 0, 0}, {0, 0, 0, 1, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff}}) {
+            try (var input = new LzoHadoopInputStream(new ByteArrayInputStream(header), 64)) {
+                assertThatThrownBy(input::read)
+                        .isInstanceOf(IOException.class)
+                        .hasMessageContaining("Negative block length");
+            }
+        }
+    }
+
+    @Test
+    void testLargeTruncatedChunk()
+            throws IOException
+    {
+        byte[] header = {0, 0, 0, 1, 0x40, 0, 0, 0};
+        try (var input = new LzoHadoopInputStream(new ByteArrayInputStream(header), 64)) {
+            assertThatThrownBy(input::read)
+                    .isInstanceOf(EOFException.class)
+                    .hasMessageContaining("reading block data");
+        }
+    }
+
     @Test
     void lzoZeroLengthReadAtEndOfStreamReturnsZero()
             throws IOException
