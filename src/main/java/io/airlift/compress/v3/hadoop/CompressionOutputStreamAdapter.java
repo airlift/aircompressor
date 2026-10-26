@@ -82,7 +82,9 @@ final class CompressionOutputStreamAdapter
                 output.close();
             }
             catch (Throwable closeFailure) {
-                e.addSuppressed(closeFailure);
+                if (closeFailure != e) {
+                    e.addSuppressed(closeFailure);
+                }
             }
             throw e;
         }
