@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.snappy;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.LiteralDecompressor;
 import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
@@ -133,6 +134,12 @@ final class SnappyNative
 
     public long decompress(MemorySegment compressed, long compressedLength, MemorySegment uncompressed, long uncompressedLength)
     {
+        if (compressedLength > MAX_CRITICAL_COMPRESSED_SIZE && (!compressed.isNative() || !uncompressed.isNative())) {
+            long literalLength = LiteralDecompressor.trySnappy(compressed, compressedLength, uncompressed, uncompressedLength);
+            if (literalLength >= 0) {
+                return literalLength;
+            }
+        }
         if (compressedLength <= MAX_CRITICAL_COMPRESSED_SIZE && uncompressedLength <= MAX_CRITICAL_INPUT_SIZE) {
             lengthBuffer.set(JAVA_LONG, 0, uncompressedLength);
             decompressInternal(compressed, compressedLength, uncompressed, lengthBuffer, true);

@@ -45,7 +45,8 @@ uncompressed = uncompressed.asSlice(0, uncompressedSize);
 
 Native implementations use ordinary native calls for potentially long operations so that compression,
 decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap Snappy
-compression uses bounded native calls directly over the heap. Other large heap operations copy through native
+compression uses bounded native calls directly over the heap; literal-only
+LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
 staging buffers. Decompression may need staging as large as the supplied output capacity. Java compression of shared native segments also bounds its protective heap copy by the codec's
 maximum compressed size. Use native `MemorySegment` buffers for large blocks to avoid staging
 copies. Small LZ4/Snappy blocks and short

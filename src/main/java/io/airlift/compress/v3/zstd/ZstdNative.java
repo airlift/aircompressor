@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.zstd;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.LiteralDecompressor;
 import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeSignature;
@@ -301,6 +302,12 @@ final class ZstdNative
 
     public static long decompress(MemorySegment context, MemorySegment compressed, long compressedLength, MemorySegment output, long outputLength)
     {
+        if (compressedLength > 64 * 1024 && (!compressed.isNative() || !output.isNative())) {
+            long rawLength = LiteralDecompressor.tryZstdRaw(compressed, compressedLength, output, outputLength);
+            if (rawLength >= 0) {
+                return rawLength;
+            }
+        }
         try (NativeBuffers buffers = new NativeBuffers()) {
             MemorySegment nativeInput = buffers.input(compressed, compressedLength);
             MemorySegment nativeOutput = buffers.output(output, outputLength);
