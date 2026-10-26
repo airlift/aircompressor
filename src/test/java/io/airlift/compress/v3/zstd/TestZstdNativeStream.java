@@ -19,6 +19,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -63,12 +64,72 @@ class TestZstdNativeStream
         }
     }
 
+    @Test
+    void testMixedBufferedAndDirectIo()
+            throws Exception
+    {
+        byte[] original = new byte[40_000];
+        new Random(1234).nextBytes(original);
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        try (ZstdNativeOutputStream out = new ZstdNativeOutputStream(compressed)) {
+            out.write(original[0]);
+            out.write(original, 1, 5000);
+            out.write(original, 5001, 5000);
+            out.flush();
+            out.write(original, 10_001, 20_000);
+            for (int i = 30_001; i < original.length; i++) {
+                out.write(original[i]);
+            }
+        }
+
+        try (ZstdNativeInputStream in = new ZstdNativeInputStream(new ByteArrayInputStream(compressed.toByteArray()))) {
+            ByteArrayOutputStream decoded = new ByteArrayOutputStream();
+            decoded.write(in.read());
+            decoded.write(in.readNBytes(20_000));
+            decoded.write(in.read());
+            decoded.write(in.readAllBytes());
+            assertThat(decoded.toByteArray()).isEqualTo(original);
+            assertThat(in.read()).isEqualTo(-1);
+            assertThat(in.read()).isEqualTo(-1);
+        }
+    }
+
     private static WeakReference<byte[]> writeFromLargeArray(OutputStream out)
             throws IOException
     {
         byte[] input = new byte[1 << 20];
         out.write(input, 0, 1);
         return new WeakReference<>(input);
+    }
+
+    @Test
+    void testBufferedReadAfterSourceFailureDoesNotReplayData()
+            throws Exception
+    {
+        byte[] first = new byte[8192];
+        new Random(123).nextBytes(first);
+        byte[] second = new byte[] {11, 22, 33};
+        byte[] firstFrame = compress(first);
+        InputStream source = new FilterInputStream(new ByteArrayInputStream(Bytes.concat(firstFrame, compress(second))))
+        {
+            private int reads;
+
+            @Override
+            public int read(byte[] buffer, int offset, int length)
+                    throws IOException
+            {
+                if (++reads == 2) {
+                    throw new IOException("source failed");
+                }
+                return super.read(buffer, offset, Math.min(length, firstFrame.length));
+            }
+        };
+        try (ZstdNativeInputStream in = new ZstdNativeInputStream(source)) {
+            assertThat(in.read()).isEqualTo(first[0] & 0xFF);
+            assertThat(in.readNBytes(first.length - 1)).isEqualTo(Arrays.copyOfRange(first, 1, first.length));
+            assertThatThrownBy(in::read).isInstanceOf(IOException.class).hasMessage("source failed");
+            assertThat(in.readAllBytes()).isEqualTo(second);
+        }
     }
 
     private static WeakReference<byte[]> readIntoLargeArray(InputStream in)
