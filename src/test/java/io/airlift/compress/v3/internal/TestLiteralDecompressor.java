@@ -18,6 +18,8 @@ import io.airlift.compress.v3.snappy.SnappyJavaCompressor;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -78,6 +80,46 @@ class TestLiteralDecompressor
         MemorySegment output = MemorySegment.ofArray(new byte[data.length]);
         assertThat(LiteralDecompressor.trySnappy(MemorySegment.ofArray(encoded), length, output, data.length)).isEqualTo(data.length);
         assertThat(output.toArray(JAVA_BYTE)).isEqualTo(data);
+    }
+
+    @Test
+    void testZstdRawFrame()
+    {
+        byte[] data = new byte[256 * 1024];
+        new Random(42).nextBytes(data);
+        for (boolean singleSegment : new boolean[] {false, true}) {
+            ByteBuffer encoded = ByteBuffer.allocate(data.length + 16).order(ByteOrder.LITTLE_ENDIAN);
+            encoded.putInt(0xFD2FB528);
+            encoded.put((byte) (singleSegment ? 0xA0 : 0x80));
+            if (!singleSegment) {
+                encoded.put((byte) 0x58); // 2 MiB window
+            }
+            encoded.putInt(data.length);
+            for (int offset = 0; offset < data.length; offset += 128 * 1024) {
+                int block = ((128 * 1024) << 3) | (offset == 0 ? 0 : 1);
+                encoded.put((byte) block).put((byte) (block >>> 8)).put((byte) (block >>> 16));
+                encoded.put(data, offset, 128 * 1024);
+            }
+            byte[] frame = Arrays.copyOf(encoded.array(), encoded.position());
+            MemorySegment output = MemorySegment.ofArray(new byte[data.length + 7]).fill((byte) 42);
+            assertThat(LiteralDecompressor.tryZstdRaw(MemorySegment.ofArray(frame), frame.length, output, output.byteSize())).isEqualTo(data.length);
+            assertThat(output.asSlice(0, data.length).toArray(JAVA_BYTE)).isEqualTo(data);
+            assertThat(output.asSlice(data.length).toArray(JAVA_BYTE)).containsOnly((byte) 42);
+            for (int mutation = 0; mutation < 5; mutation++) {
+                byte[] invalid = frame.clone();
+                switch (mutation) {
+                    case 0 -> invalid[0] = 0;
+                    case 1 -> invalid[4] |= 4; // checksum must not be silently ignored
+                    case 2 -> invalid[5 + (singleSegment ? 0 : 1)]++; // mismatched content size
+                    case 3 -> invalid[invalid.length - 128 * 1024 - 3] &= (byte) ~1; // no last block
+                    case 4 -> invalid[9 + (singleSegment ? 0 : 1)] |= 4; // compressed block
+                    default -> throw new AssertionError();
+                }
+                output.fill((byte) 42);
+                assertThat(LiteralDecompressor.tryZstdRaw(MemorySegment.ofArray(invalid), invalid.length, output, output.byteSize())).isEqualTo(-1);
+                assertThat(output.toArray(JAVA_BYTE)).containsOnly((byte) 42);
+            }
+        }
     }
 
     @Test

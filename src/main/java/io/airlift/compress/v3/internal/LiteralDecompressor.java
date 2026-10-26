@@ -16,6 +16,8 @@ package io.airlift.compress.v3.internal;
 import java.lang.foreign.MemorySegment;
 
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.lang.foreign.ValueLayout.JAVA_INT_UNALIGNED;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
 
 /**
  * Copies literal-only blocks after validating their complete encoding, without native staging.
@@ -96,6 +98,77 @@ public final class LiteralDecompressor
             outputPosition += length;
         }
         return decoded;
+    }
+
+    public static long tryZstdRaw(MemorySegment input, long inputLength, MemorySegment output, long outputLength)
+    {
+        if (inputLength < 9 || input.get(JAVA_INT_UNALIGNED.withOrder(LITTLE_ENDIAN), 0) != 0xFD2FB528) {
+            return -1;
+        }
+        int descriptor = input.get(JAVA_BYTE, 4) & 0xFF;
+        // Limit this shortcut to one standard frame, a known 32-bit content size, and no
+        // checksum, dictionary, or reserved flags. All other frames use the native decoder.
+        if (descriptor != 0x80 && descriptor != 0xA0) {
+            return -1;
+        }
+        long position = 5;
+        long blockMaximum = 128 * 1024;
+        if (descriptor == 0x80) {
+            if (inputLength < 10) {
+                return -1;
+            }
+            int window = input.get(JAVA_BYTE, position++) & 0xFF;
+            long base = 1L << (10 + (window >>> 3));
+            long windowSize = base + (base / 8) * (window & 7);
+            if (windowSize > 8 * 1024 * 1024) {
+                return -1;
+            }
+            blockMaximum = Math.min(blockMaximum, windowSize);
+        }
+        long expected = input.get(JAVA_INT_UNALIGNED.withOrder(LITTLE_ENDIAN), position) & 0xFFFF_FFFFL;
+        position += Integer.BYTES;
+        if (expected > outputLength) {
+            return -1;
+        }
+        if (descriptor == 0xA0) {
+            blockMaximum = Math.min(blockMaximum, expected);
+        }
+        long start = position;
+        long decoded = 0;
+        int header;
+        do {
+            if (inputLength - position < 3) {
+                return -1;
+            }
+            header = blockHeader(input, position);
+            position += 3;
+            int length = header >>> 3;
+            if ((header & 6) != 0 || length > blockMaximum || length > inputLength - position || length > expected - decoded) {
+                return -1;
+            }
+            position += length;
+            decoded += length;
+        }
+        while ((header & 1) == 0);
+        if (position != inputLength || decoded != expected) {
+            return -1;
+        }
+        position = start;
+        long outputPosition = 0;
+        while (position < inputLength) {
+            int length = blockHeader(input, position) >>> 3;
+            MemorySegment.copy(input, position + 3, output, outputPosition, length);
+            position += 3 + length;
+            outputPosition += length;
+        }
+        return decoded;
+    }
+
+    private static int blockHeader(MemorySegment input, long position)
+    {
+        return (input.get(JAVA_BYTE, position) & 0xFF) |
+                ((input.get(JAVA_BYTE, position + 1) & 0xFF) << 8) |
+                ((input.get(JAVA_BYTE, position + 2) & 0xFF) << 16);
     }
 
     private static long literal(MemorySegment input, long position, long limit)
