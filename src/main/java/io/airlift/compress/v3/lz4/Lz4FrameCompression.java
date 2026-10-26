@@ -16,6 +16,7 @@ package io.airlift.compress.v3.lz4;
 import io.airlift.compress.v3.MalformedInputException;
 import io.airlift.compress.v3.xxhash.XxHash32Hasher;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
@@ -80,20 +81,25 @@ final class Lz4FrameCompression
         return toIntExact(maxLength);
     }
 
-    public static int compress(Lz4Compressor blockCompressor, byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
+    public static int compress(Lz4Compressor blockCompressor, CompressionBuffer compressionBuffer, byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice(inputOffset, inputLength);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
-        return compress(blockCompressor, inputSegment, outputSegment);
+        return compress(blockCompressor, compressionBuffer, inputSegment, outputSegment);
     }
 
-    public static int compress(Lz4Compressor blockCompressor, MemorySegment input, MemorySegment output)
+    public static int compress(Lz4Compressor blockCompressor, CompressionBuffer compressionBuffer, MemorySegment input, MemorySegment output)
     {
         long inputLength = input.byteSize();
         long outputLimit = output.byteSize();
+
+        // Framing and earlier blocks can overwrite input that later blocks still need.
+        if (input.asOverlappingSlice(output).isPresent()) {
+            input = MemorySegment.ofArray(input.toArray(JAVA_BYTE));
+        }
 
         // frame header
         long position = writeInt(output, 0, outputLimit, MAGIC);
@@ -103,18 +109,24 @@ final class Lz4FrameCompression
         position = writeByte(output, position, outputLimit, (byte) headerChecksum);
 
         // data blocks
-        byte[] scratch = new byte[blockCompressor.maxCompressedLength(Math.clamp(inputLength, 1, BLOCK_MAX_SIZE_4MB))];
-        MemorySegment scratchSegment = MemorySegment.ofArray(scratch);
         long inputPosition = 0;
         while (inputPosition < inputLength) {
             int blockLength = toIntExact(Math.min(BLOCK_MAX_SIZE_4MB, inputLength - inputPosition));
             MemorySegment block = input.asSlice(inputPosition, blockLength);
-            int compressedLength = blockCompressor.compress(block, scratchSegment);
+            ensureCapacity(position, Integer.BYTES, outputLimit);
+            int blockBound = blockCompressor.maxCompressedLength(blockLength);
+            boolean compressDirectly = outputLimit - position - Integer.BYTES >= blockBound;
+            MemorySegment compressedBlock = compressDirectly
+                    ? output.asSlice(position + Integer.BYTES, blockBound)
+                    : compressionBuffer.get(blockBound);
+            int compressedLength = blockCompressor.compress(block, compressedBlock);
 
             if (compressedLength < blockLength) {
                 position = writeInt(output, position, outputLimit, compressedLength);
                 ensureCapacity(position, compressedLength, outputLimit);
-                MemorySegment.copy(scratchSegment, 0, output, position, compressedLength);
+                if (!compressDirectly) {
+                    MemorySegment.copy(compressedBlock, 0, output, position, compressedLength);
+                }
                 position += compressedLength;
             }
             else {
@@ -130,6 +142,31 @@ final class Lz4FrameCompression
         // end mark
         position = writeInt(output, position, outputLimit, 0);
         return toIntExact(position);
+    }
+
+    static final class CompressionBuffer
+    {
+        private final boolean nativeBuffer;
+        private MemorySegment scratch = MemorySegment.NULL;
+
+        CompressionBuffer(boolean nativeBuffer)
+        {
+            this.nativeBuffer = nativeBuffer;
+        }
+
+        MemorySegment get(int size)
+        {
+            if (scratch.byteSize() < size) {
+                // Native codecs can write here without allocating another staging buffer.
+                scratch = nativeBuffer ? Arena.ofAuto().allocate(size) : MemorySegment.ofArray(new byte[size]);
+            }
+            return scratch;
+        }
+
+        int getRetainedSizeInBytes()
+        {
+            return toIntExact(scratch.byteSize());
+        }
     }
 
     public static int decompress(Lz4Decompressor blockDecompressor, byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
@@ -268,7 +305,7 @@ final class Lz4FrameCompression
             }
             else {
                 MemorySegment block = input.asSlice(position, blockLength);
-                MemorySegment blockOutput = output.asSlice(outputPosition, outputLimit - outputPosition);
+                MemorySegment blockOutput = output.asSlice(outputPosition, Math.min(outputLimit - outputPosition, blockMaximumSize));
                 int decompressedLength = blockDecompressor.decompress(block, blockOutput);
                 if (decompressedLength < 0) {
                     throw new MalformedInputException(outputPosition, "Output buffer too small");

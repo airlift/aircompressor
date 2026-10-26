@@ -27,6 +27,7 @@ import java.lang.foreign.MemorySegment;
 public final class Lz4FrameNativeCompressor
         implements Lz4FrameCompressor
 {
+    private final Lz4FrameCompression.CompressionBuffer compressionBuffer = new Lz4FrameCompression.CompressionBuffer(true);
     private final Lz4NativeCompressor blockCompressor;
 
     public Lz4FrameNativeCompressor()
@@ -53,12 +54,19 @@ public final class Lz4FrameNativeCompressor
     @Override
     public int compress(byte[] input, int inputOffset, int inputLength, byte[] output, int outputOffset, int maxOutputLength)
     {
-        return Lz4FrameCompression.compress(blockCompressor, input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
+        return Lz4FrameCompression.compress(blockCompressor, compressionBuffer, input, inputOffset, inputLength, output, outputOffset, maxOutputLength);
     }
 
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
-        return Lz4FrameCompression.compress(blockCompressor, input, output);
+        return Lz4FrameCompression.compress(blockCompressor, compressionBuffer, input, output);
     }
+
+    @Override
+    public int getRetainedSizeInBytes(int inputLength)
+    {
+        return blockCompressor.getRetainedSizeInBytes(inputLength) + compressionBuffer.getRetainedSizeInBytes();
+    }
+
 }
