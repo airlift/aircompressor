@@ -62,6 +62,35 @@ class TestZstdNativeStream
         }
     }
 
+    @Test
+    void testMixedBufferedAndDirectIo()
+            throws Exception
+    {
+        byte[] original = new byte[40_000];
+        new Random(1234).nextBytes(original);
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        try (ZstdNativeOutputStream out = new ZstdNativeOutputStream(compressed)) {
+            out.write(original[0]);
+            out.write(original, 1, 5000);
+            out.flush();
+            out.write(original, 5001, 20_000);
+            for (int i = 25_001; i < original.length; i++) {
+                out.write(original[i]);
+            }
+        }
+
+        try (ZstdNativeInputStream in = new ZstdNativeInputStream(new ByteArrayInputStream(compressed.toByteArray()))) {
+            ByteArrayOutputStream decoded = new ByteArrayOutputStream();
+            decoded.write(in.read());
+            decoded.write(in.readNBytes(20_000));
+            decoded.write(in.read());
+            decoded.write(in.readAllBytes());
+            assertThat(decoded.toByteArray()).isEqualTo(original);
+            assertThat(in.read()).isEqualTo(-1);
+            assertThat(in.read()).isEqualTo(-1);
+        }
+    }
+
     private static WeakReference<byte[]> writeFromLargeArray(OutputStream out)
             throws IOException
     {

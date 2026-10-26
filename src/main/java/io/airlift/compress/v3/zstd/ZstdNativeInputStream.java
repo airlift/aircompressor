@@ -30,9 +30,8 @@ import static java.util.Objects.requireNonNull;
  * An {@link InputStream} that decompresses zstd-compressed data using the native zstd library.
  * <p>
  * This native wrapper reads compressed data from the underlying {@link InputStream} into a buffer
- * sized by libzstd's recommendation, and passes the caller's output buffer to libzstd with no Java-side
- * buffer in between. For optimal performance, callers should provide sufficiently large output buffers
- * to minimize the number of calls into native code, or should wrap this stream in a buffered stream.
+ * sized by libzstd's recommendation. Small reads use a decoded buffer to amortize calls into native
+ * code, while large reads decompress directly into the caller's buffer.
  * <p>
  * Native memory is used for the internal zstd streaming context. A {@link java.lang.ref.Cleaner} is
  * registered as a safety net to free native resources if {@link #close()} is not called.
@@ -59,7 +58,9 @@ public final class ZstdNativeInputStream
     private final MemorySegment sourcePositionSegment = MemorySegment.ofArray(sourcePosition);
     private final MemorySegment destinationPositionSegment = MemorySegment.ofArray(destinationPosition);
 
-    private final byte[] oneByte = new byte[1];
+    private final byte[] decodedBuffer = new byte[8192];
+    private int decodedPosition;
+    private int decodedLimit;
 
     private boolean closed;
     // the underlying stream has returned end of stream
@@ -113,23 +114,18 @@ public final class ZstdNativeInputStream
     public int read()
             throws IOException
     {
-        int result = read(oneByte, 0, 1);
-        if (result == -1) {
+        checkReadable();
+        if (decodedPosition == decodedLimit && !fillDecodedBuffer()) {
             return -1;
         }
-        return oneByte[0] & 0xFF;
+        return decodedBuffer[decodedPosition++] & 0xFF;
     }
 
     @Override
     public int read(byte[] output, int outputOffset, int outputLength)
             throws IOException
     {
-        if (closed) {
-            throw new IOException("Stream is closed");
-        }
-        if (failed) {
-            throw new IOException("Stream has failed");
-        }
+        checkReadable();
 
         if (output == null) {
             throw new NullPointerException("output is null");
@@ -138,6 +134,43 @@ public final class ZstdNativeInputStream
         if (outputLength == 0) {
             return 0;
         }
+
+        if (decodedPosition == decodedLimit) {
+            if (outputLength >= decodedBuffer.length) {
+                return readDirect(output, outputOffset, outputLength);
+            }
+            if (!fillDecodedBuffer()) {
+                return -1;
+            }
+        }
+        int size = Math.min(outputLength, decodedLimit - decodedPosition);
+        System.arraycopy(decodedBuffer, decodedPosition, output, outputOffset, size);
+        decodedPosition += size;
+        return size;
+    }
+
+    private boolean fillDecodedBuffer()
+            throws IOException
+    {
+        decodedPosition = 0;
+        decodedLimit = Math.max(0, readDirect(decodedBuffer, 0, decodedBuffer.length));
+        return decodedLimit > 0;
+    }
+
+    private void checkReadable()
+            throws IOException
+    {
+        if (closed) {
+            throw new IOException("Stream is closed");
+        }
+        if (failed) {
+            throw new IOException("Stream has failed");
+        }
+    }
+
+    private int readDirect(byte[] output, int outputOffset, int outputLength)
+            throws IOException
+    {
 
         MemorySegment outputSegment = MemorySegment.ofArray(output);
 
@@ -236,6 +269,8 @@ public final class ZstdNativeInputStream
         }
         inputPosition = 0;
         inputLimit = 0;
+        decodedPosition = 0;
+        decodedLimit = 0;
         endOfStream = false;
         frameComplete = false;
         outputPending = false;
