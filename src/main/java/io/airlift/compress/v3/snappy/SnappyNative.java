@@ -23,6 +23,7 @@ import java.lang.invoke.MethodHandle;
 import java.util.Optional;
 
 import static io.airlift.compress.v3.internal.NativeLoader.loadSymbols;
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.lang.invoke.MethodHandles.lookup;
 
@@ -45,6 +46,9 @@ final class SnappyNative
             compressInternal(input, inputLength, compressed, lengthBuffer, true);
             return lengthBuffer.get(JAVA_LONG, 0);
         }
+        if (!input.isNative() && !compressed.isNative()) {
+            return compressHeapInChunks(input, inputLength, compressed, compressedLength);
+        }
         try (NativeBuffers buffers = new NativeBuffers()) {
             MemorySegment nativeInput = buffers.input(input, inputLength);
             MemorySegment nativeOutput = buffers.output(compressed, Math.min(compressedLength, maxCompressedLength(inputLength)));
@@ -55,6 +59,76 @@ final class SnappyNative
             NativeBuffers.copyOutput(nativeOutput, compressed, written);
             return written;
         }
+    }
+
+    private long compressHeapInChunks(MemorySegment input, long inputLength, MemorySegment compressed, long compressedLength)
+    {
+        // Match the C API's capacity requirement before changing the output, even for compressible input.
+        if (compressedLength < maxCompressedLength(inputLength)) {
+            throw new IllegalArgumentException("Output buffer too small");
+        }
+        long outputPosition = writeUncompressedLength(compressed, inputLength);
+        for (long inputPosition = 0; inputPosition < inputLength; inputPosition += MAX_CRITICAL_INPUT_SIZE) {
+            int fragmentSize = (int) Math.min(MAX_CRITICAL_INPUT_SIZE, inputLength - inputPosition);
+            int prefixSize = variableLengthSize(fragmentSize);
+            long fragmentBound = maxCompressedLength(fragmentSize);
+            long outputStart = outputPosition - prefixSize;
+
+            // Snappy bodies can be concatenated: offsets remain relative to each copy's position.
+            // Overlap the local prefix with the preceding bytes, then restore them. The fragment's
+            // body is written directly at outputPosition, without copying or moving compressed data.
+            if (fragmentBound <= compressedLength - outputStart) {
+                long savedPrefix = 0;
+                for (int i = 0; i < prefixSize; i++) {
+                    savedPrefix |= (compressed.get(JAVA_BYTE, outputStart + i) & 0xFFL) << (i * Byte.SIZE);
+                }
+                lengthBuffer.set(JAVA_LONG, 0, fragmentBound);
+                try {
+                    compressInternal(input.asSlice(inputPosition, fragmentSize), fragmentSize, compressed.asSlice(outputStart, fragmentBound), lengthBuffer, true);
+                }
+                finally {
+                    for (int i = 0; i < prefixSize; i++) {
+                        compressed.set(JAVA_BYTE, outputStart + i, (byte) (savedPrefix >>> (i * Byte.SIZE)));
+                    }
+                }
+                outputPosition += lengthBuffer.get(JAVA_LONG, 0) - prefixSize;
+            }
+            else {
+                // The whole stream may fit while the conservative bound of its final fragment does
+                // not. Use bounded scratch rather than exposing memory beyond the caller's buffer.
+                MemorySegment scratch = MemorySegment.ofArray(new byte[(int) fragmentBound]);
+                lengthBuffer.set(JAVA_LONG, 0, fragmentBound);
+                compressInternal(input.asSlice(inputPosition, fragmentSize), fragmentSize, scratch, lengthBuffer, true);
+                long bodySize = lengthBuffer.get(JAVA_LONG, 0) - prefixSize;
+                MemorySegment.copy(scratch, prefixSize, compressed, outputPosition, bodySize);
+                outputPosition += bodySize;
+            }
+        }
+        return outputPosition;
+    }
+
+    static int writeUncompressedLength(MemorySegment output, long inputLength)
+    {
+        if (inputLength < 0 || inputLength > 0xFFFF_FFFFL) {
+            throw new IllegalArgumentException("Input length exceeds the Snappy format limit: " + inputLength);
+        }
+        int position = 0;
+        do {
+            int value = (int) (inputLength & 0x7F);
+            inputLength >>>= 7;
+            output.set(JAVA_BYTE, position++, (byte) (value | (inputLength == 0 ? 0 : 0x80)));
+        }
+        while (inputLength != 0);
+        return position;
+    }
+
+    private static int variableLengthSize(int value)
+    {
+        int length = 1;
+        while ((value >>>= 7) != 0) {
+            length++;
+        }
+        return length;
     }
 
     public long decompress(MemorySegment compressed, long compressedLength, MemorySegment uncompressed, long uncompressedLength)
