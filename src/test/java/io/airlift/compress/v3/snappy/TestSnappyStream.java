@@ -109,6 +109,47 @@ class TestSnappyStream
     }
 
     @Test
+    void testImpossibleUncompressedLength()
+    {
+        byte[] block = {0, 9, 0, 0, 0, 0, 0, 0, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff, 7};
+        assertThatThrownBy(() -> uncompress(blockToStream(block)))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Uncompressed chunk length exceeds possible compressed data size");
+    }
+
+    @Test
+    void testManySkippableChunks()
+            throws IOException
+    {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        output.write(SnappyFramed.HEADER_BYTES);
+        for (int i = 0; i < 100_000; i++) {
+            output.write(new byte[] {(byte) 0x80, 0, 0, 0});
+        }
+        output.write(compress(new byte[] {'a'}));
+        assertThat(uncompress(output.toByteArray())).isEqualTo(new byte[] {'a'});
+    }
+
+    @Test
+    void testEmptyCompressedChunks()
+            throws IOException
+    {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        output.write(SnappyFramed.HEADER_BYTES);
+        int checksum = Crc32C.maskedCrc32c(new byte[0]);
+        byte[] emptyChunk = {0, 5, 0, 0, (byte) checksum, (byte) (checksum >>> 8), (byte) (checksum >>> 16), (byte) (checksum >>> 24), 0};
+        for (int i = 0; i < 100_000; i++) {
+            output.write(emptyChunk);
+        }
+        output.write(compress(new byte[] {'a'}));
+        assertThat(uncompress(output.toByteArray())).isEqualTo(new byte[] {'a'});
+        try (InputStream input = new SnappyFramedInputStream(new SnappyJavaDecompressor(), new ByteArrayInputStream(output.toByteArray()))) {
+            assertThat(input.read()).isEqualTo('a');
+            assertThat(input.read()).isEqualTo(-1);
+        }
+    }
+
+    @Test
     void testShortBlockHeader()
     {
         assertThatThrownBy(() -> uncompress(blockToStream(new byte[] {0})))
