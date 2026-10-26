@@ -68,6 +68,32 @@ class TestLz4InputValidation
         assertThat(input(compressed.toByteArray()).readAllBytes()).isEqualTo(original);
     }
 
+    @Test
+    void testInvalidChunkFailureIsPersistent()
+            throws IOException
+    {
+        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        data.write(header(2, 4));
+        data.write(new byte[] {0x30, 'a', 'b', 'c'});
+
+        for (int mode = 0; mode < 3; mode++) {
+            Lz4HadoopInputStream stream = input(data.toByteArray());
+            int readMode = mode;
+            assertThatThrownBy(() -> {
+                switch (readMode) {
+                    case 0 -> stream.read();
+                    case 1 -> stream.read(new byte[1]);
+                    case 2 -> stream.read(new byte[8]);
+                    default -> throw new AssertionError();
+                }
+            }).isInstanceOf(IOException.class).hasMessage("Invalid decompressed chunk length");
+            assertThatThrownBy(stream::read).isInstanceOf(IOException.class).hasMessage("Invalid decompressed chunk length");
+            assertThatThrownBy(() -> stream.read(new byte[8])).isInstanceOf(IOException.class).hasMessage("Invalid decompressed chunk length");
+            stream.resetState();
+            assertThatThrownBy(stream::read).isInstanceOf(IOException.class).hasMessage("Invalid decompressed chunk length");
+        }
+    }
+
     private static Lz4HadoopInputStream input(byte[] data)
     {
         return new Lz4HadoopInputStream(new Lz4JavaDecompressor(), new ByteArrayInputStream(data), 4096);

@@ -34,6 +34,7 @@ class Lz4HadoopInputStream
     private int uncompressedBlockLength;
     private int uncompressedChunkOffset;
     private int uncompressedChunkLength;
+    private IOException failure;
 
     private byte[] compressed = new byte[0];
 
@@ -49,13 +50,13 @@ class Lz4HadoopInputStream
     public int read()
             throws IOException
     {
+        checkFailure();
         while (uncompressedChunkOffset >= uncompressedChunkLength) {
             int compressedChunkLength = bufferCompressedData();
             if (compressedChunkLength < 0) {
                 return -1;
             }
-            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
-            validateChunkLength();
+            uncompressedChunkLength = decompressChunk(compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         return uncompressedChunk[uncompressedChunkOffset++] & 0xFF;
     }
@@ -64,6 +65,7 @@ class Lz4HadoopInputStream
     public int read(byte[] output, int offset, int length)
             throws IOException
     {
+        checkFailure();
         checkFromIndexSize(offset, length, output.length);
         if (length == 0) {
             return 0;
@@ -77,14 +79,12 @@ class Lz4HadoopInputStream
 
             // favor writing directly to user buffer to avoid extra copy
             if (length >= uncompressedBlockLength) {
-                uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, output, offset, length);
-                validateChunkLength();
+                uncompressedChunkLength = decompressChunk(compressedChunkLength, output, offset, length);
                 uncompressedChunkOffset = uncompressedChunkLength;
                 return uncompressedChunkLength;
             }
 
-            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
-            validateChunkLength();
+            uncompressedChunkLength = decompressChunk(compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         int size = Math.min(length, uncompressedChunkLength - uncompressedChunkOffset);
         System.arraycopy(uncompressedChunk, uncompressedChunkOffset, output, offset, size);
@@ -139,11 +139,22 @@ class Lz4HadoopInputStream
         return compressedChunkLength;
     }
 
-    private void validateChunkLength()
+    private int decompressChunk(int compressedChunkLength, byte[] output, int offset, int length)
             throws IOException
     {
-        if (uncompressedChunkLength <= 0 || uncompressedChunkLength > uncompressedBlockLength) {
-            throw new IOException("Invalid decompressed chunk length");
+        int decodedLength = decompressor.decompress(compressed, 0, compressedChunkLength, output, offset, length);
+        if (decodedLength <= 0 || decodedLength > uncompressedBlockLength) {
+            failure = new IOException("Invalid decompressed chunk length");
+            throw failure;
+        }
+        return decodedLength;
+    }
+
+    private void checkFailure()
+            throws IOException
+    {
+        if (failure != null) {
+            throw failure;
         }
     }
 
