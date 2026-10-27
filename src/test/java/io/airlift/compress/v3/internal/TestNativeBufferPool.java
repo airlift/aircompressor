@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static io.airlift.compress.v3.TestingGarbageCollection.assertCollected;
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,11 +35,7 @@ class TestNativeBufferPool
             throws Exception
     {
         WeakReference<ClassLoader> loader = populateIsolatedPool();
-        for (int i = 0; i < 10 && loader.get() != null; i++) {
-            System.gc();
-            Thread.sleep(10);
-        }
-        assertThat(loader.get()).isNull();
+        assertCollected(loader);
     }
 
     private static WeakReference<ClassLoader> populateIsolatedPool()

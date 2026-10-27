@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.airlift.compress.v3.TestingGarbageCollection.assertCollected;
 import static java.lang.Math.min;
 import static java.lang.ref.Reference.reachabilityFence;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -136,16 +137,6 @@ class TestZstdNativeStream
         byte[] output = new byte[1 << 20];
         assertThat(in.read(output, 0, 1)).isEqualTo(1);
         return new WeakReference<>(output);
-    }
-
-    private static void assertCollected(WeakReference<byte[]> reference)
-            throws InterruptedException
-    {
-        for (int attempt = 0; attempt < 10 && !reference.refersTo(null); attempt++) {
-            System.gc();
-            Thread.sleep(10);
-        }
-        assertThat(reference.refersTo(null)).isTrue();
     }
 
     @Override
