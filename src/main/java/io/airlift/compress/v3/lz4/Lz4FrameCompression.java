@@ -305,7 +305,7 @@ final class Lz4FrameCompression
             }
             else {
                 MemorySegment block = input.asSlice(position, blockLength);
-                MemorySegment blockOutput = output.asSlice(outputPosition, outputLimit - outputPosition);
+                MemorySegment blockOutput = output.asSlice(outputPosition, Math.min(outputLimit - outputPosition, blockMaximumSize));
                 int decompressedLength = blockDecompressor.decompress(block, blockOutput);
                 if (decompressedLength < 0) {
                     throw new MalformedInputException(outputPosition, "Output buffer too small");
