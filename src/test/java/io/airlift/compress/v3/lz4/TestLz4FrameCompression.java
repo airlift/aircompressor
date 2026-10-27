@@ -95,23 +95,26 @@ class TestLz4FrameCompression
     @Test
     void testDirectJavaCompressionMatchesScratchCompression()
     {
-        assertDirectCompression(new Lz4FrameJavaCompressor(), new Lz4FrameJavaCompressor(), new Lz4JavaCompressor().getRetainedSizeInBytes(1024 * 1024));
+        assertDirectCompression(new Lz4FrameJavaCompressor(), new Lz4FrameJavaCompressor(), new Lz4JavaCompressor());
     }
 
     @Test
     void testDirectNativeCompressionMatchesScratchCompression()
     {
         assumeTrue(Lz4FrameNativeCompressor.isEnabled());
-        assertDirectCompression(new Lz4FrameNativeCompressor(), new Lz4FrameNativeCompressor(), new Lz4NativeCompressor().getRetainedSizeInBytes(1024 * 1024));
+        assertDirectCompression(new Lz4FrameNativeCompressor(), new Lz4FrameNativeCompressor(), new Lz4NativeCompressor());
     }
 
-    private static void assertDirectCompression(Lz4FrameCompressor directCompressor, Lz4FrameCompressor scratchCompressor, int blockRetainedSize)
+    private static void assertDirectCompression(Lz4FrameCompressor directCompressor, Lz4FrameCompressor scratchCompressor, Lz4Compressor blockCompressor)
     {
         for (boolean compressible : new boolean[] {true, false}) {
             byte[] input = new byte[1024 * 1024];
             if (!compressible) {
                 new Random(0).nextBytes(input);
             }
+            byte[] blockOutput = new byte[blockCompressor.maxCompressedLength(input.length)];
+            blockCompressor.compress(input, 0, input.length, blockOutput, 0, blockOutput.length);
+            int blockRetainedSize = blockCompressor.getRetainedSizeInBytes(input.length);
             byte[] directOutput = new byte[new Lz4JavaCompressor().maxCompressedLength(input.length) + 32];
             byte[] scratchOutput = new byte[scratchCompressor.maxCompressedLength(input.length)];
             int directSize = directCompressor.compress(input, 0, input.length, directOutput, 0, directOutput.length);

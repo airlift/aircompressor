@@ -15,6 +15,8 @@ package io.airlift.compress.v3.benchmark;
 
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
+import io.airlift.compress.v3.lz4.Lz4JavaCompressor;
+import io.airlift.compress.v3.lz4.Lz4JavaDecompressor;
 import io.airlift.compress.v3.lz4.Lz4NativeCompressor;
 import io.airlift.compress.v3.lz4.Lz4NativeDecompressor;
 import io.airlift.compress.v3.snappy.SnappyNativeCompressor;
@@ -56,7 +58,7 @@ public class NativeCompressionBenchmark
     @Param({"false", "true"})
     private boolean nativeBuffers;
 
-    @Param({"random", "repeated", "limitedAlphabet"})
+    @Param({"random", "repeated", "limitedAlphabet", "periodic"})
     private String dataKind;
 
     @Param("0")
@@ -79,12 +81,14 @@ public class NativeCompressionBenchmark
     {
         compressor = switch (algorithm) {
             case "lz4" -> new Lz4NativeCompressor();
+            case "lz4-java" -> new Lz4JavaCompressor();
             case "snappy" -> new SnappyNativeCompressor();
             case "zstd" -> new ZstdNativeCompressor();
             default -> throw new IllegalArgumentException(algorithm);
         };
         decompressor = switch (algorithm) {
             case "lz4" -> new Lz4NativeDecompressor();
+            case "lz4-java" -> new Lz4JavaDecompressor();
             case "snappy" -> new SnappyNativeDecompressor();
             case "zstd" -> new ZstdNativeDecompressor();
             default -> throw new IllegalArgumentException(algorithm);
@@ -97,6 +101,11 @@ public class NativeCompressionBenchmark
             case "limitedAlphabet" -> {
                 for (int i = 0; i < input.length; i++) {
                     input[i] &= 3;
+                }
+            }
+            case "periodic" -> {
+                for (int i = 32768; i < input.length; i++) {
+                    input[i] = input[i % 32768];
                 }
             }
             default -> throw new IllegalArgumentException(dataKind);
