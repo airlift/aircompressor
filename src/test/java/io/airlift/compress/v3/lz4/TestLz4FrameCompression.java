@@ -15,6 +15,8 @@ package io.airlift.compress.v3.lz4;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -23,6 +25,44 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class TestLz4FrameCompression
 {
+    @Test
+    void testOverlappingJavaCompression()
+    {
+        assertOverlappingCompression(new Lz4FrameJavaCompressor());
+    }
+
+    @Test
+    void testOverlappingNativeCompression()
+    {
+        assumeTrue(Lz4FrameNativeCompressor.isEnabled());
+        assertOverlappingCompression(new Lz4FrameNativeCompressor());
+    }
+
+    private static void assertOverlappingCompression(Lz4FrameCompressor compressor)
+    {
+        for (int inputSize : new int[] {64 * 1024, 4 * 1024 * 1024 + 64 * 1024}) {
+            for (int inputOffset : new int[] {0, 16, inputSize / 2}) {
+                byte[] original = new byte[inputSize];
+                new Random(123).nextBytes(original);
+                int outputSize = new Lz4JavaCompressor().maxCompressedLength(inputSize) + 32;
+                byte[] overlapping = new byte[Math.max(inputOffset + inputSize, outputSize)];
+                System.arraycopy(original, 0, overlapping, inputOffset, inputSize);
+                int size = compressor.compress(overlapping, inputOffset, inputSize, overlapping, 0, outputSize);
+                byte[] decoded = new byte[inputSize];
+                assertThat(new Lz4FrameJavaDecompressor().decompress(overlapping, 0, size, decoded, 0, decoded.length)).isEqualTo(inputSize);
+                assertThat(decoded).isEqualTo(original);
+
+                try (Arena arena = Arena.ofConfined()) {
+                    MemorySegment segment = arena.allocate(overlapping.length);
+                    segment.asSlice(inputOffset, inputSize).copyFrom(MemorySegment.ofArray(original));
+                    size = compressor.compress(segment.asSlice(inputOffset, inputSize), segment.asSlice(0, outputSize));
+                    assertThat(new Lz4FrameJavaDecompressor().decompress(segment.asSlice(0, size), MemorySegment.ofArray(decoded))).isEqualTo(inputSize);
+                    assertThat(decoded).isEqualTo(original);
+                }
+            }
+        }
+    }
+
     @Test
     void testReusedJavaScratchAcrossBlockSizes()
     {

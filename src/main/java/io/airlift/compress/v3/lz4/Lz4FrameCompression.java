@@ -96,6 +96,11 @@ final class Lz4FrameCompression
         long inputLength = input.byteSize();
         long outputLimit = output.byteSize();
 
+        // Framing and earlier blocks can overwrite input that later blocks still need.
+        if (input.asOverlappingSlice(output).isPresent()) {
+            input = MemorySegment.ofArray(input.toArray(JAVA_BYTE));
+        }
+
         // frame header
         long position = writeInt(output, 0, outputLimit, MAGIC);
         position = writeByte(output, position, outputLimit, (byte) (FLG_VERSION | FLG_BLOCK_INDEPENDENCE));
