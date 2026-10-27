@@ -28,8 +28,10 @@ import static java.lang.ref.Reference.reachabilityFence;
 public final class NativeBuffers
         implements AutoCloseable
 {
+    public static final long MAX_CACHED_BUFFER_SIZE = 8L * 1024 * 1024;
+
     // At most 32 MiB is retained for the entire class loader, rather than per codec or thread.
-    private static final NativeBufferPool POOL = new NativeBufferPool(32L * 1024 * 1024, 8, 8L * 1024 * 1024);
+    private static final NativeBufferPool POOL = new NativeBufferPool(32L * 1024 * 1024, 8, MAX_CACHED_BUFFER_SIZE);
 
     private Arena arena;
     private List<NativeBufferPool.Buffer> borrowed;

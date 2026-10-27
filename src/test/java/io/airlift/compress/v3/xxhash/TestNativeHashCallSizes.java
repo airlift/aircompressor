@@ -75,7 +75,8 @@ class TestNativeHashCallSizes
     void testLargeHeapUpdatesWithOffsetsAndBufferedState()
     {
         assumeTrue(XxHash3Native.isEnabled() && XxHash32NativeHasher.isEnabled() && XxHash64NativeHasher.isEnabled());
-        for (int size : new int[] {8193, 16385, 131073, 4194304}) {
+        // With the 40 bytes of padding below, these cases straddle the 8 MiB staging limit.
+        for (int size : new int[] {8193, 16385, 131073, 4194304, 8388567, 8388568, 8388569, 16777216}) {
             for (long seed : new long[] {0, 987654321}) {
                 byte[] data = new byte[size + 40];
                 new Random(1234).nextBytes(data);

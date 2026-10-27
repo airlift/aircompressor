@@ -49,8 +49,13 @@ compression and streaming hash updates use bounded native calls directly over th
 LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
 staging buffers. A shared pool retains at most 32 MiB per class loader, with at most eight buffers of
 at most 8 MiB each, to avoid repeated allocation and zeroing. Larger temporary allocations are freed
-after each call. Decompression may need staging as large as the supplied output capacity. Use native
-`MemorySegment` buffers for large blocks to avoid staging copies. Small LZ4/Snappy blocks and short
+after each call. Zstd decompression bounds staging by the total decoded size when all frame sizes
+are known; other decompression may need staging as large as the supplied output capacity. One-shot
+XXH3 hashes above 8 MiB use bounded streaming updates to avoid full-input allocations. XXH32
+retains its faster one-shot algorithm with input staging.
+Java compression of shared native segments also bounds its protective heap copy by the codec's
+maximum compressed size. Use native `MemorySegment` buffers for large blocks to avoid staging
+copies. Small LZ4/Snappy blocks and short
 hash inputs use bounded direct calls, and native Zstd streams reuse fixed-size native buffers.
 
 # Algorithms

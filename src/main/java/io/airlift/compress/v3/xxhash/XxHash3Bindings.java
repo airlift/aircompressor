@@ -222,6 +222,9 @@ final class XxHash3Bindings
 
     public static long hash64(MemorySegment input, long length)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash64Streaming(input, length, 0);
+        }
         try {
             if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (long) HASH64_CRITICAL_METHOD.invokeExact(input, length);
@@ -237,6 +240,9 @@ final class XxHash3Bindings
 
     public static long hash64(MemorySegment input, long length, long seed)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash64Streaming(input, length, seed);
+        }
         try {
             if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (long) HASH64_WITH_SEED_CRITICAL_METHOD.invokeExact(input, length, seed);
@@ -252,6 +258,9 @@ final class XxHash3Bindings
 
     public static XxHash128 hash128(MemorySegment input, long length)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash128Streaming(input, length, 0);
+        }
         try {
             if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 Struct128 scratch = STRUCT_128.get();
@@ -272,6 +281,9 @@ final class XxHash3Bindings
 
     public static XxHash128 hash128(MemorySegment input, long length, long seed)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash128Streaming(input, length, seed);
+        }
         try {
             if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 Struct128 scratch = STRUCT_128.get();
@@ -287,6 +299,39 @@ final class XxHash3Bindings
         }
         catch (Throwable e) {
             throw new AssertionError("should not reach here", e);
+        }
+    }
+
+    // Streaming avoids uncached full-size heap staging; each update is a bounded native call.
+    private static long hash64Streaming(MemorySegment input, long length, long seed)
+    {
+        MemorySegment state = createState();
+        if (state.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to create XXH3 state");
+        }
+        try {
+            reset64(state, seed);
+            update64(state, input, length);
+            return digest64(state);
+        }
+        finally {
+            freeState(state);
+        }
+    }
+
+    private static XxHash128 hash128Streaming(MemorySegment input, long length, long seed)
+    {
+        MemorySegment state = createState();
+        if (state.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to create XXH3 state");
+        }
+        try {
+            reset128(state, seed);
+            update128(state, input, length);
+            return digest128(state);
+        }
+        finally {
+            freeState(state);
         }
     }
 
