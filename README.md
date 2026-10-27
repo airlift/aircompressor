@@ -50,7 +50,7 @@ avoiding native staging. It lazily retains a 16 KiB search table per compressor;
 keep the native path. Large heap Snappy
 compression and streaming hash updates use bounded native calls directly over the heap; literal-only
 LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
-staging buffers. A shared pool retains at most 32 MiB per class loader, with at most eight buffers of
+staging buffers. A shared pool retains at most 32 MiB per class loader, with at most 64 buffers of
 at most 8 MiB each, to avoid repeated allocation and zeroing. Larger temporary allocations are freed
 after each call. Zstd decompression bounds staging by the total decoded size when all frame sizes
 are known; other decompression may need staging as large as the supplied output capacity. One-shot

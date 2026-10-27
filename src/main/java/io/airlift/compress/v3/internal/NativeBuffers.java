@@ -29,9 +29,11 @@ public final class NativeBuffers
         implements AutoCloseable
 {
     public static final long MAX_CACHED_BUFFER_SIZE = 8L * 1024 * 1024;
+    static final long MAX_CACHED_BYTES = 32L * 1024 * 1024;
+    static final int MAX_CACHED_BUFFERS = 64;
 
     // At most 32 MiB is retained for the entire class loader, rather than per codec or thread.
-    private static final NativeBufferPool POOL = new NativeBufferPool(32L * 1024 * 1024, 8, MAX_CACHED_BUFFER_SIZE);
+    private static final NativeBufferPool POOL = new NativeBufferPool(MAX_CACHED_BYTES, MAX_CACHED_BUFFERS, MAX_CACHED_BUFFER_SIZE);
 
     private Arena arena;
     private List<NativeBufferPool.Buffer> borrowed;

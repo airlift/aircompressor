@@ -70,6 +70,27 @@ class TestNativeBufferPool
     }
 
     @Test
+    void testRetainsTwoBuffersPerWorker()
+    {
+        try (NativeBufferPool pool = new NativeBufferPool(NativeBuffers.MAX_CACHED_BYTES, NativeBuffers.MAX_CACHED_BUFFERS, NativeBuffers.MAX_CACHED_BUFFER_SIZE)) {
+            // Eight simultaneous codec calls each borrow an input and an output buffer.
+            List<NativeBufferPool.Buffer> borrowed = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                borrowed.add(pool.borrow(256 * 1024));
+            }
+            borrowed.forEach(pool::release);
+            assertThat(pool.cachedBytes()).isEqualTo(16L * 256 * 1024);
+
+            List<NativeBufferPool.Buffer> reused = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                reused.add(pool.borrow(256 * 1024));
+            }
+            assertThat(reused).containsExactlyInAnyOrderElementsOf(borrowed);
+            reused.forEach(pool::release);
+        }
+    }
+
+    @Test
     void testBudgetEvictsAndFreesNativeMemory()
     {
         NativeBufferPool pool = new NativeBufferPool(32768, 2, 32768);
