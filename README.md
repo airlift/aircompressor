@@ -44,7 +44,10 @@ uncompressed = uncompressed.asSlice(0, uncompressedSize);
 ```
 
 Native implementations use ordinary native calls for potentially long operations so that compression,
-decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap Snappy
+decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap LZ4 blocks
+containing only literals or a single match use a Java path that follows the native match search,
+avoiding native staging. It lazily retains a 16 KiB search table per compressor; more complex blocks
+keep the native path. Large heap Snappy
 compression and streaming hash updates use bounded native calls directly over the heap; literal-only
 LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
 staging buffers. A shared pool retains at most 32 MiB per class loader, with at most eight buffers of
