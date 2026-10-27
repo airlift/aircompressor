@@ -49,7 +49,8 @@ compression and streaming hash updates use bounded native calls directly over th
 LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
 staging buffers. A shared pool retains at most 32 MiB per class loader, with at most 64 buffers of
 at most 8 MiB each, to avoid repeated allocation and zeroing. Larger temporary allocations are freed
-after each call. Decompression may need staging as large as the supplied output capacity. Heap
+after each call. Zstd decompression bounds staging by the total decoded size when all frame sizes
+are known; other decompression may need staging as large as the supplied output capacity. Heap
 one-shot XXH3 hashes up to 1 MiB use bounded critical calls to avoid staging, while streaming updates
 retain an 8 KiB critical-call limit. Native XXH3 inputs above 8 KiB use ordinary calls without copying.
 Heap one-shot XXH3 hashes above 8 MiB use bounded streaming updates to avoid full-input allocations. XXH32

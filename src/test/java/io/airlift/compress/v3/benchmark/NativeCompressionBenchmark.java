@@ -59,6 +59,9 @@ public class NativeCompressionBenchmark
     @Param({"random", "repeated", "limitedAlphabet"})
     private String dataKind;
 
+    @Param("0")
+    private int extraOutputSize;
+
     private Compressor compressor;
     private Decompressor decompressor;
     private byte[] input;
@@ -101,13 +104,13 @@ public class NativeCompressionBenchmark
         compressTarget = new byte[compressor.maxCompressedLength(blockSize)];
         int compressedSize = compressor.compress(input, 0, input.length, compressTarget, 0, compressTarget.length);
         compressed = Arrays.copyOf(compressTarget, compressedSize);
-        decompressTarget = new byte[blockSize];
+        decompressTarget = new byte[Math.addExact(blockSize, extraOutputSize)];
         if (nativeBuffers) {
             arena = Arena.ofConfined();
             nativeInput = arena.allocateFrom(JAVA_BYTE, input);
             nativeCompressed = arena.allocateFrom(JAVA_BYTE, compressed);
             nativeCompressTarget = arena.allocate(compressTarget.length);
-            nativeDecompressTarget = arena.allocate(blockSize);
+            nativeDecompressTarget = arena.allocate(decompressTarget.length);
         }
     }
 
