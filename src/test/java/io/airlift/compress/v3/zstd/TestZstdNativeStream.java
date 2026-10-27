@@ -74,9 +74,10 @@ class TestZstdNativeStream
         try (ZstdNativeOutputStream out = new ZstdNativeOutputStream(compressed)) {
             out.write(original[0]);
             out.write(original, 1, 5000);
+            out.write(original, 5001, 5000);
             out.flush();
-            out.write(original, 5001, 20_000);
-            for (int i = 25_001; i < original.length; i++) {
+            out.write(original, 10_001, 20_000);
+            for (int i = 30_001; i < original.length; i++) {
                 out.write(original[i]);
             }
         }
