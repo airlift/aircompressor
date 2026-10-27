@@ -57,14 +57,14 @@ public class ZstdJavaCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            MemorySegmentAccess access = MemorySegmentAccess.forCompression(this, input, output);
             byte[] inputBase = getBase(access.input());
             long inputAddress = getAddress(access.input());
             long inputLimit = addExact(inputAddress, input.byteSize());
 
             byte[] outputBase = getBase(access.output());
             long outputAddress = getAddress(access.output());
-            long outputLimit = addExact(outputAddress, output.byteSize());
+            long outputLimit = addExact(outputAddress, access.output().byteSize());
 
             return access.finish(ZstdFrameCompressor.compress(
                     inputBase,

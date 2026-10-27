@@ -56,14 +56,14 @@ public final class Lz4JavaCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            MemorySegmentAccess access = MemorySegmentAccess.forCompression(this, input, output);
             return access.finish(Lz4RawCompressor.compress(
                     getBase(access.input()),
                     getAddress(access.input()),
                     toIntExact(input.byteSize()),
                     getBase(access.output()),
                     getAddress(access.output()),
-                    toIntExact(output.byteSize()),
+                    toIntExact(access.output().byteSize()),
                     table));
         }
         finally {

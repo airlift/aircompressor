@@ -13,6 +13,7 @@
  */
 package io.airlift.compress.v3.internal;
 
+import io.airlift.compress.v3.lz4.Lz4JavaCompressor;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.Arena;
@@ -24,6 +25,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestMemorySegmentAccess
 {
+    @Test
+    void testCompressionStagingIsBoundedByInputSize()
+    {
+        Lz4JavaCompressor compressor = new Lz4JavaCompressor();
+        try (Arena arena = Arena.ofShared()) {
+            MemorySegment input = MemorySegment.ofArray(new byte[1024]);
+            MemorySegment output = arena.allocate(1024 * 1024);
+            MemorySegmentAccess access = MemorySegmentAccess.forCompression(compressor, input, output);
+            assertThat(access.output().byteSize()).isEqualTo(compressor.maxCompressedLength(1024));
+
+            MemorySegment smallOutput = output.asSlice(0, 8);
+            assertThat(MemorySegmentAccess.forCompression(compressor, input, smallOutput).output().byteSize()).isEqualTo(8);
+        }
+    }
+
     @Test
     void testSharedArenaClosureDuringOperation()
     {

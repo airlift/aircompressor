@@ -59,6 +59,23 @@ class TestMemorySegmentCompression
     }
 
     @Test
+    void testSharedOutputLargerThanCompressionBound()
+    {
+        for (Codec codec : javaCodecs()) {
+            try (Arena arena = Arena.ofShared()) {
+                MemorySegment compressed = arena.allocate(1024 * 1024).fill((byte) 42);
+                int bound = codec.compressor().maxCompressedLength(DATA.length);
+                int written = codec.compressor().compress(MemorySegment.ofArray(DATA), compressed);
+                byte[] decoded = new byte[DATA.length];
+                assertThat(codec.decompressor().decompress(compressed.asSlice(0, written), MemorySegment.ofArray(decoded))).isEqualTo(DATA.length);
+                assertThat(decoded).isEqualTo(DATA);
+                assertThat(compressed.asSlice(written).toArray(JAVA_BYTE)).containsOnly((byte) 42);
+                assertThat(written).isLessThanOrEqualTo(bound);
+            }
+        }
+    }
+
+    @Test
     void testReadOnlyOutput()
     {
         List<Codec> codecs = new ArrayList<>(javaCodecs());

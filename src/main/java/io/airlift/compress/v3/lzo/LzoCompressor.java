@@ -57,14 +57,14 @@ public class LzoCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            MemorySegmentAccess access = MemorySegmentAccess.forCompression(this, input, output);
             return access.finish(LzoRawCompressor.compress(
                     getBase(access.input()),
                     getAddress(access.input()),
                     toIntExact(input.byteSize()),
                     getBase(access.output()),
                     getAddress(access.output()),
-                    toIntExact(output.byteSize()),
+                    toIntExact(access.output().byteSize()),
                     table));
         }
         finally {

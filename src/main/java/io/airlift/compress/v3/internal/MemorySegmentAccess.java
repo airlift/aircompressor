@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.internal;
 
+import io.airlift.compress.v3.Compressor;
+
 import java.lang.WrongThreadException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -30,6 +32,24 @@ public record MemorySegmentAccess(MemorySegment input, MemorySegment output, Mem
 
     public static MemorySegmentAccess of(MemorySegment input, MemorySegment output)
     {
+        return of(input, output, output.byteSize());
+    }
+
+    public static MemorySegmentAccess forCompression(Compressor compressor, MemorySegment input, MemorySegment output)
+    {
+        long outputBound = output.byteSize();
+        if (input.byteSize() <= Integer.MAX_VALUE) {
+            int bound = compressor.maxCompressedLength((int) input.byteSize());
+            // An overflowed int bound cannot be used to size staging memory.
+            if (bound >= 0) {
+                outputBound = Math.min(outputBound, bound);
+            }
+        }
+        return of(input, output, outputBound);
+    }
+
+    private static MemorySegmentAccess of(MemorySegment input, MemorySegment output, long outputBound)
+    {
         checkAccessible(input);
         checkWritable(output);
 
@@ -40,7 +60,7 @@ public record MemorySegmentAccess(MemorySegment input, MemorySegment output, Mem
                 ? MemorySegment.ofArray(input.toArray(JAVA_BYTE))
                 : input;
         MemorySegment checkedOutput = requiresCopy(output)
-                ? MemorySegment.ofArray(new byte[toIntExact(output.byteSize())])
+                ? MemorySegment.ofArray(new byte[toIntExact(outputBound)])
                 : output;
         return new MemorySegmentAccess(checkedInput, checkedOutput, output);
     }
