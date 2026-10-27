@@ -156,6 +156,7 @@ public final class ZstdNativeInputStream
             throws IOException
     {
         decodedPosition = 0;
+        decodedLimit = 0;
         decodedLimit = Math.max(0, readDirect(decodedBuffer, 0, decodedBuffer.length));
         return decodedLimit > 0;
     }

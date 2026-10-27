@@ -19,6 +19,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -97,6 +98,36 @@ class TestZstdNativeStream
         byte[] input = new byte[1 << 20];
         out.write(input, 0, 1);
         return new WeakReference<>(input);
+    }
+
+    @Test
+    void testBufferedReadAfterSourceFailureDoesNotReplayData()
+            throws Exception
+    {
+        byte[] first = new byte[8192];
+        new Random(123).nextBytes(first);
+        byte[] second = new byte[] {11, 22, 33};
+        byte[] firstFrame = compress(first);
+        InputStream source = new FilterInputStream(new ByteArrayInputStream(Bytes.concat(firstFrame, compress(second))))
+        {
+            private int reads;
+
+            @Override
+            public int read(byte[] buffer, int offset, int length)
+                    throws IOException
+            {
+                if (++reads == 2) {
+                    throw new IOException("source failed");
+                }
+                return super.read(buffer, offset, Math.min(length, firstFrame.length));
+            }
+        };
+        try (ZstdNativeInputStream in = new ZstdNativeInputStream(source)) {
+            assertThat(in.read()).isEqualTo(first[0] & 0xFF);
+            assertThat(in.readNBytes(first.length - 1)).isEqualTo(Arrays.copyOfRange(first, 1, first.length));
+            assertThatThrownBy(in::read).isInstanceOf(IOException.class).hasMessage("source failed");
+            assertThat(in.readAllBytes()).isEqualTo(second);
+        }
     }
 
     private static WeakReference<byte[]> readIntoLargeArray(InputStream in)
