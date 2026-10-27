@@ -105,7 +105,7 @@ class TestLiteralDecompressor
             assertThat(LiteralDecompressor.tryZstdRaw(MemorySegment.ofArray(frame), frame.length, output, output.byteSize())).isEqualTo(data.length);
             assertThat(output.asSlice(0, data.length).toArray(JAVA_BYTE)).isEqualTo(data);
             assertThat(output.asSlice(data.length).toArray(JAVA_BYTE)).containsOnly((byte) 42);
-            for (int mutation = 0; mutation < 5; mutation++) {
+            for (int mutation = 0; mutation < 6; mutation++) {
                 byte[] invalid = frame.clone();
                 switch (mutation) {
                     case 0 -> invalid[0] = 0;
@@ -113,12 +113,16 @@ class TestLiteralDecompressor
                     case 2 -> invalid[5 + (singleSegment ? 0 : 1)]++; // mismatched content size
                     case 3 -> invalid[invalid.length - 128 * 1024 - 3] &= (byte) ~1; // no last block
                     case 4 -> invalid[9 + (singleSegment ? 0 : 1)] |= 4; // compressed block
+                    case 5 -> invalid = Arrays.copyOf(frame, frame.length + 1); // trailing data
                     default -> throw new AssertionError();
                 }
                 output.fill((byte) 42);
                 assertThat(LiteralDecompressor.tryZstdRaw(MemorySegment.ofArray(invalid), invalid.length, output, output.byteSize())).isEqualTo(-1);
                 assertThat(output.toArray(JAVA_BYTE)).containsOnly((byte) 42);
             }
+            MemorySegment small = MemorySegment.ofArray(new byte[data.length - 1]).fill((byte) 42);
+            assertThat(LiteralDecompressor.tryZstdRaw(MemorySegment.ofArray(frame), frame.length, small, small.byteSize())).isEqualTo(-1);
+            assertThat(small.toArray(JAVA_BYTE)).containsOnly((byte) 42);
         }
     }
 
