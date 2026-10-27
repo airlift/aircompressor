@@ -24,6 +24,7 @@ import java.util.Random;
 import static io.airlift.compress.v3.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 @EnabledIf("io.airlift.compress.v3.lz4.Lz4NativeCompressor#isEnabled")
@@ -102,6 +103,13 @@ class TestLz4NativeHeapCompression
         byte[] smallOutput = new byte[expected.length + 32];
         assertThat(compressor.compress(input, 0, input.length, smallOutput, 0, smallOutput.length)).isEqualTo(expected.length);
         assertThat(Arrays.copyOf(smallOutput, expected.length)).isEqualTo(expected);
+
+        byte[] random = data(262144, 0);
+        byte[] tooSmall = new byte[compressor.maxCompressedLength(random.length)];
+        Arrays.fill(tooSmall, (byte) 42);
+        assertThatThrownBy(() -> compressor.compress(random, 0, random.length, tooSmall, 0, random.length))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(Arrays.copyOfRange(tooSmall, random.length, tooSmall.length)).containsOnly((byte) 42);
 
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment nativeInput = arena.allocateFrom(JAVA_BYTE, input);
