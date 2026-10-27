@@ -34,7 +34,7 @@ class TestLz4NativeHeapCompression
     void testHeapPathMatchesNativeCompression()
     {
         for (int size : new int[] {131071, 131072, 131073, 262144, 4194304}) {
-            for (int kind = 0; kind < 9; kind++) {
+            for (int kind = 0; kind < 10; kind++) {
                 byte[] input = data(size, kind);
                 for (int acceleration : new int[] {1, 3, 16, Lz4Native.MAX_ACCELERATION}) {
                     Lz4NativeCompressor compressor = new Lz4NativeCompressor(acceleration);
@@ -154,6 +154,10 @@ class TestLz4NativeHeapCompression
             case 8 -> {
                 Arrays.fill(input, (byte) 0);
                 input[size / 2] = 1;
+            }
+            case 9 -> {
+                Arrays.fill(input, (byte) 0);
+                input[size / 4] = 1;
             }
             default -> throw new AssertionError();
         }
