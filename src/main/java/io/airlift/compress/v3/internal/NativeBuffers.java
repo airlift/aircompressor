@@ -15,29 +15,45 @@ package io.airlift.compress.v3.internal;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.lang.ref.Reference.reachabilityFence;
 
 /**
  * Stages heap buffers for noncritical native calls, which must not receive heap addresses.
- * Native buffers are passed through without copying. The arena is allocated only when needed.
+ * Native buffers are passed through without copying. Staging allocations are reused through a
+ * bounded shared pool; returned segments are borrowed only until this instance is closed.
  */
 public final class NativeBuffers
         implements AutoCloseable
 {
+    public static final long MAX_CACHED_BUFFER_SIZE = 8L * 1024 * 1024;
+    static final long MAX_CACHED_BYTES = 32L * 1024 * 1024;
+    static final int MAX_CACHED_BUFFERS = 64;
+
+    // At most 32 MiB is retained for the entire class loader, rather than per codec or thread.
+    private static final NativeBufferPool POOL = new NativeBufferPool(MAX_CACHED_BYTES, MAX_CACHED_BUFFERS, MAX_CACHED_BUFFER_SIZE);
+
     private Arena arena;
+    private List<NativeBufferPool.Buffer> borrowed;
+    private boolean closed;
 
     public MemorySegment input(MemorySegment input, long length)
     {
+        checkOpen();
         MemorySegment source = input.asSlice(0, length);
         if (source.isNative()) {
             return source;
         }
-        MemorySegment staged = arena().allocate(length, Long.BYTES);
+        MemorySegment staged = allocate(length);
         staged.copyFrom(source);
         return staged;
     }
 
     public MemorySegment output(MemorySegment output, long length)
     {
+        checkOpen();
         MemorySegment destination = output.asSlice(0, length);
         if (destination.isReadOnly()) {
             throw new IllegalArgumentException("Output segment is read-only");
@@ -45,7 +61,7 @@ public final class NativeBuffers
         if (destination.isNative()) {
             return destination;
         }
-        return arena().allocate(length, Long.BYTES);
+        return allocate(length);
     }
 
     public static void copyOutput(MemorySegment staged, MemorySegment output, long written)
@@ -55,8 +71,22 @@ public final class NativeBuffers
         }
     }
 
+    private MemorySegment allocate(long length)
+    {
+        if (borrowed == null) {
+            borrowed = new ArrayList<>(2);
+        }
+        NativeBufferPool.Buffer buffer = POOL.borrow(length);
+        if (buffer == null) {
+            return arena().allocate(length, Long.BYTES);
+        }
+        borrowed.add(buffer);
+        return buffer.segment().asSlice(0, length);
+    }
+
     public Arena arena()
     {
+        checkOpen();
         if (arena == null) {
             arena = Arena.ofConfined();
         }
@@ -66,8 +96,32 @@ public final class NativeBuffers
     @Override
     public void close()
     {
-        if (arena != null) {
-            arena.close();
+        if (closed) {
+            return;
+        }
+        closed = true;
+        try {
+            if (borrowed != null) {
+                borrowed.forEach(POOL::release);
+            }
+        }
+        finally {
+            try {
+                if (arena != null) {
+                    arena.close();
+                }
+            }
+            finally {
+                // Pooled allocations have their own cleaners and must remain owned through the call.
+                reachabilityFence(this);
+            }
+        }
+    }
+
+    private void checkOpen()
+    {
+        if (closed) {
+            throw new IllegalStateException("Native buffers are closed");
         }
     }
 }

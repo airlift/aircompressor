@@ -44,11 +44,15 @@ uncompressed = uncompressed.asSlice(0, uncompressedSize);
 ```
 
 Native implementations use ordinary native calls for potentially long operations so that compression,
-decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap buffers are
-copied into temporary native memory for these calls; decompression may need temporary native memory
-as large as the supplied output capacity. Use native `MemorySegment` buffers for large blocks to avoid
-these copies and allocations. Small LZ4/Snappy blocks and short hash inputs use bounded direct calls,
-and native Zstd streams reuse fixed-size native buffers.
+decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap Snappy
+compression uses bounded native calls directly over the heap; literal-only
+LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
+staging buffers. A shared pool retains at most 32 MiB per class loader, with at most 64 buffers of
+at most 8 MiB each, to avoid repeated allocation and zeroing. Larger temporary allocations are freed
+after each call. Decompression may need staging as large as the supplied output capacity. Java compression of shared native segments also bounds its protective heap copy by the codec's
+maximum compressed size. Use native `MemorySegment` buffers for large blocks to avoid staging
+copies. Small LZ4/Snappy blocks and short
+hash inputs use bounded direct calls, and native Zstd streams reuse fixed-size native buffers.
 
 # Algorithms
 
