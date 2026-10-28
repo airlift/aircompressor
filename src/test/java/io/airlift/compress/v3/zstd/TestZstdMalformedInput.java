@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.zstd;
 
 import com.google.common.io.Resources;
+import com.google.common.primitives.Bytes;
 import io.airlift.compress.v3.MalformedInputException;
 import org.junit.jupiter.api.Test;
 
@@ -81,12 +82,30 @@ class TestZstdMalformedInput
     void testDecompressOutputTooSmall()
     {
         byte[] compressed = compress(UNCOMPRESSED);
-        byte[] output = new byte[UNCOMPRESSED.length - 1];
+        for (ZstdDecompressor decompressor : decompressors()) {
+            for (int length : new int[] {0, UNCOMPRESSED.length - 1}) {
+                byte[] output = new byte[length];
+                assertThatThrownBy(() -> decompressor.decompress(compressed, 0, compressed.length, output, 0, output.length))
+                        .as("%s with %s output bytes", decompressor.getClass().getSimpleName(), length)
+                        .isInstanceOf(MalformedInputException.class)
+                        .hasMessageMatching("Output buffer too small.*|Destination buffer is too small.*");
+            }
+        }
+    }
+
+    @Test
+    void testDecompressInvalidMagicAfterEmptyFrame()
+    {
+        // the first frame declares a content size of zero, so a caller that sizes the output from its header passes an empty buffer
+        byte[] corruptFrame = compress(UNCOMPRESSED);
+        corruptFrame[0] ^= 1;
+        byte[] compressed = Bytes.concat(compress(new byte[0]), corruptFrame);
+        byte[] output = new byte[0];
         for (ZstdDecompressor decompressor : decompressors()) {
             assertThatThrownBy(() -> decompressor.decompress(compressed, 0, compressed.length, output, 0, output.length))
                     .as(decompressor.getClass().getSimpleName())
                     .isInstanceOf(MalformedInputException.class)
-                    .hasMessageMatching("Output buffer too small.*|Destination buffer is too small.*");
+                    .hasMessageMatching("Invalid magic prefix.*|Src size is incorrect.*");
         }
     }
 

@@ -143,10 +143,6 @@ class ZstdFrameDecompressor
             final long outputAddress,
             final long outputLimit)
     {
-        if (outputAddress == outputLimit) {
-            return 0;
-        }
-
         long input = inputAddress;
         long output = outputAddress;
 
