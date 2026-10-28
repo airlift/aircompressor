@@ -46,6 +46,8 @@ final class ZstdNative
             MethodHandle decompress,
             @NativeSignature(critical = true, name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle uncompressedLength,
+            @NativeSignature(name = "ZSTD_findFrameCompressedSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
+            MethodHandle frameCompressedSize,
             // Decompression streaming
             @NativeSignature(name = "ZSTD_createDStream", returnType = MemorySegment.class, argumentTypes = {})
             MethodHandle createDecompressStream,
@@ -91,6 +93,7 @@ final class ZstdNative
     private static final MethodHandle FREE_DECOMPRESSION_CONTEXT_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
+    private static final MethodHandle FRAME_COMPRESSED_SIZE_METHOD;
     // Decompression streaming
     private static final MethodHandle CREATE_DECOMPRESS_STREAM_METHOD;
     private static final MethodHandle FREE_DECOMPRESS_STREAM_METHOD;
@@ -155,6 +158,7 @@ final class ZstdNative
         FREE_DECOMPRESSION_CONTEXT_METHOD = methodHandles.freeDecompressionContext();
         DECOMPRESS_METHOD = methodHandles.decompress();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
+        FRAME_COMPRESSED_SIZE_METHOD = methodHandles.frameCompressedSize();
         // Decompression streaming
         CREATE_DECOMPRESS_STREAM_METHOD = methodHandles.createDecompressStream();
         FREE_DECOMPRESS_STREAM_METHOD = methodHandles.freeDecompressStream();
@@ -310,10 +314,11 @@ final class ZstdNative
         }
         try (NativeBuffers buffers = new NativeBuffers()) {
             MemorySegment nativeInput = buffers.input(compressed, compressedLength);
-            MemorySegment nativeOutput = buffers.output(output, outputLength);
+            long outputBound = output.isNative() ? outputLength : decompressedOutputBound(nativeInput, compressedLength, outputLength);
+            MemorySegment nativeOutput = buffers.output(output, outputBound);
             long result;
             try {
-                result = (long) DECOMPRESS_METHOD.invokeExact(context, nativeOutput, outputLength, nativeInput, compressedLength);
+                result = (long) DECOMPRESS_METHOD.invokeExact(context, nativeOutput, outputBound, nativeInput, compressedLength);
             }
             catch (Error e) {
                 throw e;
@@ -328,6 +333,36 @@ final class ZstdNative
             NativeBuffers.copyOutput(nativeOutput, output, result);
             return result;
         }
+    }
+
+    // Input must be native: finding a frame's end can scan arbitrarily many block headers.
+    static long decompressedOutputBound(MemorySegment compressed, long compressedLength, long outputLength)
+    {
+        long position = 0;
+        long total = 0;
+        while (position < compressedLength) {
+            MemorySegment frame = compressed.asSlice(position, compressedLength - position);
+            long contentSize = decompressedLength(frame, frame.byteSize());
+            if (contentSize == CONTENT_SIZE_UNKNOWN || contentSize >= outputLength - total) {
+                return outputLength;
+            }
+            long frameSize;
+            try {
+                frameSize = (long) FRAME_COMPRESSED_SIZE_METHOD.invokeExact(frame, frame.byteSize());
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
+            if (isError(frameSize)) {
+                throw decompressionError("Invalid or truncated frame", frameSize);
+            }
+            total += contentSize;
+            position += frameSize;
+        }
+        return total;
     }
 
     public static long decompressedLength(MemorySegment compressed, long compressedLength)

@@ -13,20 +13,29 @@
  */
 package io.airlift.compress.v3.lz4;
 
-import java.lang.foreign.Arena;
 import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.lz4.Lz4Native.DEFAULT_ACCELERATION;
 import static io.airlift.compress.v3.lz4.Lz4Native.MAX_ACCELERATION;
+import static io.airlift.compress.v3.lz4.Lz4RawCompressor.MAX_INPUT_SIZE;
+import static io.airlift.compress.v3.lz4.Lz4RawCompressor.MAX_TABLE_SIZE;
+import static io.airlift.compress.v3.lz4.UnsafeUtil.getAddress;
 import static java.lang.Math.toIntExact;
 
+/**
+ * This class is not thread-safe.
+ */
 public final class Lz4NativeCompressor
         implements Lz4Compressor
 {
+    private static final int MIN_SIMPLE_INPUT_SIZE = 128 * 1024;
+
     private final MemorySegment state = Arena.ofAuto().allocate(Lz4Native.STATE_SIZE);
     private final int acceleration;
+    private int[] table;
 
     public Lz4NativeCompressor()
     {
@@ -58,6 +67,10 @@ public final class Lz4NativeCompressor
     {
         MemorySegment inputSegment = MemorySegment.ofArray(input).asSlice(inputOffset, inputLength);
         MemorySegment outputSegment = MemorySegment.ofArray(output).asSlice(outputOffset, maxOutputLength);
+        int result = tryCompressSimple(inputSegment, outputSegment);
+        if (result >= 0) {
+            return result;
+        }
         return Lz4Native.compress(inputSegment, inputLength, outputSegment, maxOutputLength, acceleration, state);
     }
 
@@ -65,6 +78,35 @@ public final class Lz4NativeCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         MemorySegmentAccess.checkWritable(output);
+        int result = tryCompressSimple(input, output);
+        if (result >= 0) {
+            return result;
+        }
         return Lz4Native.compress(input, toIntExact(input.byteSize()), output, toIntExact(output.byteSize()), acceleration, state);
+    }
+
+    private int tryCompressSimple(MemorySegment input, MemorySegment output)
+    {
+        long inputLength = input.byteSize();
+        // The native 32-bit hash-table search applies above its 64 KiB small-input range.
+        // Heap arrays need no arena protection, and disjoint ranges keep output writes from
+        // changing input. Other segment kinds keep the native path and its access checks.
+        if (inputLength < MIN_SIMPLE_INPUT_SIZE || inputLength > MAX_INPUT_SIZE ||
+                !(input.heapBase().orElse(null) instanceof byte[] inputBase) ||
+                !(output.heapBase().orElse(null) instanceof byte[] outputBase) ||
+                output.byteSize() < maxCompressedLength((int) inputLength) ||
+                input.asOverlappingSlice(output).isPresent()) {
+            return -1;
+        }
+        if (table == null) {
+            table = new int[MAX_TABLE_SIZE];
+        }
+        return Lz4RawCompressor.tryCompressSimple(inputBase, getAddress(input), (int) inputLength, outputBase, getAddress(output), acceleration, table);
+    }
+
+    @Override
+    public int getRetainedSizeInBytes(int inputLength)
+    {
+        return Lz4Native.STATE_SIZE + (table == null ? 0 : Integer.BYTES * table.length);
     }
 }

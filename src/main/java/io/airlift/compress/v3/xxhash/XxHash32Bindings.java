@@ -26,6 +26,8 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class XxHash32Bindings
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 8 * 1024;
+
     private XxHash32Bindings() {}
 
     private record MethodHandles(
@@ -90,7 +92,7 @@ final class XxHash32Bindings
     public static int hash(MemorySegment input, long length, int seed)
     {
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (int) HASH_CRITICAL_METHOD.invokeExact(input, length, seed);
             }
             try (NativeBuffers buffers = new NativeBuffers()) {
@@ -142,12 +144,21 @@ final class XxHash32Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {

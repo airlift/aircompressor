@@ -44,12 +44,21 @@ uncompressed = uncompressed.asSlice(0, uncompressedSize);
 ```
 
 Native implementations use ordinary native calls for potentially long operations so that compression,
-decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap Snappy
-compression uses bounded native calls directly over the heap; literal-only
+decompression, and hashing do not delay JVM safepoints or garbage collection. Large heap LZ4 blocks
+containing only literals or a single match use a Java path that follows the native match search,
+avoiding native staging. It lazily retains a 16 KiB search table per compressor; more complex blocks
+keep the native path. Large heap Snappy
+compression and streaming hash updates use bounded native calls directly over the heap; literal-only
 LZ4/Snappy blocks and supported raw Zstd frames are decoded without native staging. Other large heap operations copy through native
 staging buffers. A shared pool retains at most 32 MiB per class loader, with at most 64 buffers of
 at most 8 MiB each, to avoid repeated allocation and zeroing. Larger temporary allocations are freed
-after each call. Decompression may need staging as large as the supplied output capacity. Java compression of shared native segments also bounds its protective heap copy by the codec's
+after each call. Zstd decompression bounds staging by the total decoded size when all frame sizes
+are known; other decompression may need staging as large as the supplied output capacity. Heap
+one-shot XXH3 hashes up to 1 MiB use bounded critical calls to avoid staging, while streaming updates
+retain an 8 KiB critical-call limit. Native XXH3 inputs above 8 KiB use ordinary calls without copying.
+Heap one-shot XXH3 hashes above 8 MiB use bounded streaming updates to avoid full-input allocations. XXH32
+retains its faster one-shot algorithm with input staging.
+Java compression of shared native segments also bounds its protective heap copy by the codec's
 maximum compressed size. Use native `MemorySegment` buffers for large blocks to avoid staging
 copies. Small LZ4/Snappy blocks and short
 hash inputs use bounded direct calls, and native Zstd streams reuse fixed-size native buffers.

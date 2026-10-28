@@ -13,7 +13,6 @@
  */
 package io.airlift.compress.v3.xxhash;
 
-import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeLoader.Symbols;
 import io.airlift.compress.v3.internal.NativeSignature;
@@ -26,6 +25,8 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class XxHash64Bindings
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 8 * 1024;
+
     private XxHash64Bindings() {}
 
     private record MethodHandles(
@@ -89,13 +90,25 @@ final class XxHash64Bindings
 
     public static long hash(MemorySegment input, long length, long seed)
     {
+        if (length > MAX_CRITICAL_INPUT_SIZE && !input.isNative()) {
+            MemorySegment state = createState();
+            if (state.equals(MemorySegment.NULL)) {
+                throw new IllegalStateException("Failed to create XXH64 state");
+            }
+            try {
+                reset(state, seed);
+                update(state, input, length);
+                return digest(state);
+            }
+            finally {
+                freeState(state);
+            }
+        }
         try {
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 return (long) HASH_CRITICAL_METHOD.invokeExact(input, length, seed);
             }
-            try (NativeBuffers buffers = new NativeBuffers()) {
-                return (long) HASH_METHOD.invokeExact(buffers.input(input, length), length, seed);
-            }
+            return (long) HASH_METHOD.invokeExact(input, length, seed);
         }
         catch (Throwable e) {
             throw new AssertionError("should not reach here", e);
@@ -142,12 +155,21 @@ final class XxHash64Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {

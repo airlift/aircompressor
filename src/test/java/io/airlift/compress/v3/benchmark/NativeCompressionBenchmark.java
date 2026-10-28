@@ -15,6 +15,8 @@ package io.airlift.compress.v3.benchmark;
 
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.Decompressor;
+import io.airlift.compress.v3.lz4.Lz4JavaCompressor;
+import io.airlift.compress.v3.lz4.Lz4JavaDecompressor;
 import io.airlift.compress.v3.lz4.Lz4NativeCompressor;
 import io.airlift.compress.v3.lz4.Lz4NativeDecompressor;
 import io.airlift.compress.v3.snappy.SnappyNativeCompressor;
@@ -56,6 +58,12 @@ public class NativeCompressionBenchmark
     @Param({"false", "true"})
     private boolean nativeBuffers;
 
+    @Param({"random", "repeated", "limitedAlphabet", "periodic"})
+    private String dataKind;
+
+    @Param("0")
+    private int extraOutputSize;
+
     private Compressor compressor;
     private Decompressor decompressor;
     private byte[] input;
@@ -73,28 +81,45 @@ public class NativeCompressionBenchmark
     {
         compressor = switch (algorithm) {
             case "lz4" -> new Lz4NativeCompressor();
+            case "lz4-java" -> new Lz4JavaCompressor();
             case "snappy" -> new SnappyNativeCompressor();
             case "zstd" -> new ZstdNativeCompressor();
             default -> throw new IllegalArgumentException(algorithm);
         };
         decompressor = switch (algorithm) {
             case "lz4" -> new Lz4NativeDecompressor();
+            case "lz4-java" -> new Lz4JavaDecompressor();
             case "snappy" -> new SnappyNativeDecompressor();
             case "zstd" -> new ZstdNativeDecompressor();
             default -> throw new IllegalArgumentException(algorithm);
         };
         input = new byte[blockSize];
         new Random(42).nextBytes(input);
+        switch (dataKind) {
+            case "random" -> {}
+            case "repeated" -> Arrays.fill(input, (byte) 0);
+            case "limitedAlphabet" -> {
+                for (int i = 0; i < input.length; i++) {
+                    input[i] &= 3;
+                }
+            }
+            case "periodic" -> {
+                for (int i = 32768; i < input.length; i++) {
+                    input[i] = input[i % 32768];
+                }
+            }
+            default -> throw new IllegalArgumentException(dataKind);
+        }
         compressTarget = new byte[compressor.maxCompressedLength(blockSize)];
         int compressedSize = compressor.compress(input, 0, input.length, compressTarget, 0, compressTarget.length);
         compressed = Arrays.copyOf(compressTarget, compressedSize);
-        decompressTarget = new byte[blockSize];
+        decompressTarget = new byte[Math.addExact(blockSize, extraOutputSize)];
         if (nativeBuffers) {
             arena = Arena.ofConfined();
             nativeInput = arena.allocateFrom(JAVA_BYTE, input);
             nativeCompressed = arena.allocateFrom(JAVA_BYTE, compressed);
             nativeCompressTarget = arena.allocate(compressTarget.length);
-            nativeDecompressTarget = arena.allocate(blockSize);
+            nativeDecompressTarget = arena.allocate(decompressTarget.length);
         }
     }
 

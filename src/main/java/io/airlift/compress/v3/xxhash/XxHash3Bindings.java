@@ -36,6 +36,9 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 final class XxHash3Bindings
 {
+    private static final int MAX_CRITICAL_INPUT_SIZE = 8 * 1024;
+    private static final int MAX_CRITICAL_HEAP_HASH_SIZE = 1024 * 1024;
+
     private static final VarHandle LONG_HANDLE = java.lang.invoke.MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.LITTLE_ENDIAN);
 
     // Reusable per-thread scratch for 16-byte struct returns, so hash128/digest128 avoid allocating
@@ -188,10 +191,19 @@ final class XxHash3Bindings
 
     // One-shot hash methods
 
+    private static boolean useCriticalHash(MemorySegment input, long length)
+    {
+        // Native inputs already support ordinary calls without copying; heap one-shot hashes benefit from a larger limit.
+        return length <= (input.isNative() ? MAX_CRITICAL_INPUT_SIZE : MAX_CRITICAL_HEAP_HASH_SIZE);
+    }
+
     public static long hash64(MemorySegment input, long length)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash64Streaming(input, length, 0);
+        }
         try {
-            if (length <= 8192) {
+            if (useCriticalHash(input, length)) {
                 return (long) HASH64_CRITICAL_METHOD.invokeExact(input, length);
             }
             try (NativeBuffers buffers = new NativeBuffers()) {
@@ -205,8 +217,11 @@ final class XxHash3Bindings
 
     public static long hash64(MemorySegment input, long length, long seed)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash64Streaming(input, length, seed);
+        }
         try {
-            if (length <= 8192) {
+            if (useCriticalHash(input, length)) {
                 return (long) HASH64_WITH_SEED_CRITICAL_METHOD.invokeExact(input, length, seed);
             }
             try (NativeBuffers buffers = new NativeBuffers()) {
@@ -220,8 +235,11 @@ final class XxHash3Bindings
 
     public static XxHash128 hash128(MemorySegment input, long length)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash128Streaming(input, length, 0);
+        }
         try {
-            if (length <= 8192) {
+            if (useCriticalHash(input, length)) {
                 Struct128 scratch = STRUCT_128.get();
                 MemorySegment _ = (MemorySegment) HASH128_METHOD.invokeExact(scratch.allocator(), input, length);
                 byte[] bytes = scratch.bytes();
@@ -240,8 +258,11 @@ final class XxHash3Bindings
 
     public static XxHash128 hash128(MemorySegment input, long length, long seed)
     {
+        if (length > NativeBuffers.MAX_CACHED_BUFFER_SIZE && !input.isNative()) {
+            return hash128Streaming(input, length, seed);
+        }
         try {
-            if (length <= 8192) {
+            if (useCriticalHash(input, length)) {
                 Struct128 scratch = STRUCT_128.get();
                 MemorySegment _ = (MemorySegment) HASH128_WITH_SEED_METHOD.invokeExact(scratch.allocator(), input, length, seed);
                 byte[] bytes = scratch.bytes();
@@ -255,6 +276,39 @@ final class XxHash3Bindings
         }
         catch (Throwable e) {
             throw new AssertionError("should not reach here", e);
+        }
+    }
+
+    // Streaming avoids uncached full-size heap staging; each update is a bounded native call.
+    private static long hash64Streaming(MemorySegment input, long length, long seed)
+    {
+        MemorySegment state = createState();
+        if (state.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to create XXH3 state");
+        }
+        try {
+            reset64(state, seed);
+            update64(state, input, length);
+            return digest64(state);
+        }
+        finally {
+            freeState(state);
+        }
+    }
+
+    private static XxHash128 hash128Streaming(MemorySegment input, long length, long seed)
+    {
+        MemorySegment state = createState();
+        if (state.equals(MemorySegment.NULL)) {
+            throw new IllegalStateException("Failed to create XXH3 state");
+        }
+        try {
+            reset128(state, seed);
+            update128(state, input, length);
+            return digest128(state);
+        }
+        finally {
+            freeState(state);
         }
     }
 
@@ -302,12 +356,21 @@ final class XxHash3Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE64_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE64_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE64_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE64_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {
@@ -348,12 +411,21 @@ final class XxHash3Bindings
     {
         try {
             int result;
-            if (length <= 8192) {
+            if (length <= MAX_CRITICAL_INPUT_SIZE) {
                 result = (int) UPDATE128_CRITICAL_METHOD.invokeExact(state, input, length);
             }
+            else if (input.isNative()) {
+                result = (int) UPDATE128_METHOD.invokeExact(state, input, length);
+            }
             else {
-                try (NativeBuffers buffers = new NativeBuffers()) {
-                    result = (int) UPDATE128_METHOD.invokeExact(state, buffers.input(input, length), length);
+                // Each heap address is exposed only for one bounded call; native state retains no input pointers.
+                result = 0;
+                for (long position = 0; position < length; position += MAX_CRITICAL_INPUT_SIZE) {
+                    long chunkSize = Math.min(MAX_CRITICAL_INPUT_SIZE, length - position);
+                    result = (int) UPDATE128_CRITICAL_METHOD.invokeExact(state, input.asSlice(position, chunkSize), chunkSize);
+                    if (result != 0) {
+                        break;
+                    }
                 }
             }
             if (result != 0) {

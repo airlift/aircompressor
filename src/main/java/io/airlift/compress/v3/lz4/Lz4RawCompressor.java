@@ -24,7 +24,7 @@ import static java.lang.Math.clamp;
 
 final class Lz4RawCompressor
 {
-    private static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
+    static final int MAX_INPUT_SIZE = 0x7E000000;   /* 2 113 929 216 bytes */
 
     private static final int HASH_LOG = 12;
 
@@ -64,6 +64,70 @@ final class Lz4RawCompressor
     public static int maxCompressedLength(int sourceLength)
     {
         return sourceLength + sourceLength / 255 + 16;
+    }
+
+    /**
+     * Compresses a large block containing only literals or a single match that reaches the last
+     * literals. Returns -1 without writing output when additional match searching is necessary.
+     * The caller must supply at least {@link #maxCompressedLength(int)} bytes of output.
+     */
+    static int tryCompressSimple(byte[] inputBase, long inputAddress, int inputLength, byte[] outputBase, long outputAddress, int acceleration, int[] table)
+    {
+        if (table.length != MAX_TABLE_SIZE) {
+            throw new IllegalArgumentException("Unexpected hash table size");
+        }
+        Arrays.fill(table, 0);
+        int mask = MAX_TABLE_SIZE - 1;
+        long inputLimit = inputAddress + inputLength;
+        long matchFindLimit = inputLimit - MATCH_FIND_LIMIT + 1;
+        long matchLimit = inputLimit - LAST_LITERAL_SIZE;
+
+        table[hash(UNSAFE.getLong(inputBase, inputAddress), mask)] = 0;
+        long input = inputAddress + 1;
+        int nextHash = hash(UNSAFE.getLong(inputBase, input), mask);
+        long nextInput = input;
+        int attempts = acceleration << SKIP_TRIGGER;
+        int step = 1;
+        long match;
+        do {
+            int hash = nextHash;
+            input = nextInput;
+            nextInput += step;
+            step = attempts++ >>> SKIP_TRIGGER;
+            if (nextInput > matchFindLimit) {
+                return (int) (emitLastLiteral(outputBase, outputAddress, inputBase, inputAddress, inputLength) - outputAddress);
+            }
+            match = inputAddress + table[hash];
+            nextHash = hash(UNSAFE.getLong(inputBase, nextInput), mask);
+            table[hash] = (int) (input - inputAddress);
+        }
+        while (match + MAX_DISTANCE < input || UNSAFE.getInt(inputBase, match) != UNSAFE.getInt(inputBase, input));
+
+        while (input > inputAddress && match > inputAddress && UNSAFE.getByte(inputBase, input - 1) == UNSAFE.getByte(inputBase, match - 1)) {
+            input--;
+            match--;
+        }
+        // Reject a nonmatching tail or middle before counting a long prefix that the native
+        // fallback would then have to count again. A successful one-match block must match here.
+        long probe = matchFindLimit - SIZE_OF_LONG;
+        if (probe >= input + MIN_MATCH) {
+            if (UNSAFE.getLong(inputBase, probe) != UNSAFE.getLong(inputBase, probe - (input - match))) {
+                return -1;
+            }
+            probe = input + MIN_MATCH + (probe - input - MIN_MATCH) / 2;
+            if (UNSAFE.getLong(inputBase, probe) != UNSAFE.getLong(inputBase, probe - (input - match))) {
+                return -1;
+            }
+        }
+        int matchLength = count(inputBase, input + MIN_MATCH, matchLimit, match + MIN_MATCH);
+        long matchEnd = input + MIN_MATCH + matchLength;
+        if (matchEnd < matchFindLimit) {
+            return -1;
+        }
+
+        long output = emitLiteral(inputBase, outputBase, inputAddress, (int) (input - inputAddress), outputAddress);
+        output = emitMatch(outputBase, output, outputAddress, (short) (input - match), matchLength);
+        return (int) (emitLastLiteral(outputBase, output, inputBase, matchEnd, inputLimit - matchEnd) - outputAddress);
     }
 
     public static int compress(
