@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.zstd;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.NativeBuffers;
 import io.airlift.compress.v3.internal.NativeLoader;
 import io.airlift.compress.v3.internal.NativeSignature;
 
@@ -42,7 +43,7 @@ final class ZstdNative
             MethodHandle freeDecompressionContext,
             @NativeSignature(name = "ZSTD_decompressDCtx", returnType = long.class, argumentTypes = {MemorySegment.class, MemorySegment.class, long.class, MemorySegment.class, long.class})
             MethodHandle decompress,
-            @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
+            @NativeSignature(critical = true, name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle uncompressedLength,
             // Decompression streaming
             @NativeSignature(name = "ZSTD_createDStream", returnType = MemorySegment.class, argumentTypes = {})
@@ -276,40 +277,50 @@ final class ZstdNative
 
     public static long compress(MemorySegment context, MemorySegment input, long inputLength, MemorySegment compressed, long compressedLength, int compressionLevel)
     {
-        long result;
-        try {
-            result = (long) COMPRESS_METHOD.invokeExact(context, compressed, compressedLength, input, inputLength, compressionLevel);
-        }
-        catch (Error e) {
-            throw e;
-        }
-        catch (Throwable e) {
-            throw new Error("Unexpected exception", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(input, inputLength);
+            MemorySegment nativeOutput = buffers.output(compressed, Math.min(compressedLength, maxCompressedLength(inputLength)));
+            long result;
+            try {
+                result = (long) COMPRESS_METHOD.invokeExact(context, nativeOutput, nativeOutput.byteSize(), nativeInput, inputLength, compressionLevel);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        if (isError(result)) {
-            throw new IllegalArgumentException("Unknown error occurred during compression: " + getErrorName(result));
+            if (isError(result)) {
+                throw new IllegalArgumentException("Unknown error occurred during compression: " + getErrorName(result));
+            }
+            NativeBuffers.copyOutput(nativeOutput, compressed, result);
+            return result;
         }
-        return result;
     }
 
     public static long decompress(MemorySegment context, MemorySegment compressed, long compressedLength, MemorySegment output, long outputLength)
     {
-        long result;
-        try {
-            result = (long) DECOMPRESS_METHOD.invokeExact(context, output, outputLength, compressed, compressedLength);
-        }
-        catch (Error e) {
-            throw e;
-        }
-        catch (Throwable e) {
-            throw new Error("Unexpected exception", e);
-        }
+        try (NativeBuffers buffers = new NativeBuffers()) {
+            MemorySegment nativeInput = buffers.input(compressed, compressedLength);
+            MemorySegment nativeOutput = buffers.output(output, outputLength);
+            long result;
+            try {
+                result = (long) DECOMPRESS_METHOD.invokeExact(context, nativeOutput, outputLength, nativeInput, compressedLength);
+            }
+            catch (Error e) {
+                throw e;
+            }
+            catch (Throwable e) {
+                throw new Error("Unexpected exception", e);
+            }
 
-        if (isError(result)) {
-            throw decompressionError("Unknown error occurred during decompression", result);
+            if (isError(result)) {
+                throw decompressionError("Unknown error occurred during decompression", result);
+            }
+            NativeBuffers.copyOutput(nativeOutput, output, result);
+            return result;
         }
-        return result;
     }
 
     public static long decompressedLength(MemorySegment compressed, long compressedLength)
