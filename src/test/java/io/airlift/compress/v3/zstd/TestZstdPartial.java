@@ -33,6 +33,12 @@ class TestZstdPartial
     }
 
     @Override
+    protected boolean isSkippableFrameSupported()
+    {
+        return false;
+    }
+
+    @Override
     protected ZstdCompressor getCompressor()
     {
         return new ZstdJavaCompressor();

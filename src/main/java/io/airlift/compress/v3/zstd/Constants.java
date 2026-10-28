@@ -28,6 +28,8 @@ final class Constants
     public static final int SIZE_OF_BLOCK_HEADER = 3;
 
     public static final int MIN_SEQUENCES_SIZE = 1;
+    public static final int MIN_COMPRESSED_BLOCK_SIZE = 1 // raw literals header with no literals
+            + MIN_SEQUENCES_SIZE;
     public static final int MIN_BLOCK_SIZE = 1 // block type tag
             + 1 // min size of raw or rle length header
             + MIN_SEQUENCES_SIZE;

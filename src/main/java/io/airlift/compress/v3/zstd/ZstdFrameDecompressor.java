@@ -30,7 +30,7 @@ import static io.airlift.compress.v3.zstd.Constants.MATCH_LENGTH_TABLE_LOG;
 import static io.airlift.compress.v3.zstd.Constants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.v3.zstd.Constants.MAX_LITERALS_LENGTH_SYMBOL;
 import static io.airlift.compress.v3.zstd.Constants.MAX_MATCH_LENGTH_SYMBOL;
-import static io.airlift.compress.v3.zstd.Constants.MIN_BLOCK_SIZE;
+import static io.airlift.compress.v3.zstd.Constants.MIN_COMPRESSED_BLOCK_SIZE;
 import static io.airlift.compress.v3.zstd.Constants.MIN_SEQUENCES_SIZE;
 import static io.airlift.compress.v3.zstd.Constants.MIN_WINDOW_LOG;
 import static io.airlift.compress.v3.zstd.Constants.OFFSET_TABLE_LOG;
@@ -62,6 +62,9 @@ class ZstdFrameDecompressor
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
     private static final int V07_MAGIC_NUMBER = 0xFD2FB527;
+    private static final int SKIPPABLE_MAGIC_NUMBER = 0x184D2A50;
+    private static final int SKIPPABLE_MAGIC_NUMBER_MASK = 0xFFFF_FFF0;
+    private static final int SKIPPABLE_FRAME_HEADER_SIZE = 8;
 
     static final int MAX_WINDOW_SIZE = 1 << 23;
 
@@ -148,6 +151,12 @@ class ZstdFrameDecompressor
         long output = outputAddress;
 
         while (input < inputLimit) {
+            long skippableFrameSize = getSkippableFrameSize(inputBase, input, inputLimit);
+            if (skippableFrameSize > 0) {
+                input += skippableFrameSize;
+                continue;
+            }
+
             reset();
             long outputStart = output;
             input += verifyMagic(inputBase, input, inputLimit);
@@ -276,7 +285,7 @@ class ZstdFrameDecompressor
         long input = inputAddress;
 
         verify(blockSize <= MAX_BLOCK_SIZE, input, "Expected match length table to be present");
-        verify(blockSize >= MIN_BLOCK_SIZE, input, "Compressed block size too small");
+        verify(blockSize >= MIN_COMPRESSED_BLOCK_SIZE, input, "Compressed block size too small");
 
         // decode literals
         int literalsBlockType = UNSAFE.getByte(inputBase, input) & 0b11;
@@ -785,6 +794,8 @@ class ZstdFrameDecompressor
                 input++;
             }
             case 1 -> {
+                // we need at least 3 bytes (2 for the header, 1 for the payload)
+                verify(blockSize >= 3, input, "Not enough input bytes");
                 outputSize = (UNSAFE.getShort(inputBase, input) & 0xFFFF) >>> 4;
                 input += 2;
             }
@@ -825,6 +836,8 @@ class ZstdFrameDecompressor
                 input += 2;
             }
             case 3 -> {
+                // we need at least 3 bytes for the header
+                verify(inputLimit - input >= 3, input, "Not enough input bytes");
                 // read 3 little-endian bytes
                 int header = ((UNSAFE.getByte(inputBase, input) & 0xFF) |
                         ((UNSAFE.getShort(inputBase, input + 1) & 0xFFFF) << 8));
@@ -902,7 +915,8 @@ class ZstdFrameDecompressor
             }
             default -> {}
         }
-        verify(dictionaryId == -1, input, "Custom dictionaries not supported");
+        // dictionary ID 0 is equivalent to an omitted dictionary ID
+        verify(dictionaryId <= 0, input, "Custom dictionaries not supported");
 
         // decode content size
         long contentSize = -1;
@@ -944,6 +958,20 @@ class ZstdFrameDecompressor
         long input = inputAddress;
         input += verifyMagic(inputBase, input, inputLimit);
         return readFrameHeader(inputBase, input, inputLimit).contentSize;
+    }
+
+    // returns the size of the skippable frame at the input, including its header, or 0 when the input starts with another kind of frame
+    private static long getSkippableFrameSize(Object inputBase, long inputAddress, long inputLimit)
+    {
+        verify(inputLimit - inputAddress >= SIZE_OF_INT, inputAddress, "Not enough input bytes");
+        if ((UNSAFE.getInt(inputBase, inputAddress) & SKIPPABLE_MAGIC_NUMBER_MASK) != SKIPPABLE_MAGIC_NUMBER) {
+            return 0;
+        }
+
+        verify(inputLimit - inputAddress >= SKIPPABLE_FRAME_HEADER_SIZE, inputAddress, "Not enough input bytes");
+        long frameSize = SKIPPABLE_FRAME_HEADER_SIZE + (UNSAFE.getInt(inputBase, inputAddress + SIZE_OF_INT) & 0xFFFF_FFFFL);
+        verify(frameSize <= inputLimit - inputAddress, inputAddress, "Not enough input bytes");
+        return frameSize;
     }
 
     static int verifyMagic(Object inputBase, long inputAddress, long inputLimit)
