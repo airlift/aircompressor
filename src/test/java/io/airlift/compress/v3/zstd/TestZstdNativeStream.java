@@ -94,7 +94,7 @@ class TestZstdNativeStream
         }
     }
 
-    // the Java decoder rejects skippable frames as an invalid magic prefix
+    // the Java stream decoder rejects skippable frames as an invalid magic prefix
     @Test
     void testSkippableFrame()
             throws Exception

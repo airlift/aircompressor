@@ -14,17 +14,22 @@
 package io.airlift.compress.v3.zstd;
 
 import com.google.common.io.Resources;
+import com.google.common.primitives.Bytes;
 import io.airlift.compress.v3.AbstractTestCompression;
 import io.airlift.compress.v3.Compressor;
 import io.airlift.compress.v3.TestingData;
 import io.airlift.compress.v3.benchmark.DataSet;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Random;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -36,6 +41,11 @@ public abstract class AbstractTestZstd
 
     @Override
     protected abstract ZstdDecompressor getDecompressor();
+
+    protected boolean isSkippableFrameSupported()
+    {
+        return true;
+    }
 
     // Ideally, this should be covered by super.testDecompressWithOutputPadding(...), but the data written by the native
     // compressor doesn't include checksums, so it's not a comprehensive test. The dataset for this test has a checksum.
@@ -65,6 +75,53 @@ public abstract class AbstractTestZstd
         getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length);
 
         assertByteArraysEqual(uncompressed, 0, uncompressed.length, output, 0, output.length);
+    }
+
+    @Test
+    void testDecompressEmptyContent()
+    {
+        for (String frame : List.of(
+                // dictionary ID 0 is equivalent to an omitted dictionary ID
+                "28b52ffd230000000000010000",
+                // compressed block with empty raw literals and no sequences
+                "28b52ffd00001500000000")) {
+            byte[] compressed = HexFormat.of().parseHex(frame);
+            for (int length : new int[] {0, 16}) {
+                byte[] output = new byte[length];
+                assertThat(getDecompressor().decompress(compressed, 0, compressed.length, output, 0, output.length))
+                        .as("%s with %s output bytes", frame, length)
+                        .isZero();
+            }
+        }
+    }
+
+    @Test
+    void testDecompressSkippableFrames()
+    {
+        if (!isSkippableFrameSupported()) {
+            Assumptions.abort("Skippable frames not supported");
+        }
+
+        // skippable frame with no payload
+        byte[] emptySkippableFrame = HexFormat.of().parseHex("502a4d1800000000");
+        for (int length : new int[] {0, 16}) {
+            byte[] output = new byte[length];
+            assertThat(getDecompressor().decompress(emptySkippableFrame, 0, emptySkippableFrame.length, output, 0, output.length))
+                    .as("%s output bytes", length)
+                    .isZero();
+        }
+
+        byte[] first = "first frame".getBytes(UTF_8);
+        byte[] second = "second frame".getBytes(UTF_8);
+        // skippable frame with the last magic number, 0x184D2A5F, and a 4 byte payload
+        byte[] skippableFrame = HexFormat.of().parseHex("5f2a4d180400000001020304");
+        byte[] compressed = Bytes.concat(compress(first), skippableFrame, compress(second));
+
+        byte[] expected = Bytes.concat(first, second);
+        byte[] decompressed = new byte[expected.length];
+        int decompressedSize = getDecompressor().decompress(compressed, 0, compressed.length, decompressed, 0, decompressed.length);
+
+        assertByteArraysEqual(expected, 0, expected.length, decompressed, 0, decompressedSize);
     }
 
     @Test
@@ -273,5 +330,13 @@ public abstract class AbstractTestZstd
 
         assertThatThrownBy(() -> getDecompressor().decompress(data, 0, data.length, new byte[10], 0, 10))
                 .hasMessageMatching(".*Not enough input bytes.*|Src size is incorrect.*");
+    }
+
+    private byte[] compress(byte[] uncompressed)
+    {
+        Compressor compressor = getCompressor();
+        byte[] compressed = new byte[compressor.maxCompressedLength(uncompressed.length)];
+        int compressedLength = compressor.compress(uncompressed, 0, uncompressed.length, compressed, 0, compressed.length);
+        return Arrays.copyOf(compressed, compressedLength);
     }
 }

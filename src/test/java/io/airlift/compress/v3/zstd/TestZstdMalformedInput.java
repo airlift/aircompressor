@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,14 +32,17 @@ class TestZstdMalformedInput
     @Test
     void testDecompressTruncatedInput()
     {
-        byte[] compressed = compress(UNCOMPRESSED);
+        // skippable frame with the last magic number, 0x184D2A5F, and a 4 byte payload
+        byte[] skippableFrame = HexFormat.of().parseHex("5f2a4d180400000001020304");
         byte[] output = new byte[UNCOMPRESSED.length];
-        for (ZstdDecompressor decompressor : decompressors()) {
-            for (int length = 1; length < compressed.length; length++) {
-                int truncatedLength = length;
-                assertThatThrownBy(() -> decompressor.decompress(compressed, 0, truncatedLength, output, 0, output.length))
-                        .as("%s with %s input bytes", decompressor.getClass().getSimpleName(), truncatedLength)
-                        .isInstanceOf(MalformedInputException.class);
+        for (byte[] compressed : List.of(compress(UNCOMPRESSED), skippableFrame)) {
+            for (ZstdDecompressor decompressor : decompressors()) {
+                for (int length = 1; length < compressed.length; length++) {
+                    int truncatedLength = length;
+                    assertThatThrownBy(() -> decompressor.decompress(compressed, 0, truncatedLength, output, 0, output.length))
+                            .as("%s with %s of %s input bytes", decompressor.getClass().getSimpleName(), truncatedLength, compressed.length)
+                            .isInstanceOf(MalformedInputException.class);
+                }
             }
         }
     }

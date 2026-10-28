@@ -33,6 +33,12 @@ class TestZstdStream
     }
 
     @Override
+    protected boolean isSkippableFrameSupported()
+    {
+        return false;
+    }
+
+    @Override
     protected ZstdCompressor getCompressor()
     {
         return new ZstdStreamCompressor();
