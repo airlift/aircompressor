@@ -68,4 +68,16 @@ public abstract class AbstractTestLz4
                 .isInstanceOf(MalformedInputException.class)
                 .hasMessageMatching("Malformed input.*|offset outside destination buffer.*");
     }
+
+    @Test
+    void testDecompressContentIntoEmptyOutput()
+    {
+        byte[] data = new byte[100];
+        byte[] compressed = new byte[getCompressor().maxCompressedLength(data.length)];
+        int compressedLength = getCompressor().compress(data, 0, data.length, compressed, 0, compressed.length);
+
+        assertThatThrownBy(() -> getDecompressor().decompress(compressed, 0, compressedLength, new byte[0], 0, 0))
+                .isInstanceOf(MalformedInputException.class)
+                .hasMessageMatching("Malformed input.*");
+    }
 }

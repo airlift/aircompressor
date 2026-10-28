@@ -270,9 +270,6 @@ final class Lz4FrameCompression
                 MemorySegment block = input.asSlice(position, blockLength);
                 MemorySegment blockOutput = output.asSlice(outputPosition, outputLimit - outputPosition);
                 int decompressedLength = blockDecompressor.decompress(block, blockOutput);
-                if (decompressedLength < 0) {
-                    throw new MalformedInputException(outputPosition, "Output buffer too small");
-                }
                 if (decompressedLength > blockMaximumSize) {
                     throw new MalformedInputException(position, "Corrupt LZ4 frame: decompressed block exceeds maximum block size");
                 }

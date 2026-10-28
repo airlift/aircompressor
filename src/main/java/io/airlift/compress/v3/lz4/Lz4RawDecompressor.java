@@ -53,7 +53,7 @@ final class Lz4RawDecompressor
             if (inputLimit - inputAddress == 1 && UNSAFE.getByte(inputBase, inputAddress) == 0) {
                 return 0;
             }
-            return -1;
+            throw new MalformedInputException(0);
         }
 
         while (input < inputLimit) {
