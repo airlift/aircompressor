@@ -34,10 +34,9 @@ import static java.util.Objects.requireNonNull;
 /**
  * An {@link OutputStream} that compresses data using the native zstd library.
  * <p>
- * This native wrapper passes the caller's input buffer to libzstd with no Java-side buffer in between,
- * and writes compressed data to the underlying {@link OutputStream} from a buffer sized by libzstd's
- * recommendation. For optimal performance, callers should provide sufficiently large input buffers
- * to minimize the number of calls into native code, or should wrap this stream in a buffered stream.
+ * This native wrapper buffers small writes to amortize calls into native code, and passes large
+ * writes directly to libzstd. Compressed data is written to the underlying {@link OutputStream}
+ * from a buffer sized by libzstd's recommendation.
  * <p>
  * Native memory is used for the zstd streaming context. A {@link java.lang.ref.Cleaner} is
  * registered as a safety net to free native resources if {@link #close()} is not called.
@@ -64,11 +63,8 @@ public final class ZstdNativeOutputStream
     private final MemorySegment sourcePositionSegment = MemorySegment.ofArray(sourcePosition);
     private final MemorySegment destinationPositionSegment = MemorySegment.ofArray(destinationPosition);
 
-    private final byte[] oneByte = new byte[1];
-
-    // the heap segment wrapping the array of the last write, reused when the same array is written again
-    private byte[] inputArray;
-    private MemorySegment inputArraySegment;
+    private final byte[] inputBuffer = new byte[8192];
+    private int bufferedInputSize;
 
     // set once a finish is attempted, whether or not it succeeded; the native context is freed and the underlying stream may still be open
     private boolean finished;
@@ -127,12 +123,43 @@ public final class ZstdNativeOutputStream
     public void write(int b)
             throws IOException
     {
-        oneByte[0] = (byte) b;
-        write(oneByte, 0, 1);
+        checkWritable();
+        inputBuffer[bufferedInputSize++] = (byte) b;
+        if (bufferedInputSize == inputBuffer.length) {
+            writeBufferedInput();
+        }
     }
 
     @Override
     public void write(byte[] buffer, int offset, int length)
+            throws IOException
+    {
+        checkWritable();
+
+        if (buffer == null) {
+            throw new NullPointerException("buffer is null");
+        }
+        checkPositionIndexes(offset, offset + length, buffer.length);
+
+        if (length >= inputBuffer.length) {
+            writeBufferedInput();
+            writeDirect(buffer, offset, length);
+            return;
+        }
+
+        int size = Math.min(length, inputBuffer.length - bufferedInputSize);
+        System.arraycopy(buffer, offset, inputBuffer, bufferedInputSize, size);
+        bufferedInputSize += size;
+        if (bufferedInputSize == inputBuffer.length) {
+            writeBufferedInput();
+        }
+        if (size < length) {
+            bufferedInputSize = length - size;
+            System.arraycopy(buffer, offset + size, inputBuffer, 0, bufferedInputSize);
+        }
+    }
+
+    private void checkWritable()
             throws IOException
     {
         if (closed) {
@@ -144,17 +171,22 @@ public final class ZstdNativeOutputStream
         if (finished) {
             throw new IOException("Stream is finished");
         }
+    }
 
-        if (buffer == null) {
-            throw new NullPointerException("buffer is null");
+    private void writeBufferedInput()
+            throws IOException
+    {
+        if (bufferedInputSize > 0) {
+            writeDirect(inputBuffer, 0, bufferedInputSize);
+            bufferedInputSize = 0;
         }
-        checkPositionIndexes(offset, offset + length, buffer.length);
+    }
 
-        if (buffer != inputArray) {
-            inputArray = buffer;
-            inputArraySegment = MemorySegment.ofArray(buffer);
-        }
-        MemorySegment inputSegment = inputArraySegment;
+    private void writeDirect(byte[] buffer, int offset, int length)
+            throws IOException
+    {
+
+        MemorySegment inputSegment = MemorySegment.ofArray(buffer);
         int inputPosition = offset;
         int inputLimit = offset + length;
         try {
@@ -191,6 +223,7 @@ public final class ZstdNativeOutputStream
 
         try {
             if (!finished) {
+                writeBufferedInput();
                 flushInternal(ZSTD_E_FLUSH);
             }
             outputStream.flush();
@@ -261,6 +294,7 @@ public final class ZstdNativeOutputStream
             if (failure != null) {
                 throw failedException();
             }
+            writeBufferedInput();
             flushInternal(ZSTD_E_END);
         }
         catch (IOException | RuntimeException e) {
@@ -278,8 +312,6 @@ public final class ZstdNativeOutputStream
     {
         if (!closed) {
             closed = true;
-            inputArray = null;
-            inputArraySegment = null;
             // a failure to finish the frame stays primary; a failure to close the destination is suppressed into it
             try (outputStream) {
                 finishWithoutClosingSource();

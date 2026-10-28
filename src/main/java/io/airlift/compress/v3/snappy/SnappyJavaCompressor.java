@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.snappy;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.snappy.UnsafeUtil.getAddress;
@@ -40,9 +42,9 @@ public final class SnappyJavaCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
         return SnappyRawCompressor.compress(input, inputAddress, inputLimit, output, outputAddress, outputLimit, table);
@@ -52,22 +54,23 @@ public final class SnappyJavaCompressor
     public int compress(MemorySegment input, MemorySegment output)
     {
         try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
+            MemorySegmentAccess access = MemorySegmentAccess.forCompression(this, input, output);
+            byte[] inputBase = getBase(access.input());
+            long inputAddress = getAddress(access.input());
             long inputLimit = addExact(inputAddress, input.byteSize());
 
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
-            long outputLimit = addExact(outputAddress, output.byteSize());
+            byte[] outputBase = getBase(access.output());
+            long outputAddress = getAddress(access.output());
+            long outputLimit = addExact(outputAddress, access.output().byteSize());
 
-            return SnappyRawCompressor.compress(
+            return access.finish(SnappyRawCompressor.compress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
                     outputLimit,
-                    table);
+                    table));
         }
         finally {
             reachabilityFence(input);
@@ -84,7 +87,7 @@ public final class SnappyJavaCompressor
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }

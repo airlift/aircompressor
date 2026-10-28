@@ -14,6 +14,8 @@
 package io.airlift.compress.v3.lz4;
 
 import java.lang.foreign.Arena;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.lz4.Lz4Native.DEFAULT_ACCELERATION;
@@ -62,6 +64,7 @@ public final class Lz4NativeCompressor
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return Lz4Native.compress(input, toIntExact(input.byteSize()), output, toIntExact(output.byteSize()), acceleration, state);
     }
 }

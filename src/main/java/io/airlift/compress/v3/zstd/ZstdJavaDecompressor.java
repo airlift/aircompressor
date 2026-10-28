@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.zstd;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 
@@ -37,9 +38,9 @@ public class ZstdJavaDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
         return decompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
@@ -50,21 +51,22 @@ public class ZstdJavaDecompressor
             throws MalformedInputException
     {
         try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
+            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            byte[] inputBase = getBase(access.input());
+            long inputAddress = getAddress(access.input());
             long inputLimit = addExact(inputAddress, input.byteSize());
 
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
+            byte[] outputBase = getBase(access.output());
+            long outputAddress = getAddress(access.output());
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return decompressor.decompress(
+            return access.finish(decompressor.decompress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
-                    outputLimit);
+                    outputLimit));
         }
         finally {
             reachabilityFence(input);
@@ -75,14 +77,15 @@ public class ZstdJavaDecompressor
     @Override
     public long getDecompressedSize(byte[] input, int offset, int length)
     {
-        int baseAddress = ARRAY_BYTE_BASE_OFFSET + offset;
+        verifyRange(input, offset, length);
+        long baseAddress = (long) ARRAY_BYTE_BASE_OFFSET + offset;
         return ZstdFrameDecompressor.getDecompressedSize(input, baseAddress, baseAddress + length);
     }
 
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }

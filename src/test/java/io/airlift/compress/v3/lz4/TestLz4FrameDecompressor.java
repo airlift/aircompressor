@@ -227,6 +227,33 @@ class TestLz4FrameDecompressor
     }
 
     @Test
+    void testCompressedBlockCannotWritePastAdvertisedMaximum()
+    {
+        int blockMaximum = 64 * 1024;
+        byte[] input = new byte[blockMaximum + 1024];
+        Lz4JavaCompressor compressor = new Lz4JavaCompressor();
+        byte[] block = new byte[compressor.maxCompressedLength(input.length)];
+        int compressedLength = compressor.compress(input, 0, input.length, block, 0, block.length);
+        byte[] frame = frame(FLG_BLOCK_INDEPENDENCE)
+                .blockDescriptor(0x40)
+                .compressedBlock(Arrays.copyOf(block, compressedLength))
+                .build();
+        assertBlockMaximum(new Lz4FrameJavaDecompressor(), frame, blockMaximum);
+        if (Lz4FrameNativeDecompressor.isEnabled()) {
+            assertBlockMaximum(new Lz4FrameNativeDecompressor(), frame, blockMaximum);
+        }
+    }
+
+    private static void assertBlockMaximum(Lz4FrameDecompressor decompressor, byte[] frame, int blockMaximum)
+    {
+        byte[] output = new byte[2 * blockMaximum];
+        Arrays.fill(output, (byte) 42);
+        assertThatThrownBy(() -> decompressor.decompress(frame, 0, frame.length, output, 0, output.length))
+                .isInstanceOf(MalformedInputException.class);
+        assertThat(Arrays.copyOfRange(output, blockMaximum, output.length)).containsOnly((byte) 42);
+    }
+
+    @Test
     void testTrailingGarbageIsRejected()
     {
         byte[] concatenated = Bytes.concat(frame(FLG_BLOCK_INDEPENDENCE).build(), new byte[] {1, 2, 3, 4, 5});
@@ -269,7 +296,7 @@ class TestLz4FrameDecompressor
     }
 
     /**
-     * Builds a single-block LZ4 frame holding {@link #CONTENT} as an uncompressed block, with a
+     * Builds a single-block LZ4 frame holding {@link #CONTENT} as an uncompressed block by default, with a
      * valid header checksum and, by default, valid optional fields for whichever flags are set.
      * Individual fields can be overridden to exercise rejection paths.
      */
@@ -280,6 +307,8 @@ class TestLz4FrameDecompressor
         private long contentSize = CONTENT.length;
         private Integer blockChecksum;
         private Integer contentChecksum;
+        private byte[] block = CONTENT;
+        private boolean compressed;
 
         private FrameBuilder(int flags)
         {
@@ -310,6 +339,13 @@ class TestLz4FrameDecompressor
             return this;
         }
 
+        FrameBuilder compressedBlock(byte[] block)
+        {
+            this.block = block;
+            compressed = true;
+            return this;
+        }
+
         byte[] build()
         {
             // frame descriptor bytes (FLG, BD, optional content size and dictionary id),
@@ -331,11 +367,11 @@ class TestLz4FrameDecompressor
             frame.write(descriptorBytes, 0, descriptorBytes.length);
             frame.write(headerChecksum);
 
-            // single uncompressed block
-            writeInt(frame, CONTENT.length | UNCOMPRESSED_BLOCK_FLAG);
-            frame.write(CONTENT, 0, CONTENT.length);
+            // single data block
+            writeInt(frame, block.length | (compressed ? 0 : UNCOMPRESSED_BLOCK_FLAG));
+            frame.write(block, 0, block.length);
             if ((flg & FLG_BLOCK_CHECKSUM) != 0) {
-                writeInt(frame, blockChecksum != null ? blockChecksum : xxHash32(CONTENT));
+                writeInt(frame, blockChecksum != null ? blockChecksum : xxHash32(block));
             }
 
             writeInt(frame, 0); // end mark

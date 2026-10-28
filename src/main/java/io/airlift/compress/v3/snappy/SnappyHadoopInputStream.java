@@ -101,26 +101,19 @@ class SnappyHadoopInputStream
         uncompressedChunkOffset = 0;
         uncompressedChunkLength = 0;
         while (uncompressedBlockLength == 0) {
-            uncompressedBlockLength = readBigEndianInt();
+            uncompressedBlockLength = readBigEndianInt(true);
             if (uncompressedBlockLength == -1) {
                 uncompressedBlockLength = 0;
                 return false;
             }
         }
 
-        int compressedChunkLength = readBigEndianInt();
-        if (compressedChunkLength == -1) {
-            return false;
-        }
+        int compressedChunkLength = readBigEndianInt(false);
 
-        if (compressed.length < compressedChunkLength) {
-             // over allocate buffer which makes decompression easier
-            compressed = new byte[compressedChunkLength + SIZE_OF_LONG];
-        }
-        readInput(compressedChunkLength, compressed);
+        compressed = readCompressedBlock(in, compressed, compressedChunkLength);
 
-        uncompressedChunkLength = decompressor.getUncompressedLength(compressed, 0);
-        if (uncompressedChunkLength > uncompressedBlockLength) {
+        uncompressedChunkLength = SnappyInternalUtils.getUncompressedLength(compressed, 0, compressedChunkLength);
+        if (uncompressedChunkLength > uncompressedBlockLength || uncompressedChunkLength > Integer.MAX_VALUE - SIZE_OF_LONG) {
             throw new IOException("Chunk uncompressed size is greater than block size");
         }
 
@@ -143,25 +136,15 @@ class SnappyHadoopInputStream
         return directUncompress;
     }
 
-    private void readInput(int length, byte[] buffer)
-            throws IOException
-    {
-        int offset = 0;
-        while (offset < length) {
-            int size = in.read(buffer, offset, length - offset);
-            if (size == -1) {
-                throw new EOFException("encountered EOF while reading block data");
-            }
-            offset += size;
-        }
-    }
-
-    private int readBigEndianInt()
+    private int readBigEndianInt(boolean allowEndOfStream)
             throws IOException
     {
         int b1 = in.read();
         if (b1 < 0) {
-            return -1;
+            if (allowEndOfStream) {
+                return -1;
+            }
+            throw new EOFException("encountered EOF while reading block header");
         }
         int b2 = in.read();
         int b3 = in.read();
@@ -171,6 +154,10 @@ class SnappyHadoopInputStream
         if ((b2 | b3 | b4) < 0) {
             throw new IOException("Stream is truncated");
         }
-        return ((b1 << 24) + (b2 << 16) + (b3 << 8) + (b4));
+        int value = (b1 << 24) + (b2 << 16) + (b3 << 8) + b4;
+        if (value < 0) {
+            throw new IOException("Negative block length: " + value);
+        }
+        return value;
     }
 }

@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.snappy;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static java.lang.Math.toIntExact;
@@ -49,6 +51,7 @@ public final class SnappyNativeCompressor
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return toIntExact(snappyNative.compress(input, input.byteSize(), output, output.byteSize()));
     }
 }
