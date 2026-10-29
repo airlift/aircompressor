@@ -44,6 +44,8 @@ final class ZstdNative
             MethodHandle decompress,
             @NativeSignature(name = "ZSTD_getFrameContentSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
             MethodHandle uncompressedLength,
+            @NativeSignature(name = "ZSTD_findFrameCompressedSize", returnType = long.class, argumentTypes = {MemorySegment.class, long.class})
+            MethodHandle findFrameCompressedSize,
             // Decompression streaming
             @NativeSignature(name = "ZSTD_createDStream", returnType = MemorySegment.class, argumentTypes = {})
             MethodHandle createDecompressStream,
@@ -89,6 +91,7 @@ final class ZstdNative
     private static final MethodHandle FREE_DECOMPRESSION_CONTEXT_METHOD;
     private static final MethodHandle DECOMPRESS_METHOD;
     private static final MethodHandle UNCOMPRESSED_LENGTH_METHOD;
+    private static final MethodHandle FIND_FRAME_COMPRESSED_SIZE_METHOD;
     // Decompression streaming
     private static final MethodHandle CREATE_DECOMPRESS_STREAM_METHOD;
     private static final MethodHandle FREE_DECOMPRESS_STREAM_METHOD;
@@ -153,6 +156,7 @@ final class ZstdNative
         FREE_DECOMPRESSION_CONTEXT_METHOD = methodHandles.freeDecompressionContext();
         DECOMPRESS_METHOD = methodHandles.decompress();
         UNCOMPRESSED_LENGTH_METHOD = methodHandles.uncompressedLength();
+        FIND_FRAME_COMPRESSED_SIZE_METHOD = methodHandles.findFrameCompressedSize();
         // Decompression streaming
         CREATE_DECOMPRESS_STREAM_METHOD = methodHandles.createDecompressStream();
         FREE_DECOMPRESS_STREAM_METHOD = methodHandles.freeDecompressStream();
@@ -328,6 +332,25 @@ final class ZstdNative
         // any other negative result is ZSTD_CONTENTSIZE_ERROR, returned for an invalid magic or a truncated frame header
         if (CONTENT_SIZE_UNKNOWN != result && result < 0) {
             throw new MalformedInputException(0, "Invalid or truncated frame header");
+        }
+        return result;
+    }
+
+    public static long findFrameCompressedSize(MemorySegment compressed, long compressedLength)
+    {
+        long result;
+        try {
+            result = (long) FIND_FRAME_COMPRESSED_SIZE_METHOD.invokeExact(compressed, compressedLength);
+        }
+        catch (Error e) {
+            throw e;
+        }
+        catch (Throwable e) {
+            throw new Error("Unexpected exception", e);
+        }
+
+        if (isError(result)) {
+            throw decompressionError("Unknown error occurred while finding the frame size", result);
         }
         return result;
     }
