@@ -29,6 +29,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestZstdMalformedInput
 {
     private static final byte[] UNCOMPRESSED = new byte[1000];
+    // corrupt zstd v0.6 frame found by fuzzing, which libzstd reports as a generic error
+    private static final byte[] LEGACY_FRAME = HexFormat.of().parseHex("26b52ffd56fdb5022f28fd20c9000100fc00fd0000");
 
     @Test
     void testDecompressTruncatedInput()
@@ -110,6 +112,20 @@ class TestZstdMalformedInput
     }
 
     @Test
+    void testDecompressLegacyFrame()
+    {
+        byte[] output = new byte[UNCOMPRESSED.length];
+        for (byte[] compressed : List.of(LEGACY_FRAME, Bytes.concat(compress(UNCOMPRESSED), LEGACY_FRAME))) {
+            for (ZstdDecompressor decompressor : decompressors()) {
+                assertThatThrownBy(() -> decompressor.decompress(compressed, 0, compressed.length, output, 0, output.length))
+                        .as("%s with %s input bytes", decompressor.getClass().getSimpleName(), compressed.length)
+                        .isInstanceOf(MalformedInputException.class)
+                        .hasMessageMatching("Invalid magic prefix: fd2fb526.*");
+            }
+        }
+    }
+
+    @Test
     void testGetDecompressedSizeTruncatedHeader()
     {
         byte[] compressed = compress(UNCOMPRESSED);
@@ -134,6 +150,17 @@ class TestZstdMalformedInput
                     .as(decompressor.getClass().getSimpleName())
                     .isInstanceOf(MalformedInputException.class)
                     .hasMessageMatching("Invalid magic prefix.*|Invalid or truncated frame header.*");
+        }
+    }
+
+    @Test
+    void testGetDecompressedSizeLegacyFrame()
+    {
+        for (ZstdDecompressor decompressor : decompressors()) {
+            assertThatThrownBy(() -> decompressor.getDecompressedSize(LEGACY_FRAME, 0, LEGACY_FRAME.length))
+                    .as(decompressor.getClass().getSimpleName())
+                    .isInstanceOf(MalformedInputException.class)
+                    .hasMessageMatching("Invalid magic prefix: fd2fb526.*");
         }
     }
 
