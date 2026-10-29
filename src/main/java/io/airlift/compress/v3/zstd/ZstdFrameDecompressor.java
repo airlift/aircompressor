@@ -47,6 +47,8 @@ import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_BYTE;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_INT;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_LONG;
 import static io.airlift.compress.v3.zstd.Constants.SIZE_OF_SHORT;
+import static io.airlift.compress.v3.zstd.Constants.SKIPPABLE_MAGIC_NUMBER;
+import static io.airlift.compress.v3.zstd.Constants.SKIPPABLE_MAGIC_NUMBER_MASK;
 import static io.airlift.compress.v3.zstd.Constants.TREELESS_LITERALS_BLOCK;
 import static io.airlift.compress.v3.zstd.UnsafeUtil.UNSAFE;
 import static io.airlift.compress.v3.zstd.Util.fail;
@@ -62,8 +64,6 @@ class ZstdFrameDecompressor
     private static final int[] DEC_64_TABLE = {0, 0, 0, -1, 0, 1, 2, 3};
 
     private static final int V07_MAGIC_NUMBER = 0xFD2FB527;
-    private static final int SKIPPABLE_MAGIC_NUMBER = 0x184D2A50;
-    private static final int SKIPPABLE_MAGIC_NUMBER_MASK = 0xFFFF_FFF0;
     private static final int SKIPPABLE_FRAME_HEADER_SIZE = 8;
 
     static final int MAX_WINDOW_SIZE = 1 << 23;
