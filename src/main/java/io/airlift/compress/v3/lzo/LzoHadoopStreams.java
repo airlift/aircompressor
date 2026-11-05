@@ -25,7 +25,7 @@ public class LzoHadoopStreams
         implements HadoopStreams
 {
     private static final List<String> HADOOP_CODEC_NAMES = List.of("org.apache.hadoop.io.compress.LzoCodec", "com.hadoop.compression.lzo.LzoCodec");
-    private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 256 * 1024;
+    private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 64 * 1024;
 
     private final int bufferSize;
 
