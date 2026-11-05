@@ -54,17 +54,17 @@ download_macos()
 
 # Snappy
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_amd64.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-4_amd64.deb" \
   "/usr/lib/x86_64-linux-gnu/libsnappy.so.1.3.1" \
   "linux-amd64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_arm64.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-4_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libsnappy.so.1.3.1" \
   "linux-aarch64/libsnappy.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_ppc64el.deb" \
+  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-4_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/libsnappy.so.1.3.1" \
   "linux-ppc64le/libsnappy.so"
 
@@ -92,22 +92,22 @@ download_macos \
 
 # LZ4
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_amd64.deb" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-10_amd64.deb" \
   "/usr/lib/x86_64-linux-gnu/liblz4.so.1.10.0" \
   "linux-amd64/liblz4.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_arm64.deb" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-10_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/liblz4.so.1.10.0" \
   "linux-aarch64/liblz4.so"
 
 download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_ppc64el.deb" \
+  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-10_ppc64el.deb" \
   "/usr/lib/powerpc64le-linux-gnu/liblz4.so.1.10.0" \
   "linux-ppc64le/liblz4.so"
 
 download_macos \
-  lz4 1.10.0 liblz4.1.10.0.dylib arm64 macos-aarch64/liblz4.dylib
+  lz4 1.11.0 liblz4.1.11.0.dylib arm64 macos-aarch64/liblz4.dylib
 
 # bzip2
 download_linux \
