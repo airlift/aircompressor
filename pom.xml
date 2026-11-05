@@ -69,7 +69,7 @@
         <dependency>
             <groupId>at.yawk.lz4</groupId>
             <artifactId>lz4-java</artifactId>
-            <version>1.12.1</version>
+            <version>1.13.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -87,7 +87,7 @@
         <dependency>
             <groupId>com.github.luben</groupId>
             <artifactId>zstd-jni</artifactId>
-            <version>1.5.7-24</version>
+            <version>1.5.7-25</version>
             <scope>test</scope>
         </dependency>
         <dependency>
