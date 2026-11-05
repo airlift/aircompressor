@@ -27,7 +27,7 @@ import static java.util.Collections.singletonList;
 public class LzopHadoopStreams
         implements HadoopStreams
 {
-    private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 256 * 1024;
+    private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 64 * 1024;
     private final int bufferSize;
 
     public LzopHadoopStreams()

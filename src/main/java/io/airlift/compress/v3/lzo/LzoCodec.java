@@ -18,7 +18,7 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.util.Optional;
 
-import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT;
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_DEFAULT;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY;
 
 public class LzoCodec
@@ -36,7 +36,7 @@ public class LzoCodec
         // size of chunks.  Instead, we must rely on the "configured"
         // maximum buffer size used by the writer of the file.
         return configuration
-            .map(conf -> conf.getInt(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY, IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT))
-            .orElse(IO_COMPRESSION_CODEC_LZ4_BUFFERSIZE_DEFAULT);
+            .map(conf -> conf.getInt(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY, IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_DEFAULT))
+            .orElse(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_DEFAULT);
     }
 }
