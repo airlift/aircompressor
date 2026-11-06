@@ -63,11 +63,6 @@ download_linux \
   "/usr/lib/aarch64-linux-gnu/libsnappy.so.1.3.1" \
   "linux-aarch64/libsnappy.so"
 
-download_linux \
-  "https://deb.debian.org/debian/pool/main/s/snappy/libsnappy1v5_1.3.1-1_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libsnappy.so.1.3.1" \
-  "linux-ppc64le/libsnappy.so"
-
 download_macos \
   snappy 1.3.1 libsnappy.1.3.1.dylib arm64 macos-aarch64/libsnappy.dylib
 
@@ -81,11 +76,6 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-4_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libzstd.so.1.5.7" \
   "linux-aarch64/libzstd.so"
-
-download_linux \
-  "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7+dfsg-4_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libzstd.so.1.5.7" \
-  "linux-ppc64le/libzstd.so"
 
 download_macos \
   zstd 1.5.7 libzstd.1.5.7.dylib arm64 macos-aarch64/libzstd.dylib
@@ -101,11 +91,6 @@ download_linux \
   "/usr/lib/aarch64-linux-gnu/liblz4.so.1.10.0" \
   "linux-aarch64/liblz4.so"
 
-download_linux \
-  "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-1_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/liblz4.so.1.10.0" \
-  "linux-ppc64le/liblz4.so"
-
 download_macos \
   lz4 1.10.0 liblz4.1.10.0.dylib arm64 macos-aarch64/liblz4.dylib
 
@@ -120,11 +105,6 @@ download_linux \
   "/usr/lib/aarch64-linux-gnu/libbz2.so.1.0.4" \
   "linux-aarch64/libbz2.so"
 
-download_linux \
-  "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libbz2.so.1.0.4" \
-  "linux-ppc64le/libbz2.so"
-
 # XXHash
 download_linux \
   "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_amd64.deb" \
@@ -135,11 +115,6 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libxxhash.so.0.8.3" \
   "linux-aarch64/libxxhash.so"
-
-download_linux \
-  "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libxxhash.so.0.8.3" \
-  "linux-ppc64le/libxxhash.so"
 
 download_macos \
   xxhash 0.8.4 libxxhash.0.8.4.dylib arm64 macos-aarch64/libxxhash.dylib
@@ -154,11 +129,6 @@ download_linux \
   "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.25-1_arm64.deb" \
   "/usr/lib/aarch64-linux-gnu/libdeflate.so.0" \
   "linux-aarch64/libdeflate.so"
-
-download_linux \
-  "https://deb.debian.org/debian/pool/main/libd/libdeflate/libdeflate0_1.25-1_ppc64el.deb" \
-  "/usr/lib/powerpc64le-linux-gnu/libdeflate.so.0" \
-  "linux-ppc64le/libdeflate.so"
 
 download_macos \
   libdeflate 1.26 libdeflate.0.dylib arm64 macos-aarch64/libdeflate.dylib
