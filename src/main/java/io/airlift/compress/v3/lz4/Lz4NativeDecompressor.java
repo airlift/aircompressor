@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.lz4;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static java.lang.Math.toIntExact;
@@ -41,6 +43,7 @@ public final class Lz4NativeDecompressor
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return Lz4Native.decompress(input, toIntExact(input.byteSize()), output, toIntExact(output.byteSize()));
     }
 }

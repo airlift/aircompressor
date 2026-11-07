@@ -88,7 +88,7 @@ class JdkDeflateHadoopOutputStream
     {
         if (!closed) {
             closed = true;
-            try {
+            try (deflater) {
                 finish();
             }
             finally {

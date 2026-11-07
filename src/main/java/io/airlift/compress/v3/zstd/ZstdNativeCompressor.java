@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static io.airlift.compress.v3.zstd.ZstdNative.DEFAULT_COMPRESSION_LEVEL;
@@ -58,6 +60,7 @@ public class ZstdNativeCompressor
     @Override
     public int compress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return compress(input, input.byteSize(), output, output.byteSize());
     }
 
