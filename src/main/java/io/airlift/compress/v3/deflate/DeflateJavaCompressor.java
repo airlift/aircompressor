@@ -89,7 +89,7 @@ public class DeflateJavaCompressor
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException("Invalid offset or length (%s, %s) in array of length %s".formatted(offset, length, data.length));
         }
     }

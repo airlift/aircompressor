@@ -15,6 +15,7 @@ package io.airlift.compress.v3.lzo;
 
 import io.airlift.compress.v3.Decompressor;
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 
@@ -36,9 +37,9 @@ public class LzoDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
         return LzoRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
@@ -49,21 +50,22 @@ public class LzoDecompressor
             throws MalformedInputException
     {
         try {
-            byte[] inputBase = getBase(input);
-            long inputAddress = getAddress(input);
+            MemorySegmentAccess access = MemorySegmentAccess.of(input, output);
+            byte[] inputBase = getBase(access.input());
+            long inputAddress = getAddress(access.input());
             long inputLimit = addExact(inputAddress, input.byteSize());
 
-            byte[] outputBase = getBase(output);
-            long outputAddress = getAddress(output);
+            byte[] outputBase = getBase(access.output());
+            long outputAddress = getAddress(access.output());
             long outputLimit = addExact(outputAddress, output.byteSize());
 
-            return LzoRawDecompressor.decompress(
+            return access.finish(LzoRawDecompressor.decompress(
                     inputBase,
                     inputAddress,
                     inputLimit,
                     outputBase,
                     outputAddress,
-                    outputLimit);
+                    outputLimit));
         }
         finally {
             reachabilityFence(input);
@@ -74,7 +76,7 @@ public class LzoDecompressor
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }

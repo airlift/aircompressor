@@ -16,10 +16,25 @@ package io.airlift.compress.v3.snappy;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
+
 final class SnappyInternalUtils
 {
     private SnappyInternalUtils()
     {
+    }
+
+    static int getUncompressedLength(byte[] input, int offset, int length)
+            throws IOException
+    {
+        long address = ARRAY_BYTE_BASE_OFFSET + (long) offset;
+        int[] header = SnappyRawDecompressor.readUncompressedLength(input, address, address + length);
+        // A copy tag produces at most 64 bytes. This conservative bound also admits
+        // literals, while rejecting impossible lengths before allocating their output.
+        if (header[0] > (long) (length - header[1]) * 64) {
+            throw new IOException("Uncompressed chunk length exceeds possible compressed data size");
+        }
+        return header[0];
     }
 
     //

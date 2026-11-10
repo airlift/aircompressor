@@ -77,7 +77,7 @@ public final class SnappyFramedInputStream
         this.decompressor = requireNonNull(decompressor, "decompressor is null");
         this.in = in;
         this.verifyChecksums = verifyChecksums;
-        allocateBuffersBasedOnSize(MAX_BLOCK_SIZE + 5);
+        ensureInputBufferSize(MAX_BLOCK_SIZE + 5);
         this.frameHeader = new byte[4];
 
         // stream must begin with stream header
@@ -155,74 +155,69 @@ public final class SnappyFramedInputStream
     private boolean ensureBuffer()
             throws IOException
     {
-        if (available() > 0) {
-            return true;
-        }
-        if (eof) {
-            return false;
-        }
-
-        if (!readBlockHeader()) {
-            eof = true;
-            return false;
-        }
-
-        // get action based on header
-        FrameMetaData frameMetaData = getFrameMetaData(frameHeader);
-
-        if (FrameAction.SKIP == frameMetaData.frameAction) {
-            SnappyInternalUtils.skip(in, frameMetaData.length);
-            return ensureBuffer();
-        }
-
-        if (frameMetaData.length > input.length) {
-            allocateBuffersBasedOnSize(frameMetaData.length);
-        }
-
-        int actualRead = SnappyInternalUtils.readBytes(in, input, 0, frameMetaData.length);
-        if (actualRead != frameMetaData.length) {
-            throw new EOFException("unexpectd EOF when reading frame");
-        }
-
-        FrameData frameData = getFrameData(input);
-
-        if (FrameAction.UNCOMPRESS == frameMetaData.frameAction) {
-            int uncompressedLength = decompressor.getUncompressedLength(input, frameData.offset);
-
-            if (uncompressedLength > uncompressed.length) {
-                uncompressed = new byte[uncompressedLength];
+        while (available() == 0) {
+            if (eof) {
+                return false;
             }
 
-            this.valid = decompressor.decompress(input, frameData.offset, actualRead - frameData.offset, uncompressed, 0, uncompressed.length);
-            this.buffer = uncompressed;
-            this.position = 0;
-        }
-        else {
-            // we need to start reading at the offset
-            this.position = frameData.offset;
-            this.buffer = input;
-            // valid is until the end of the read data, regardless of offset
-            // indicating where we start
-            this.valid = actualRead;
-        }
+            if (!readBlockHeader()) {
+                eof = true;
+                return false;
+            }
 
-        if (verifyChecksums) {
-            int actualCrc32c = Crc32C.maskedCrc32c(buffer, position, valid - position);
-            if (frameData.checkSum != actualCrc32c) {
-                throw new IOException("Corrupt input: invalid checksum");
+            // get action based on header
+            FrameMetaData frameMetaData = getFrameMetaData(frameHeader);
+
+            if (FrameAction.SKIP == frameMetaData.frameAction) {
+                SnappyInternalUtils.skip(in, frameMetaData.length);
+                continue;
+            }
+
+            if (frameMetaData.length > input.length) {
+                ensureInputBufferSize(frameMetaData.length);
+            }
+
+            int actualRead = SnappyInternalUtils.readBytes(in, input, 0, frameMetaData.length);
+            if (actualRead != frameMetaData.length) {
+                throw new EOFException("unexpectd EOF when reading frame");
+            }
+
+            FrameData frameData = getFrameData(input);
+
+            if (FrameAction.UNCOMPRESS == frameMetaData.frameAction) {
+                int uncompressedLength = SnappyInternalUtils.getUncompressedLength(input, frameData.offset, actualRead - frameData.offset);
+
+                if (uncompressedLength > uncompressed.length) {
+                    uncompressed = new byte[uncompressedLength];
+                }
+
+                this.valid = decompressor.decompress(input, frameData.offset, actualRead - frameData.offset, uncompressed, 0, uncompressed.length);
+                this.buffer = uncompressed;
+                this.position = 0;
+            }
+            else {
+                // we need to start reading at the offset
+                this.position = frameData.offset;
+                this.buffer = input;
+                // valid is until the end of the read data, regardless of offset
+                // indicating where we start
+                this.valid = actualRead;
+            }
+
+            if (verifyChecksums) {
+                int actualCrc32c = Crc32C.maskedCrc32c(buffer, position, valid - position);
+                if (frameData.checkSum != actualCrc32c) {
+                    throw new IOException("Corrupt input: invalid checksum");
+                }
             }
         }
-
         return true;
     }
 
-    private void allocateBuffersBasedOnSize(int size)
+    private void ensureInputBufferSize(int size)
     {
         if (input.length < size) {
             input = new byte[size];
-        }
-        if (uncompressed.length < size) {
-            uncompressed = new byte[size];
         }
     }
 

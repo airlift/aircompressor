@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.deflate;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -24,6 +25,7 @@ import static io.airlift.compress.v3.deflate.DeflateNative.LIBDEFLATE_INSUFFICIE
 import static io.airlift.compress.v3.deflate.DeflateNative.LIBDEFLATE_SHORT_OUTPUT;
 import static io.airlift.compress.v3.deflate.DeflateNative.LIBDEFLATE_SUCCESS;
 import static java.lang.Math.toIntExact;
+import static java.lang.ref.Reference.reachabilityFence;
 
 /**
  * A single decompressor is not safe to use by multiple threads concurrently.
@@ -65,19 +67,25 @@ public class DeflateNativeDecompressor
     public int decompress(MemorySegment input, MemorySegment output)
             throws MalformedInputException
     {
+        MemorySegmentAccess.checkWritable(output);
         return decompress(input, input.byteSize(), output, output.byteSize());
     }
 
     private int decompress(MemorySegment input, long inputLength, MemorySegment output, long outputLength)
             throws MalformedInputException
     {
-        int result = DeflateNative.decompress(decompressor, input, inputLength, output, outputLength, actualOutputLength);
-        return switch (result) {
-            case LIBDEFLATE_SUCCESS -> toIntExact(actualOutputLength.get(ValueLayout.JAVA_LONG, 0));
-            case LIBDEFLATE_BAD_DATA -> throw new MalformedInputException(0, "Invalid or corrupt deflate compressed data");
-            case LIBDEFLATE_INSUFFICIENT_SPACE, LIBDEFLATE_SHORT_OUTPUT -> throw new MalformedInputException(0, "Output buffer too small for decompressed data");
-            default -> throw new MalformedInputException(0, "Unknown decompression error: " + result);
-        };
+        try {
+            int result = DeflateNative.decompress(decompressor, input, inputLength, output, outputLength, actualOutputLength);
+            return switch (result) {
+                case LIBDEFLATE_SUCCESS -> toIntExact(actualOutputLength.get(ValueLayout.JAVA_LONG, 0));
+                case LIBDEFLATE_BAD_DATA -> throw new MalformedInputException(0, "Invalid or corrupt deflate compressed data");
+                case LIBDEFLATE_INSUFFICIENT_SPACE, LIBDEFLATE_SHORT_OUTPUT -> throw new MalformedInputException(0, "Output buffer too small for decompressed data");
+                default -> throw new MalformedInputException(0, "Unknown decompression error: " + result);
+            };
+        }
+        finally {
+            reachabilityFence(this);
+        }
     }
 
     private record DecompressorCleaner(MemorySegment decompressor)

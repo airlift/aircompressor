@@ -63,7 +63,7 @@ public class ZstdStreamBenchmark
     private Implementation implementation;
 
     // bytes per write and per read
-    @Param({"4096", "65536"})
+    @Param({"1", "32", "4096", "65536"})
     private int chunkSize;
 
     private byte[] uncompressed;
@@ -91,8 +91,15 @@ public class ZstdStreamBenchmark
     {
         sink.reset();
         try (OutputStream out = implementation == Implementation.java ? new ZstdJavaOutputStream(sink) : new ZstdNativeOutputStream(sink)) {
-            for (int offset = 0; offset < uncompressed.length; offset += chunkSize) {
-                out.write(uncompressed, offset, min(chunkSize, uncompressed.length - offset));
+            if (chunkSize == 1) {
+                for (byte value : uncompressed) {
+                    out.write(value);
+                }
+            }
+            else {
+                for (int offset = 0; offset < uncompressed.length; offset += chunkSize) {
+                    out.write(uncompressed, offset, min(chunkSize, uncompressed.length - offset));
+                }
             }
         }
         counter.bytes += uncompressed.length;
@@ -105,9 +112,16 @@ public class ZstdStreamBenchmark
     {
         int total = 0;
         try (InputStream in = implementation == Implementation.java ? new ZstdJavaInputStream(new ByteArrayInputStream(compressed)) : new ZstdNativeInputStream(new ByteArrayInputStream(compressed))) {
-            int read;
-            while ((read = in.read(readBuffer)) != -1) {
-                total += read;
+            if (chunkSize == 1) {
+                while (in.read() != -1) {
+                    total++;
+                }
+            }
+            else {
+                int read;
+                while ((read = in.read(readBuffer)) != -1) {
+                    total += read;
+                }
             }
         }
         if (total != uncompressed.length) {

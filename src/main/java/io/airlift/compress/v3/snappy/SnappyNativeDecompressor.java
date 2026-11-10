@@ -14,6 +14,7 @@
 package io.airlift.compress.v3.snappy;
 
 import io.airlift.compress.v3.MalformedInputException;
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
 
 import java.lang.foreign.MemorySegment;
 
@@ -56,6 +57,7 @@ public final class SnappyNativeDecompressor
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return toIntExact(snappyNative.decompress(input, input.byteSize(), output, output.byteSize()));
     }
 }

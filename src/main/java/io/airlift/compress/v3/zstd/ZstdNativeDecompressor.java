@@ -13,6 +13,8 @@
  */
 package io.airlift.compress.v3.zstd;
 
+import io.airlift.compress.v3.internal.MemorySegmentAccess;
+
 import java.lang.foreign.MemorySegment;
 
 import static java.lang.Math.toIntExact;
@@ -44,6 +46,7 @@ public class ZstdNativeDecompressor
     @Override
     public int decompress(MemorySegment input, MemorySegment output)
     {
+        MemorySegmentAccess.checkWritable(output);
         return decompress(input, input.byteSize(), output, output.byteSize());
     }
 
