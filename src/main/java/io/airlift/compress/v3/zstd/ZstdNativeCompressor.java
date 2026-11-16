@@ -22,7 +22,6 @@ public class ZstdNativeCompressor
         implements ZstdCompressor
 {
     private final int compressionLevel;
-    private final ZstdNativeContextCache contexts;
 
     public ZstdNativeCompressor()
     {
@@ -33,7 +32,6 @@ public class ZstdNativeCompressor
     {
         ZstdNative.verifyEnabled();
         this.compressionLevel = compressionLevel;
-        this.contexts = new ZstdNativeContextCache(ZstdNative::createCompressionContext, ZstdNative::freeCompressionContext);
     }
 
     public static boolean isEnabled()
@@ -63,12 +61,12 @@ public class ZstdNativeCompressor
 
     private int compress(MemorySegment input, long inputLength, MemorySegment output, long maxOutputLength)
     {
-        MemorySegment context = contexts.acquire();
+        MemorySegment context = ZstdNativeContextPool.COMPRESSION.acquire();
         try {
             return toIntExact(ZstdNative.compress(context, input, inputLength, output, maxOutputLength, compressionLevel));
         }
         finally {
-            contexts.release(context);
+            ZstdNativeContextPool.COMPRESSION.release(context);
         }
     }
 }

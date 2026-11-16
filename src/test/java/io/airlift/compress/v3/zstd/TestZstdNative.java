@@ -56,6 +56,26 @@ public class TestZstdNative
     }
 
     @Test
+    public void testNativeContextsAreNotRetainedPerInstance()
+    {
+        byte[] data = new byte[64 * 1024];
+        new Random(0).nextBytes(data);
+        byte[] compressed = new byte[getCompressor().maxCompressedLength(data.length)];
+        int compressedLength = getCompressor().compress(data, 0, data.length, compressed, 0, compressed.length);
+        byte[] output = new byte[data.length];
+
+        // contexts are pooled globally, so creating many instances must not grow native memory beyond the pool bound
+        for (int i = 0; i < 1000; i++) {
+            getDecompressor().decompress(compressed, 0, compressedLength, output, 0, output.length);
+            getCompressor().compress(data, 0, data.length, compressed, 0, compressed.length);
+        }
+
+        int bound = Math.max(2, Runtime.getRuntime().availableProcessors());
+        assertThat(ZstdNativeContextPool.DECOMPRESSION.idleCount()).isLessThanOrEqualTo(bound);
+        assertThat(ZstdNativeContextPool.COMPRESSION.idleCount()).isLessThanOrEqualTo(bound);
+    }
+
+    @Test
     public void testConcurrentUseOfSharedInstances()
             throws Exception
     {
