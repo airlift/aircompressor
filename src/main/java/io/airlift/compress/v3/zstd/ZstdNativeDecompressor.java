@@ -31,12 +31,9 @@ public class ZstdNativeDecompressor
 {
     private static final ValueLayout.OfInt INT_LE = JAVA_INT_UNALIGNED.withOrder(LITTLE_ENDIAN);
 
-    private final ZstdNativeContextCache contexts;
-
     public ZstdNativeDecompressor()
     {
         ZstdNative.verifyEnabled();
-        this.contexts = new ZstdNativeContextCache(ZstdNative::createDecompressionContext, ZstdNative::freeDecompressionContext);
     }
 
     public static boolean isEnabled()
@@ -61,13 +58,7 @@ public class ZstdNativeDecompressor
     private int decompress(MemorySegment input, long inputLength, MemorySegment output, long maxOutputLength)
     {
         verifyFrameMagics(input, inputLength);
-        MemorySegment context = contexts.acquire();
-        try {
-            return toIntExact(ZstdNative.decompress(context, input, inputLength, output, maxOutputLength));
-        }
-        finally {
-            contexts.release(context);
-        }
+        return toIntExact(ZstdNative.decompress(input, inputLength, output, maxOutputLength));
     }
 
     @Override
