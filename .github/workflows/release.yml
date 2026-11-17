@@ -37,12 +37,6 @@ jobs:
           git config user.name "Airlift Release"
           git config user.email "airlift-bot@airlift.io"
 
-      - name: Lock branch before release
-        uses: github/lock@v3
-        id: release-lock
-        with:
-          mode: 'lock'
-
       - name: Run mvn release:prepare
         env:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.JRELEASER_GPG_PASSPHRASE }}
@@ -91,11 +85,6 @@ jobs:
           git push origin master
           git push origin --tags
 
-      - name: Unlock branch after a release
-        uses: github/lock@v3
-        id: release-unlock
-        with:
-          mode: 'unlock'
       - name: Create release notes
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
