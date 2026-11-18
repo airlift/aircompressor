@@ -23,7 +23,7 @@ import static java.lang.Math.toIntExact;
 public final class Lz4NativeCompressor
         implements Lz4Compressor
 {
-    private final MemorySegment state = Arena.ofAuto().allocate(Lz4Native.STATE_SIZE);
+    private final MemorySegment state;
     private final int acceleration;
 
     public Lz4NativeCompressor()
@@ -37,6 +37,7 @@ public final class Lz4NativeCompressor
             throw new IllegalArgumentException("LZ4 acceleration should be in the [%d, %d] range but got %d".formatted(DEFAULT_ACCELERATION, MAX_ACCELERATION, acceleration));
         }
         Lz4Native.verifyEnabled();
+        state = Arena.ofAuto().allocate(Lz4Native.STATE_SIZE);
         this.acceleration = acceleration;
     }
 
