@@ -31,8 +31,8 @@ public final class SnappyJavaDecompressor
     @Override
     public int getUncompressedLength(byte[] compressed, int compressedOffset)
     {
-        long compressedAddress = ARRAY_BYTE_BASE_OFFSET + compressedOffset;
-        long compressedLimit = ARRAY_BYTE_BASE_OFFSET + compressed.length;
+        long compressedAddress = (long) ARRAY_BYTE_BASE_OFFSET + compressedOffset;
+        long compressedLimit = (long) ARRAY_BYTE_BASE_OFFSET + compressed.length;
 
         return SnappyRawDecompressor.getUncompressedLength(compressed, compressedAddress, compressedLimit);
     }
@@ -44,9 +44,9 @@ public final class SnappyJavaDecompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
         long inputLimit = inputAddress + inputLength;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
         long outputLimit = outputAddress + maxOutputLength;
 
         return SnappyRawDecompressor.decompress(input, inputAddress, inputLimit, output, outputAddress, outputLimit);
@@ -82,7 +82,7 @@ public final class SnappyJavaDecompressor
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }

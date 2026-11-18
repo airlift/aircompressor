@@ -46,8 +46,8 @@ public class LzoCompressor
         verifyRange(input, inputOffset, inputLength);
         verifyRange(output, outputOffset, maxOutputLength);
 
-        long inputAddress = ARRAY_BYTE_BASE_OFFSET + inputOffset;
-        long outputAddress = ARRAY_BYTE_BASE_OFFSET + outputOffset;
+        long inputAddress = (long) ARRAY_BYTE_BASE_OFFSET + inputOffset;
+        long outputAddress = (long) ARRAY_BYTE_BASE_OFFSET + outputOffset;
 
         return LzoRawCompressor.compress(input, inputAddress, inputLength, output, outputAddress, maxOutputLength, table);
     }
@@ -80,7 +80,7 @@ public class LzoCompressor
     private static void verifyRange(byte[] data, int offset, int length)
     {
         requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
+        if (offset < 0 || length < 0 || offset > data.length - length) {
             throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
         }
     }
