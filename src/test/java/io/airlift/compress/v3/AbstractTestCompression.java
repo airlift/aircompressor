@@ -489,6 +489,30 @@ public abstract class AbstractTestCompression
     }
 
     @Test
+    void testOverflowingRangeBoundsChecks()
+    {
+        if (!isMemorySegmentSupported()) {
+            // these are the stream based adapters, which pass the range on without checking it
+            Assumptions.abort("Array ranges are not checked by stream based adapters");
+        }
+
+        Compressor compressor = getCompressor();
+        Decompressor decompressor = getDecompressor();
+        byte[] input = new byte[64];
+        byte[] output = new byte[64];
+
+        // the offset and the length are valid on their own, but their sum overflows an int
+        assertThatThrownBy(() -> compressor.compress(input, 1, Integer.MAX_VALUE, output, 0, output.length))
+                .isInstanceOfAny(IllegalArgumentException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> compressor.compress(input, 0, input.length, output, 1, Integer.MAX_VALUE))
+                .isInstanceOfAny(IllegalArgumentException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> decompressor.decompress(input, 1, Integer.MAX_VALUE, output, 0, output.length))
+                .isInstanceOfAny(IllegalArgumentException.class, IndexOutOfBoundsException.class);
+        assertThatThrownBy(() -> decompressor.decompress(input, 0, input.length, output, 1, Integer.MAX_VALUE))
+                .isInstanceOfAny(IllegalArgumentException.class, IndexOutOfBoundsException.class);
+    }
+
+    @Test
     void testCompressMemorySegmentHeapToHeap()
     {
         for (DataSet dataSet : testCases) {
