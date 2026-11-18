@@ -18,8 +18,10 @@ import io.airlift.compress.v3.hadoop.HadoopInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import static io.airlift.compress.v3.lz4.Lz4Constants.SIZE_OF_LONG;
+import static java.lang.String.format;
 import static java.util.Objects.checkFromIndexSize;
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +55,7 @@ class Lz4HadoopInputStream
             if (compressedChunkLength < 0) {
                 return -1;
             }
-            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
+            uncompressedChunkLength = decompressChunk(compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         return uncompressedChunk[uncompressedChunkOffset++] & 0xFF;
     }
@@ -75,12 +77,16 @@ class Lz4HadoopInputStream
 
             // favor writing directly to user buffer to avoid extra copy
             if (length >= uncompressedBlockLength) {
-                uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, output, offset, length);
+                uncompressedChunkLength = decompressChunk(compressedChunkLength, output, offset, length);
                 uncompressedChunkOffset = uncompressedChunkLength;
+                // an empty chunk decodes to nothing, so continue with the next one instead of returning zero
+                if (uncompressedChunkLength == 0) {
+                    continue;
+                }
                 return uncompressedChunkLength;
             }
 
-            uncompressedChunkLength = decompressor.decompress(compressed, 0, compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
+            uncompressedChunkLength = decompressChunk(compressedChunkLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         int size = Math.min(length, uncompressedChunkLength - uncompressedChunkOffset);
         System.arraycopy(uncompressedChunk, uncompressedChunkOffset, output, offset, size);
@@ -110,32 +116,62 @@ class Lz4HadoopInputStream
         uncompressedChunkOffset = 0;
         uncompressedChunkLength = 0;
         while (uncompressedBlockLength == 0) {
-            uncompressedBlockLength = readBigEndianInt();
-            if (uncompressedBlockLength == -1) {
-                uncompressedBlockLength = 0;
+            long blockLength = readBigEndianInt();
+            if (blockLength == -1) {
                 return -1;
             }
+            if (blockLength > Integer.MAX_VALUE) {
+                throw new IOException("Invalid uncompressed block length: " + blockLength);
+            }
+            uncompressedBlockLength = (int) blockLength;
         }
 
-        int compressedChunkLength = readBigEndianInt();
-        if (compressedChunkLength == -1) {
-            return -1;
+        long chunkLength = readBigEndianInt();
+        if (chunkLength == -1) {
+            throw new EOFException("encountered EOF while reading compressed chunk length");
         }
-
-        if (compressed.length < compressedChunkLength) {
-            // over allocate buffer which makes decompression easier
-            compressed = new byte[compressedChunkLength + SIZE_OF_LONG];
+        if (chunkLength == 0 || chunkLength > Integer.MAX_VALUE - SIZE_OF_LONG) {
+            throw new IOException("Invalid compressed chunk length: " + chunkLength);
         }
-        readInput(compressedChunkLength, compressed);
+        int compressedChunkLength = (int) chunkLength;
+        // A chunk holds at most the rest of the block, so it cannot be longer than the LZ4 worst case for that
+        // many bytes. This is Lz4RawCompressor.maxCompressedLength, computed in long to avoid overflow.
+        long maxCompressedLength = (long) uncompressedBlockLength + uncompressedBlockLength / 255 + 16;
+        if (compressedChunkLength > maxCompressedLength) {
+            throw new IOException(format(
+                    "Compressed chunk length %s exceeds LZ4 bound %s for remaining block length %s",
+                    compressedChunkLength,
+                    maxCompressedLength,
+                    uncompressedBlockLength));
+        }
+        readInput(compressedChunkLength);
         return compressedChunkLength;
     }
 
-    private void readInput(int length, byte[] buffer)
+    private int decompressChunk(int compressedChunkLength, byte[] output, int offset, int length)
             throws IOException
     {
+        int decodedLength = decompressor.decompress(compressed, 0, compressedChunkLength, output, offset, length);
+        // checked before the length is stored, so a later read cannot return bytes of a rejected chunk
+        if (decodedLength < 0 || decodedLength > uncompressedBlockLength) {
+            throw new IOException(format("Invalid decompressed chunk length %s for remaining block length %s", decodedLength, uncompressedBlockLength));
+        }
+        return decodedLength;
+    }
+
+    private void readInput(int length)
+            throws IOException
+    {
+        // The declared length can be forged, so grow the buffer only as data arrives
+        // instead of allocating the declared length up front
         int offset = 0;
         while (offset < length) {
-            int size = in.read(buffer, offset, length - offset);
+            if (compressed.length - SIZE_OF_LONG <= offset) {
+                int capacity = (int) Math.min((long) length, Math.max(8192L, (long) offset * 2));
+                // over allocate buffer which makes decompression easier
+                compressed = Arrays.copyOf(compressed, capacity + SIZE_OF_LONG);
+            }
+            int size = in.read(compressed, offset, Math.min(length - offset, compressed.length - SIZE_OF_LONG - offset));
             if (size == -1) {
                 throw new EOFException("encountered EOF while reading block data");
             }
@@ -143,7 +179,7 @@ class Lz4HadoopInputStream
         }
     }
 
-    private int readBigEndianInt()
+    private long readBigEndianInt()
             throws IOException
     {
         int b1 = in.read();
@@ -158,6 +194,6 @@ class Lz4HadoopInputStream
         if ((b2 | b3 | b4) < 0) {
             throw new IOException("Stream is truncated");
         }
-        return ((b1 << 24) + (b2 << 16) + (b3 << 8) + (b4));
+        return ((long) b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
     }
 }
