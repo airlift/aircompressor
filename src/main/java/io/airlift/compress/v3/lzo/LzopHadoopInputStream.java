@@ -26,6 +26,7 @@ import java.util.zip.Checksum;
 
 import static io.airlift.compress.v3.lzo.LzoConstants.LZOP_MAGIC;
 import static io.airlift.compress.v3.lzo.LzoConstants.LZO_1X_VARIANT;
+import static io.airlift.compress.v3.lzo.LzoConstants.MAX_BLOCK_SIZE;
 import static io.airlift.compress.v3.lzo.LzoConstants.SIZE_OF_LONG;
 import static java.lang.String.format;
 import static java.util.Objects.checkFromIndexSize;
@@ -34,6 +35,9 @@ import static java.util.Objects.requireNonNull;
 class LzopHadoopInputStream
         extends HadoopInputStream
 {
+    private static final int END_OF_STREAM = -1;
+    private static final int BUFFERED = -2;
+
     private static final int LZO_VERSION_MAX = 0x20A0;
     private static final int LZOP_FILE_VERSION_MIN = 0x0940;
     private static final int LZOP_FORMAT_VERSION_MAX = 0x1010;
@@ -49,12 +53,13 @@ class LzopHadoopInputStream
 
     private final LzoDecompressor decompressor = new LzoDecompressor();
     private final InputStream in;
-    private final byte[] uncompressedChunk;
+    private byte[] uncompressedChunk;
 
     private int uncompressedLength;
     private int uncompressedOffset;
 
     private boolean finished;
+    private boolean failed;
 
     private byte[] compressed = new byte[0];
     private final boolean adler32Decompressed;
@@ -62,12 +67,12 @@ class LzopHadoopInputStream
     private final boolean crc32Decompressed;
     private final boolean crc32Compressed;
 
-    public LzopHadoopInputStream(InputStream in, int maxUncompressedLength)
+    public LzopHadoopInputStream(InputStream in, int bufferSize)
             throws IOException
     {
         this.in = requireNonNull(in, "in is null");
         // over allocate buffer which makes decompression easier
-        uncompressedChunk = new byte[maxUncompressedLength + SIZE_OF_LONG];
+        uncompressedChunk = new byte[bufferSize + SIZE_OF_LONG];
 
         byte[] magic = new byte[LZOP_MAGIC.length];
         readInput(magic, 0, magic.length);
@@ -161,17 +166,10 @@ class LzopHadoopInputStream
     public int read()
             throws IOException
     {
-        if (finished) {
-            return -1;
-        }
-
         while (uncompressedOffset >= uncompressedLength) {
-            int compressedLength = bufferCompressedData();
-            if (finished) {
+            if (readBlock(null, 0, 0) == END_OF_STREAM) {
                 return -1;
             }
-
-            decompress(compressedLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         return uncompressedChunk[uncompressedOffset++] & 0xFF;
     }
@@ -184,24 +182,15 @@ class LzopHadoopInputStream
         if (length == 0) {
             return 0;
         }
-        if (finished) {
-            return -1;
-        }
 
         while (uncompressedOffset >= uncompressedLength) {
-            int compressedLength = bufferCompressedData();
-            if (finished) {
+            int size = readBlock(output, offset, length);
+            if (size == END_OF_STREAM) {
                 return -1;
             }
-
-            // favor writing directly to user buffer to avoid extra copy
-            if (length >= uncompressedLength) {
-                decompress(compressedLength, output, offset, length);
-                uncompressedOffset = uncompressedLength;
-                return uncompressedLength;
+            if (size != BUFFERED) {
+                return size;
             }
-
-            decompress(compressedLength, uncompressedChunk, 0, uncompressedChunk.length);
         }
         int size = Math.min(length, uncompressedLength - uncompressedOffset);
         System.arraycopy(uncompressedChunk, uncompressedOffset, output, offset, size);
@@ -215,6 +204,7 @@ class LzopHadoopInputStream
         uncompressedLength = 0;
         uncompressedOffset = 0;
         finished = false;
+        failed = false;
     }
 
     @Override
@@ -224,15 +214,72 @@ class LzopHadoopInputStream
         in.close();
     }
 
+    // Reads and decodes the next block. Decodes straight into the caller's buffer when it is large enough
+    // and returns the decoded size, otherwise decodes into the chunk buffer and returns BUFFERED.
+    private int readBlock(byte[] output, int outputOffset, int outputLength)
+            throws IOException
+    {
+        if (failed) {
+            throw new IOException("Stream has failed");
+        }
+        if (finished) {
+            return END_OF_STREAM;
+        }
+
+        try {
+            int compressedLength = bufferCompressedData();
+            if (finished) {
+                return END_OF_STREAM;
+            }
+
+            // favor writing directly to user buffer to avoid extra copy
+            if (outputLength >= uncompressedLength) {
+                decompress(compressedLength, output, outputOffset, outputLength);
+                uncompressedOffset = uncompressedLength;
+                return uncompressedLength;
+            }
+
+            ensureChunkCapacity(uncompressedLength);
+            decompress(compressedLength, uncompressedChunk, 0, uncompressedChunk.length);
+            return BUFFERED;
+        }
+        catch (IOException | RuntimeException e) {
+            // the input is left partway through a block, so it cannot be read further
+            failed = true;
+            uncompressedLength = 0;
+            uncompressedOffset = 0;
+            throw e;
+        }
+    }
+
+    private void validateBlockLength(long blockLength)
+            throws IOException
+    {
+        // Lengths above the limit are only accepted when the existing buffer already fits them
+        if (blockLength > Integer.MAX_VALUE || (blockLength > MAX_BLOCK_SIZE && blockLength > uncompressedChunk.length - SIZE_OF_LONG)) {
+            throw new IOException("Invalid uncompressed block length: " + blockLength);
+        }
+    }
+
+    private void ensureChunkCapacity(int blockLength)
+    {
+        // The block header declares the uncompressed size, so do not depend on the configured buffer size
+        if (uncompressedChunk.length < blockLength + SIZE_OF_LONG) {
+            uncompressedChunk = new byte[blockLength + SIZE_OF_LONG];
+        }
+    }
+
     private int bufferCompressedData()
             throws IOException
     {
-        uncompressedOffset = 0;
-        uncompressedLength = readBigEndianInt(in);
-        if (uncompressedLength == -1) {
+        long blockLength = readUnsignedInt(in);
+        if (blockLength == -1) {
             // LZOP file MUST end with uncompressedLength == 0
             throw new EOFException("encountered EOF while reading block data");
         }
+        validateBlockLength(blockLength);
+        uncompressedOffset = 0;
+        uncompressedLength = (int) blockLength;
         if (uncompressedLength == 0) {
             finished = true;
             return -1;
@@ -241,6 +288,9 @@ class LzopHadoopInputStream
         int compressedLength = readBigEndianInt(in);
         if (compressedLength == -1) {
             throw new EOFException("encountered EOF while reading block data");
+        }
+        if (compressedLength < 0 || compressedLength > uncompressedLength) {
+            throw new IOException("Invalid compressed block length: " + compressedLength);
         }
 
         skipChecksums(compressedLength < uncompressedLength);
@@ -316,6 +366,13 @@ class LzopHadoopInputStream
     private static int readBigEndianInt(InputStream in)
             throws IOException
     {
+        return (int) readUnsignedInt(in);
+    }
+
+    // Returns the unsigned value, or -1 only at physical end of stream before the first byte
+    private static long readUnsignedInt(InputStream in)
+            throws IOException
+    {
         int b1 = in.read();
         if (b1 < 0) {
             return -1;
@@ -328,6 +385,6 @@ class LzopHadoopInputStream
         if ((b2 | b3 | b4) < 0) {
             throw new IOException("Stream is truncated");
         }
-        return ((b1 << 24) + (b2 << 16) + (b3 << 8) + (b4));
+        return ((long) b1 << 24) + (b2 << 16) + (b3 << 8) + b4;
     }
 }
