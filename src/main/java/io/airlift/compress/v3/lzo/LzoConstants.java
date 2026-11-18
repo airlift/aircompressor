@@ -22,5 +22,9 @@ final class LzoConstants
     public static final int SIZE_OF_INT = 4;
     public static final int SIZE_OF_LONG = 8;
 
+    // lzop's maximum block size. LZOP streams reject larger declared lengths unless their buffer already fits them,
+    // and LZO streams only use it to cap how far their buffer grows.
+    public static final int MAX_BLOCK_SIZE = 64 * 1024 * 1024;
+
     private LzoConstants() {}
 }

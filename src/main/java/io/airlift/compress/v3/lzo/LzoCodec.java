@@ -31,10 +31,8 @@ public class LzoCodec
 
     static int getBufferSize(Optional<Configuration> configuration)
     {
-        // To decode a LZO block we must preallocate an output buffer, but
-        // the Hadoop block stream format does not include the uncompressed
-        // size of chunks.  Instead, we must rely on the "configured"
-        // maximum buffer size used by the writer of the file.
+        // The configured size is the writer's block size and the reader's initial buffer.
+        // Readers grow the buffer when a file was written with larger blocks.
         return configuration
             .map(conf -> conf.getInt(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_KEY, IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_DEFAULT))
             .orElse(IO_COMPRESSION_CODEC_LZO_BUFFERSIZE_DEFAULT);
